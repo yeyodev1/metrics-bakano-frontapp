@@ -35,10 +35,15 @@ async function handleSubmit(): Promise<void> {
     // Persist token for the request interceptor
     localStorage.setItem('access_token', token)
 
-    // Hydrate the user store
-    userStore.setUser({ id: user._id, name: user.name, email: user.email })
+    // Hydrate the user store (also persists to localStorage)
+    userStore.setUser({ id: user._id, name: user.name, email: user.email, role: user.role })
 
-    router.push({ name: 'Home' })
+    // Role-based redirect
+    if (user.role === 'superadmin') {
+      router.push({ name: 'SuperadminDashboard' })
+    } else {
+      router.push({ name: 'Home' })
+    }
   } catch (err: unknown) {
     const apiError = err as ApiError
     if (apiError.status === 401) {
@@ -297,7 +302,7 @@ function togglePassword(): void {
   }
 
   &__logo {
-    height: 28px;
+    height: 100px;
     width: auto;
     display: block;
     margin-bottom: 0.5rem;
