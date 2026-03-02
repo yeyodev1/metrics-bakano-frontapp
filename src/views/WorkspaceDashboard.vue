@@ -5,6 +5,11 @@ import { workspaceService } from '@/services/workspace.service'
 import { metaService } from '@/services/meta.service'
 import { useUserStore } from '@/stores/user'
 import type { Workspace, ApiError } from '@/types'
+import { Bar } from 'vue-chartjs'
+import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
+import type { ChartOptions, ChartData } from 'chart.js'
+
+ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
 const route = useRoute()
 const router = useRouter()
@@ -85,6 +90,50 @@ function getAdIgSpend(adId: string) {
   const ig = adsSpendByPlatform.value.find(p => p.ad_id === adId && p.publisher_platform === 'instagram')
   return ig ? parseFloat(ig.spend) : 0
 }
+
+// Chart Settings
+const chartOptions = ref<ChartOptions<'bar'>>({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: 'rgba(23, 15, 35, 0.9)',
+      padding: 12,
+      titleFont: { size: 13, family: "'Inter', sans-serif" },
+      bodyFont: { size: 14, weight: 'bold', family: "'Inter', sans-serif" },
+      cornerRadius: 8,
+      displayColors: false,
+    }
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { font: { family: "'Inter', sans-serif", size: 11 }, color: '#6b7280' }
+    },
+    y: {
+      grid: { color: 'rgba(0, 0, 0, 0.05)' },
+      ticks: { font: { family: "'Inter', sans-serif", size: 11 }, color: '#6b7280', callback: (val: any) => '$' + val },
+      beginAtZero: true
+    }
+  }
+})
+
+const chartData = computed<ChartData<'bar'>>(() => {
+  const topAds = [...adsInsights.value].sort((a, b) => parseFloat(b.spend || '0') - parseFloat(a.spend || '0')).slice(0, 5)
+
+  return {
+    labels: topAds.map(ad => ad.ad_name ? (ad.ad_name.length > 20 ? ad.ad_name.substring(0, 20) + '...' : ad.ad_name) : 'Sin nombre'),
+    datasets: [
+      {
+        label: 'Inversión ($)',
+        backgroundColor: '#7C3AED',
+        borderRadius: 6,
+        data: topAds.map(ad => parseFloat(ad.spend || '0'))
+      }
+    ]
+  }
+})
 
 // 3. Methods
 async function fetchAdsInsights() {
@@ -256,6 +305,16 @@ onMounted(() => {
               <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.impressions.toLocaleString() }}</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- GRÁFICO DE RENDIMIENTO -->
+      <section v-if="workspace?.metaAds?.adAccountId && !isLoadingInsights && adsInsights.length" class="workspace-dashboard__chart-section">
+        <div class="workspace-dashboard__chart-header">
+          <h2><i class="fa-solid fa-ranking-star" /> Top 5 Anuncios en Inversión</h2>
+        </div>
+        <div class="workspace-dashboard__chart-container">
+          <Bar :data="chartData" :options="chartOptions" />
         </div>
       </section>
 
@@ -1077,6 +1136,41 @@ onMounted(() => {
     &--ig i {
       color: #E1306C;
     }
+  }
+
+  // ==== CHART SECTION ====
+  &__chart-section {
+    background: $white;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba($primary-dark, 0.03);
+    border: 1px solid rgba($primary-dark, 0.05);
+    padding: 1.5rem 2rem;
+    overflow: hidden;
+  }
+
+  &__chart-header {
+    margin-bottom: 1.5rem;
+
+    h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: $primary-dark;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      i {
+        color: $primary;
+        font-size: 1.1rem;
+      }
+    }
+  }
+
+  &__chart-container {
+    height: 350px;
+    width: 100%;
+    position: relative;
+    padding: 0.5rem 0;
   }
 
   // ==== ADS TABLE SECTION ====
