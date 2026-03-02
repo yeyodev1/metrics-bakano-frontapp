@@ -279,7 +279,7 @@ onMounted(() => {
     <!-- Header -->
     <header class="workspace-settings__header">
       <div class="workspace-settings__context">
-        <button class="workspace-settings__back-btn" @click="router.push(userStore.role === 'superadmin' ? { name: 'SuperadminDashboard' } : { name: 'WorkspaceDashboard', params: { workspaceId } })">
+        <button class="workspace-settings__back-btn" @click="router.push({ name: 'WorkspaceDashboard', params: { workspaceId } })">
           <i class="fa-solid fa-arrow-left" />
         </button>
         <div>
@@ -632,6 +632,14 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 2rem;
+  }
+
+  &__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10rem 0;
+    width: 100%;
   }
 
   &__panel {
