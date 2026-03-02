@@ -26,7 +26,8 @@ class APIBase {
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
+        const requestHadToken = !!error.config?.headers?.['Authorization']
+        if (error.response?.status === 401 && requestHadToken) {
           window.dispatchEvent(new CustomEvent('auth:token-expired'))
         }
         return Promise.reject(error)
