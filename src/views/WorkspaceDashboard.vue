@@ -5,11 +5,11 @@ import { workspaceService } from '@/services/workspace.service'
 import { metaService } from '@/services/meta.service'
 import { useUserStore } from '@/stores/user'
 import type { Workspace, ApiError } from '@/types'
-import { Bar } from 'vue-chartjs'
-import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js'
+import { Line } from 'vue-chartjs'
+import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, CategoryScale, LinearScale, Filler } from 'chart.js'
 import type { ChartOptions, ChartData } from 'chart.js'
 
-ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
+ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, CategoryScale, LinearScale, Filler)
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +25,10 @@ const adsInsights = ref<any[]>([])
 const spendByPlatform = ref<any[]>([])
 const adsSpendByPlatform = ref<any[]>([])
 const isLoadingInsights = ref(false)
+
+const pageInfo = ref<any>(null)
+const recentPosts = ref<any[]>([])
+const isLoadingOrganic = ref(false)
 
 const aggregatedMetrics = computed(() => {
   if (!adsInsights.value.length) return null
@@ -92,19 +96,24 @@ function getAdIgSpend(adId: string) {
 }
 
 // Chart Settings
-const chartOptions = ref<ChartOptions<'bar'>>({
+const chartOptions = ref<ChartOptions<'line'>>({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: 'rgba(23, 15, 35, 0.9)',
+      backgroundColor: 'rgba(23, 15, 35, 0.95)',
       padding: 12,
-      titleFont: { size: 13, family: "'Inter', sans-serif" },
-      bodyFont: { size: 14, weight: 'bold', family: "'Inter', sans-serif" },
+      titleFont: { size: 13, family: "'Inter', sans-serif", weight: 'bold' },
+      bodyFont: { size: 14, family: "'Inter', sans-serif" },
       cornerRadius: 8,
-      displayColors: false,
+      displayColors: true,
+      usePointStyle: true,
     }
+  },
+  interaction: {
+    mode: 'index',
+    intersect: false,
   },
   scales: {
     x: {
@@ -112,23 +121,40 @@ const chartOptions = ref<ChartOptions<'bar'>>({
       ticks: { font: { family: "'Inter', sans-serif", size: 11 }, color: '#6b7280' }
     },
     y: {
-      grid: { color: 'rgba(0, 0, 0, 0.05)' },
+      grid: { color: 'rgba(0, 0, 0, 0.05)', tickLength: 0 },
+      border: { dash: [4, 4], display: false },
       ticks: { font: { family: "'Inter', sans-serif", size: 11 }, color: '#6b7280', callback: (val: any) => '$' + val },
       beginAtZero: true
     }
   }
 })
 
-const chartData = computed<ChartData<'bar'>>(() => {
-  const topAds = [...adsInsights.value].sort((a, b) => parseFloat(b.spend || '0') - parseFloat(a.spend || '0')).slice(0, 5)
+const chartData = computed<ChartData<'line'>>(() => {
+  const topAds = [...adsInsights.value].sort((a, b) => parseFloat(b.spend || '0') - parseFloat(a.spend || '0')).slice(0, 8)
 
   return {
     labels: topAds.map(ad => ad.ad_name ? (ad.ad_name.length > 20 ? ad.ad_name.substring(0, 20) + '...' : ad.ad_name) : 'Sin nombre'),
     datasets: [
       {
         label: 'Inversión ($)',
-        backgroundColor: '#7C3AED',
-        borderRadius: 6,
+        borderColor: '#7C3AED',
+        backgroundColor: function (context: any): any {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return undefined;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(124, 58, 237, 0.5)'); // purple
+          gradient.addColorStop(1, 'rgba(124, 58, 237, 0.0)');
+          return gradient;
+        },
+        borderWidth: 3,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#7C3AED',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.4, // Curva suave (spline) estilo metricool
         data: topAds.map(ad => parseFloat(ad.spend || '0'))
       }
     ]
@@ -151,6 +177,20 @@ async function fetchAdsInsights() {
   }
 }
 
+async function fetchOrganicInsights() {
+  if (!workspace.value?.metaAds?.pageId) return;
+  isLoadingOrganic.value = true
+  try {
+    const data = await metaService.getOrganicInsights(workspaceId)
+    pageInfo.value = data.pageInfo
+    recentPosts.value = data.recentPosts || []
+  } catch (err) {
+    console.error('Error fetching organic insights:', err)
+  } finally {
+    isLoadingOrganic.value = false
+  }
+}
+
 async function fetchWorkspace() {
   isLoading.value = true
   error.value = ''
@@ -159,6 +199,9 @@ async function fetchWorkspace() {
     workspace.value = data
     if (data.metaAds?.adAccountId) {
       void fetchAdsInsights()
+    }
+    if (data.metaAds?.pageId) {
+      void fetchOrganicInsights()
     }
   } catch (err: unknown) {
     const e = err as ApiError
@@ -195,7 +238,7 @@ onMounted(() => {
           <i class="fa-solid fa-gear" />
           <span class="workspace-dashboard__nav-text">Ajustes</span>
         </button>  
-        <button class="workspace-dashboard__back-btn" @click="router.push({ name: 'SuperadminDashboard' })">
+        <button v-if="userStore.role === 'superadmin'" class="workspace-dashboard__back-btn" @click="router.push({ name: 'SuperadminDashboard' })">
           <i class="fa-solid fa-arrow-left" />
           <span class="workspace-dashboard__nav-text">Volver a Global</span>
         </button>
@@ -311,10 +354,10 @@ onMounted(() => {
       <!-- GRÁFICO DE RENDIMIENTO -->
       <section v-if="workspace?.metaAds?.adAccountId && !isLoadingInsights && adsInsights.length" class="workspace-dashboard__chart-section">
         <div class="workspace-dashboard__chart-header">
-          <h2><i class="fa-solid fa-ranking-star" /> Top 5 Anuncios en Inversión</h2>
+          <h2><i class="fa-solid fa-ranking-star" /> Tendencia de Inversión por Anuncio (Top 8)</h2>
         </div>
         <div class="workspace-dashboard__chart-container">
-          <Bar :data="chartData" :options="chartOptions" />
+          <Line :data="chartData" :options="chartOptions" />
         </div>
       </section>
 
@@ -387,8 +430,97 @@ onMounted(() => {
         </div>
       </section>
 
+      <!-- DASHBOARD ORGÁNICO -->
+      <section v-if="workspace?.metaAds?.pageId" class="workspace-dashboard__organic-section">
+        <div class="workspace-dashboard__metrics-header">
+          <h2><i class="fa-solid fa-users" /> Resumen de Comunidad Orgánica</h2>
+        </div>
+
+        <div v-if="isLoadingOrganic" class="workspace-dashboard__metrics-loading">
+          <div class="workspace-dashboard__spinner workspace-dashboard__spinner--lg" />
+          <p>Obteniendo métricas orgánicas desde la Fan Page...</p>
+        </div>
+
+        <div v-else-if="pageInfo" class="workspace-dashboard__kpi-grid">
+          <!-- KPI: Fans -->
+          <div class="workspace-dashboard__kpi-card">
+            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--impressions">
+              <i class="fa-solid fa-thumbs-up" />
+            </div>
+            <div class="workspace-dashboard__kpi-data">
+              <span class="workspace-dashboard__kpi-label">Me gustas de la Página</span>
+              <span class="workspace-dashboard__kpi-value">{{ parseInt(pageInfo.fan_count || 0).toLocaleString() }}</span>
+            </div>
+          </div>
+          
+          <!-- KPI: Followers -->
+          <div class="workspace-dashboard__kpi-card">
+            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--clicks">
+              <i class="fa-solid fa-users" />
+            </div>
+            <div class="workspace-dashboard__kpi-data">
+              <span class="workspace-dashboard__kpi-label">Seguidores</span>
+              <span class="workspace-dashboard__kpi-value">{{ parseInt(pageInfo.followers_count || 0).toLocaleString() }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TABLA DE PUBLICACIONES RECIENTES -->
+      <section v-if="workspace?.metaAds?.pageId && !isLoadingOrganic && recentPosts.length" class="workspace-dashboard__ads-list-section workspace-dashboard__ads-list-section--organic">
+        <div class="workspace-dashboard__ads-header">
+          <h2><i class="fa-regular fa-image" /> Últimas 5 Publicaciones Orgánicas</h2>
+        </div>
+        
+        <div class="workspace-dashboard__table-container">
+          <table class="workspace-dashboard__ads-table">
+            <thead>
+              <tr>
+                <th>Publicación</th>
+                <th>Fecha</th>
+                <th>Likes</th>
+                <th>Comentarios</th>
+                <th>Compartidos</th>
+                <th>Ver Post</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="post in recentPosts" :key="post.id" class="workspace-dashboard__ad-row">
+                <td>
+                  <div class="workspace-dashboard__post-identity">
+                    <img v-if="post.full_picture" :src="post.full_picture" class="workspace-dashboard__post-img" alt="Post img"/>
+                    <div v-else class="workspace-dashboard__post-img-placeholder"><i class="fa-solid fa-file-lines" /></div>
+                    <div class="workspace-dashboard__post-text">
+                       <span class="workspace-dashboard__post-msg">{{ post.message ? (post.message.length > 50 ? post.message.substring(0, 50) + '...' : post.message) : 'Sin texto / Solo elemento visual' }}</span>
+                       <span class="workspace-dashboard__ad-id">ID: {{ post.id }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  {{ new Date(post.created_time).toLocaleDateString() }}
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <span class="workspace-dashboard__badge--roas success"><i class="fa-solid fa-heart"/> {{ post.likes?.summary?.total_count || 0 }}</span>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <strong><i class="fa-solid fa-comment"/> {{ post.comments?.summary?.total_count || 0 }}</strong>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <strong><i class="fa-solid fa-share"/> {{ post.shares?.count || 0 }}</strong>
+                </td>
+                <td>
+                  <a v-if="post.permalink_url" :href="post.permalink_url" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook">
+                    <i class="fa-solid fa-arrow-up-right-from-square" />
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Pantalla Vacía si no hay Integraciones -->
-      <section v-else class="workspace-dashboard__empty-setup">
+      <section v-if="!workspace?.metaAds?.pageId" class="workspace-dashboard__empty-setup">
         <div class="workspace-dashboard__setup-illustration">
           <i class="fa-solid fa-chart-line" />
         </div>
@@ -1394,6 +1526,58 @@ onMounted(() => {
       font-size: 2rem;
       opacity: 0.5;
     }
+  }
+
+  // ==== ORGANIC SECTION ====
+  &__organic-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    padding-top: 2rem;
+    border-top: 1px dashed rgba($primary-dark, 0.1);
+  }
+
+  &__post-identity {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  &__post-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: rgba($primary-dark, 0.05);
+    flex-shrink: 0;
+  }
+
+  &__post-img-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: rgba($primary-dark, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba($primary-dark, 0.3);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  &__post-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  &__post-msg {
+    font-size: 0.9rem;
+    color: $primary-dark;
+    font-weight: 600;
+    white-space: wrap;
   }
 }
 

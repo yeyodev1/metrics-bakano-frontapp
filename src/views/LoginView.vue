@@ -36,11 +36,19 @@ async function handleSubmit(): Promise<void> {
     localStorage.setItem('access_token', token)
 
     // Hydrate the user store (also persists to localStorage)
-    userStore.setUser({ id: user._id, name: user.name, email: user.email, role: user.role })
+    userStore.setUser({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      workspaceId: user.workspaceId
+    })
 
     // Role-based redirect
     if (user.role === 'superadmin') {
       router.push({ name: 'SuperadminDashboard' })
+    } else if (user.workspaceId) {
+      router.push({ name: 'WorkspaceDashboard', params: { workspaceId: user.workspaceId } })
     } else {
       router.push({ name: 'Home' })
     }

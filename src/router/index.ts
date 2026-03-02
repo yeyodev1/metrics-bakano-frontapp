@@ -73,6 +73,23 @@ router.beforeEach((to, _from, next) => {
     return next({ name: 'Login', replace: true })
   }
 
+  // Already authenticated trying to access public routes
+  if (hasToken && (to.name === 'Login' || to.name === 'Home' || to.path === '/')) {
+    try {
+      const [, payloadSegment] = token.split('.')
+      if (payloadSegment) {
+        const payload = JSON.parse(atob(payloadSegment)) as { role?: string; workspaceId?: string }
+        if (payload.role === 'superadmin') {
+          return next({ name: 'SuperadminDashboard' })
+        } else if (payload.workspaceId) {
+          return next({ name: 'WorkspaceDashboard', params: { workspaceId: payload.workspaceId } })
+        }
+      }
+    } catch {
+      // silent catch
+    }
+  }
+
   // Role guard: decode role from JWT payload (without external lib)
   const requiresRole = to.meta?.requiresRole as string | undefined
   if (requiresRole && hasToken && token) {

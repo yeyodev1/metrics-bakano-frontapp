@@ -15,6 +15,7 @@ export interface AuthUser {
   name?: string
   email: string
   role: 'superadmin' | 'admin' | 'colaborador'
+  workspaceId?: string
 }
 
 export interface LoginResponse {
@@ -37,6 +38,7 @@ export interface Workspace {
   isActive: boolean
   metaAds?: {
     accessToken: string
+    pageAccessToken?: string
     pageId: string
     pageName: string
     adAccountId?: string

@@ -30,6 +30,7 @@ class MetaService extends APIBase {
     pageId: string;
     pageName: string;
     accessToken: string;
+    pageAccessToken: string;
     adAccountId?: string;
     adAccountName?: string;
   }) {
@@ -51,6 +52,14 @@ class MetaService extends APIBase {
   async getAdsInsights(workspaceId: string, adAccountId?: string) {
     const query = adAccountId ? `?adAccountId=${adAccountId}` : ''
     const response = await this.get<any>(`meta/${workspaceId}/ads-insights${query}`)
+    return response.data
+  }
+
+  /**
+   * Obtiene métricas orgánicas y los últimos posts de la página
+   */
+  async getOrganicInsights(workspaceId: string) {
+    const response = await this.get<any>(`meta/${workspaceId}/organic-insights`)
     return response.data
   }
 }

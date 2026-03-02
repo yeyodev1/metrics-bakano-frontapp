@@ -5,6 +5,7 @@ export interface UserState {
   name: string | null
   email: string | null
   role: string | null
+  workspaceId: string | null
   isAuthenticated: boolean
 }
 
@@ -14,6 +15,7 @@ export const useUserStore = defineStore('user', {
     name: null,
     email: null,
     role: null,
+    workspaceId: null,
     isAuthenticated: false,
   }),
 
@@ -28,14 +30,16 @@ export const useUserStore = defineStore('user', {
       this.email = localStorage.getItem('user_email')
       this.role = localStorage.getItem('user_role')
       this.name = localStorage.getItem('user_name')
+      this.workspaceId = localStorage.getItem('user_workspaceId')
     },
 
-    setUser(payload: { id?: string; name?: string; email?: string; role?: string }) {
+    setUser(payload: { id?: string; name?: string; email?: string; role?: string; workspaceId?: string }) {
       try {
         if (payload.id !== undefined) { this.id = payload.id; localStorage.setItem('user_id', payload.id) }
         if (payload.email !== undefined) { this.email = payload.email; localStorage.setItem('user_email', payload.email) }
         if (payload.role !== undefined) { this.role = payload.role; localStorage.setItem('user_role', payload.role) }
         if (payload.name !== undefined) { this.name = payload.name; localStorage.setItem('user_name', payload.name) }
+        if (payload.workspaceId !== undefined) { this.workspaceId = payload.workspaceId; localStorage.setItem('user_workspaceId', payload.workspaceId) }
       } catch { /* localStorage unavailable */ }
       this.isAuthenticated = true
     },
@@ -45,6 +49,7 @@ export const useUserStore = defineStore('user', {
       this.name = null
       this.email = null
       this.role = null
+      this.workspaceId = null
       this.isAuthenticated = false
       try {
         localStorage.removeItem('access_token')
@@ -52,6 +57,7 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('user_email')
         localStorage.removeItem('user_role')
         localStorage.removeItem('user_name')
+        localStorage.removeItem('user_workspaceId')
       } catch { /* localStorage unavailable */ }
     },
   },
