@@ -1,12 +1,16 @@
 // Brand colors - customize per project
-$primary: #2094D2;
-$primary-dark: #010D27;
-$primary-light: #fefefe;
-$secondary: #2BBB92;
+$primary: #e6285c;
+$primary-dark: #191423;
+$primary-light: #f5f3ef;
+$secondary: #85529c;
 
-$white: #fefefe;
-$text-light: #fefefe;
+$white: #ffffff;
+$text-light: #f5f5f5;
 $text-secondary: #6b7280;
+$overlay-purple: rgba($secondary, 0.1);
+
+// Extended brand palette
+$BAKANO-GREEN: #3bb77e;
 
 // Alert colors
 $alert-warning: #f59e0b;
