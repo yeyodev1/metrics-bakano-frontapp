@@ -33,6 +33,12 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/SuperadminDashboard.vue'),
         meta: { title: 'Entornos de trabajo', requiresAuth: true, requiresRole: 'superadmin' },
       },
+      {
+        path: 'workspaces/:workspaceId',
+        name: 'WorkspaceDashboard',
+        component: () => import('../views/WorkspaceDashboard.vue'),
+        meta: { title: 'Dashboard del Espacio de Trabajo', requiresAuth: true },
+      },
     ],
   },
 

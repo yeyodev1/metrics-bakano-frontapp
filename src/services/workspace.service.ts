@@ -2,9 +2,10 @@ import APIBase from './httpBase'
 import type {
   WorkspaceListResponse,
   WorkspaceResponse,
-  CreateAdminPayload,
-  AdminResponse,
-  AdminListResponse,
+  CreateUserPayload,
+  UpdateUserPayload,
+  UserResponse,
+  UserListResponse,
 } from '@/types'
 
 class WorkspaceService extends APIBase {
@@ -25,16 +26,29 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
-  // ── Admins ──────────────────────────────────────────────
+  // ── Users within a workspace ─────────────────────────────
 
-  async createAdmin(workspaceId: string, payload: CreateAdminPayload): Promise<AdminResponse> {
-    const res = await this.post<AdminResponse>(`workspaces/${workspaceId}/admins`, payload)
+  async listUsers(workspaceId: string): Promise<UserListResponse> {
+    const res = await this.get<UserListResponse>(`workspaces/${workspaceId}/users`)
     return res.data
   }
 
-  async listAdmins(workspaceId: string): Promise<AdminListResponse> {
-    const res = await this.get<AdminListResponse>(`workspaces/${workspaceId}/admins`)
+  async createUser(workspaceId: string, payload: CreateUserPayload): Promise<UserResponse> {
+    const res = await this.post<UserResponse>(`workspaces/${workspaceId}/users`, payload)
     return res.data
+  }
+
+  async updateUser(
+    workspaceId: string,
+    userId: string,
+    payload: UpdateUserPayload,
+  ): Promise<UserResponse> {
+    const res = await this.put<UserResponse>(`workspaces/${workspaceId}/users/${userId}`, payload)
+    return res.data
+  }
+
+  async deleteUser(workspaceId: string, userId: string): Promise<void> {
+    await this.delete(`workspaces/${workspaceId}/users/${userId}`)
   }
 }
 

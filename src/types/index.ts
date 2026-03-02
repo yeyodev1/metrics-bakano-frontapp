@@ -12,7 +12,7 @@ export interface LoginPayload {
 
 export interface AuthUser {
   _id: string
-  name: string
+  name?: string
   email: string
   role: 'superadmin' | 'admin' | 'colaborador'
 }
@@ -29,6 +29,7 @@ export interface Workspace {
   name: string
   adminId?: {
     _id: string
+    name?: string
     email: string
     role: string
     isActive: boolean
@@ -48,28 +49,38 @@ export interface WorkspaceListResponse {
   workspaces: Workspace[]
 }
 
-// ── Admin types ───────────────────────────────────────────
-export interface WorkspaceAdmin {
+// ── User types ───────────────────────────────────────────
+export interface WorkspaceUser {
   _id: string
+  name?: string
   email: string
-  role: 'admin'
+  role: 'admin' | 'colaborador'
   workspaceId: string
   isActive: boolean
   createdAt: string
 }
 
-export interface CreateAdminPayload {
+export interface CreateUserPayload {
+  name?: string
   email: string
   password: string
+  role: 'admin' | 'colaborador'
 }
 
-export interface AdminResponse {
-  message: string
-  admin: WorkspaceAdmin
+export interface UpdateUserPayload {
+  name?: string
+  email?: string
+  password?: string
 }
 
-export interface AdminListResponse {
+export interface UserResponse {
   message: string
-  admins: WorkspaceAdmin[]
+  user: WorkspaceUser
 }
+
+export interface UserListResponse {
+  message: string
+  users: WorkspaceUser[]
+}
+
 
