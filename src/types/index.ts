@@ -35,6 +35,14 @@ export interface Workspace {
     isActive: boolean
   } | null
   isActive: boolean
+  metaAds?: {
+    accessToken: string
+    pageId: string
+    pageName: string
+    adAccountId?: string
+    adAccountName?: string
+    lastSyncedAt: string
+  }
   createdAt: string
   updatedAt: string
 }
