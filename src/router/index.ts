@@ -1,11 +1,24 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 const routes: Array<RouteRecordRaw> = [
+  // Public layout — unauthenticated routes
   {
     path: '/',
-    name: 'Home',
-    component: () => import('../views/HomeView.vue'),
-    meta: { title: 'Home' },
+    component: () => import('../layout/PublicLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'Home',
+        component: () => import('../views/HomeView.vue'),
+        meta: { title: 'Home' },
+      },
+      {
+        path: 'login',
+        name: 'Login',
+        component: () => import('../views/LoginView.vue'),
+        meta: { title: 'Iniciar Sesión' },
+      },
+    ],
   },
 ]
 
@@ -22,11 +35,11 @@ router.beforeEach((to, _from, next) => {
   const requiresAuth = to.matched.some((record) => record.meta?.requiresAuth)
 
   if (requiresAuth && !hasToken) {
-    return next({ path: '/login', replace: true })
+    return next({ name: 'Login', replace: true })
   }
 
-  if (to.path === '/login' && hasToken) {
-    return next({ path: '/', replace: true })
+  if (to.name === 'Login' && hasToken) {
+    return next({ name: 'Home', replace: true })
   }
 
   next()
