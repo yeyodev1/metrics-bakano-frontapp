@@ -34,14 +34,12 @@ router.beforeEach((to, _from, next) => {
   const hasToken = !!localStorage.getItem('access_token')
   const requiresAuth = to.matched.some((record) => record.meta?.requiresAuth)
 
+  // Only block protected routes when the user is NOT authenticated
   if (requiresAuth && !hasToken) {
     return next({ name: 'Login', replace: true })
   }
 
-  if (to.name === 'Login' && hasToken) {
-    return next({ name: 'Home', replace: true })
-  }
-
+  // Allow all public routes freely (including /login regardless of token state)
   next()
 })
 
