@@ -29,7 +29,10 @@ function goToLogin(): void {
           type="button"
           @click="goToLogin"
         >
-          Iniciar sesión
+          <span class="public-header__cta-label">Iniciar sesión</span>
+          <svg class="public-header__cta-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
         </button>
       </nav>
     </div>
@@ -83,38 +86,74 @@ function goToLogin(): void {
   }
 
   &__cta {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 1.25rem;
-    border-radius: 6px;
-    border: 1.5px solid $primary;
-    background-color: transparent;
-    color: $primary;
+    gap: 0.5rem;
+    padding: 0.55rem 1.35rem;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, $primary 0%, darken($primary, 8%) 100%);
+    color: $white;
     font-family: $font-principal;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.02em;
     cursor: pointer;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba($primary, 0.35);
     transition:
-      background-color 0.2s ease,
-      color 0.2s ease,
-      transform 0.15s ease;
+      box-shadow 0.25s ease,
+      transform 0.18s ease;
+
+    // Shimmer layer
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg,
+          transparent 40%,
+          rgba($white, 0.18) 50%,
+          transparent 60%);
+      transform: translateX(-100%);
+      transition: transform 0.55s ease;
+    }
 
     &:hover {
-      background-color: $primary;
-      color: $white;
-      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba($primary, 0.5);
+      transform: translateY(-2px);
+
+      &::before {
+        transform: translateX(100%);
+      }
+
+      .public-header__cta-icon {
+        transform: translateX(3px);
+      }
     }
 
     &:active {
       transform: translateY(0);
+      box-shadow: 0 2px 8px rgba($primary, 0.35);
     }
 
     @media (min-width: 768px) {
-      padding: 0.5rem 1.5rem;
-      font-size: 0.95rem;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.9rem;
     }
+  }
+
+  &__cta-label {
+    position: relative;
+    z-index: 1;
+  }
+
+  &__cta-icon {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
   }
 }
 </style>
