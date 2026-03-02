@@ -17,6 +17,8 @@ const error = ref('')
 
 // 2. Metrics & Insight state
 const adsInsights = ref<any[]>([])
+const spendByPlatform = ref<any[]>([])
+const adsSpendByPlatform = ref<any[]>([])
 const isLoadingInsights = ref(false)
 
 const aggregatedMetrics = computed(() => {
@@ -37,6 +39,53 @@ const aggregatedMetrics = computed(() => {
   return { spend, clicks, impressions, cpc }
 })
 
+const fbSpend = computed(() => {
+  if (!spendByPlatform.value.length) return 0
+  const fb = spendByPlatform.value.find(p => p.publisher_platform === 'facebook')
+  return fb ? parseFloat(fb.spend) : 0
+})
+
+const igSpend = computed(() => {
+  if (!spendByPlatform.value.length) return 0
+  const ig = spendByPlatform.value.find(p => p.publisher_platform === 'instagram')
+  return ig ? parseFloat(ig.spend) : 0
+})
+
+const totalPlatformSpend = computed(() => fbSpend.value + igSpend.value)
+const fbSpendPercent = computed(() => totalPlatformSpend.value ? (fbSpend.value / totalPlatformSpend.value) * 100 : 0)
+const igSpendPercent = computed(() => totalPlatformSpend.value ? (igSpend.value / totalPlatformSpend.value) * 100 : 0)
+
+// Metrics Helpers
+function getPurchaseROAS(ad: any) {
+  if (!ad.purchase_roas) return '0.00'
+  const roas = ad.purchase_roas.find((r: any) => r.action_type === 'omni_purchase') || ad.purchase_roas[0]
+  return roas ? parseFloat(roas.value).toFixed(2) : '0.00'
+}
+
+function getCPA(ad: any) {
+  if (!ad.cost_per_action_type) return '0.00'
+  const cpa = ad.cost_per_action_type.find((c: any) => c.action_type === 'omni_purchase') || ad.cost_per_action_type[0]
+  return cpa ? parseFloat(cpa.value).toFixed(2) : '0.00'
+}
+
+function getPurchases(ad: any) {
+  if (!ad.actions) return '0'
+  const purchases = ad.actions.find((a: any) => a.action_type === 'omni_purchase' || a.action_type.includes('purchase'))
+  return purchases ? purchases.value : '0'
+}
+
+function getAdFbSpend(adId: string) {
+  if (!adsSpendByPlatform.value.length) return 0
+  const fb = adsSpendByPlatform.value.find(p => p.ad_id === adId && p.publisher_platform === 'facebook')
+  return fb ? parseFloat(fb.spend) : 0
+}
+
+function getAdIgSpend(adId: string) {
+  if (!adsSpendByPlatform.value.length) return 0
+  const ig = adsSpendByPlatform.value.find(p => p.ad_id === adId && p.publisher_platform === 'instagram')
+  return ig ? parseFloat(ig.spend) : 0
+}
+
 // 3. Methods
 async function fetchAdsInsights() {
   if (!workspace.value?.metaAds?.adAccountId) return;
@@ -44,6 +93,8 @@ async function fetchAdsInsights() {
   try {
     const data = await metaService.getAdsInsights(workspaceId)
     adsInsights.value = data.insights || []
+    spendByPlatform.value = data.spendByPlatform || []
+    adsSpendByPlatform.value = data.adsSpendByPlatform || []
   } catch (err) {
     console.error('Error fetching insights:', err)
   } finally {
@@ -144,13 +195,32 @@ onMounted(() => {
 
         <div v-else class="workspace-dashboard__kpi-grid">
           <!-- KPI: Inversión -->
-          <div class="workspace-dashboard__kpi-card">
-            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--spend">
-              <i class="fa-solid fa-money-bill-trend-up" />
+          <div class="workspace-dashboard__kpi-card" :class="{ 'workspace-dashboard__kpi-card--spend-detailed': totalPlatformSpend > 0 }">
+            <div class="workspace-dashboard__kpi-main-info">
+              <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--spend">
+                <i class="fa-solid fa-money-bill-trend-up" />
+              </div>
+              <div class="workspace-dashboard__kpi-data">
+                <span class="workspace-dashboard__kpi-label">Inversión Total</span>
+                <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.spend.toFixed(2) }}</span>
+              </div>
             </div>
-            <div class="workspace-dashboard__kpi-data">
-              <span class="workspace-dashboard__kpi-label">Inversión (Spend)</span>
-              <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.spend.toFixed(2) }}</span>
+
+            <div v-if="totalPlatformSpend > 0" class="workspace-dashboard__kpi-platform-split">
+              <div class="workspace-dashboard__split-bar">
+                <div class="workspace-dashboard__split-segment workspace-dashboard__split-segment--fb" :style="{ width: fbSpendPercent + '%' }"></div>
+                <div class="workspace-dashboard__split-segment workspace-dashboard__split-segment--ig" :style="{ width: igSpendPercent + '%' }"></div>
+              </div>
+              <div class="workspace-dashboard__split-labels">
+                <span v-if="fbSpend > 0" class="workspace-dashboard__split-label workspace-dashboard__split-label--fb">
+                  <i class="fa-brands fa-facebook" /> ${{ fbSpend.toFixed(2) }}
+                  <small>({{ Math.round(fbSpendPercent) }}%)</small>
+                </span>
+                <span v-if="igSpend > 0" class="workspace-dashboard__split-label workspace-dashboard__split-label--ig">
+                  <i class="fa-brands fa-instagram" /> ${{ igSpend.toFixed(2) }}
+                  <small>({{ Math.round(igSpendPercent) }}%)</small>
+                </span>
+              </div>
             </div>
           </div>
           
@@ -186,6 +256,75 @@ onMounted(() => {
               <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.impressions.toLocaleString() }}</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- TABLA DETALLADA DE ANUNCIOS -->
+      <section v-if="workspace?.metaAds?.adAccountId && !isLoadingInsights && adsInsights.length" class="workspace-dashboard__ads-list-section">
+        <div class="workspace-dashboard__ads-header">
+          <h2><i class="fa-solid fa-list-ul" /> Desglose por Anuncio</h2>
+        </div>
+        
+        <div class="workspace-dashboard__table-container">
+          <table class="workspace-dashboard__ads-table">
+            <thead>
+              <tr>
+                <th>Campaña & Anuncio</th>
+                <th>Inversión</th>
+                <th>Compras</th>
+                <th>CPA</th>
+                <th>ROAS</th>
+                <th>Clics / CPC</th>
+                <th>Impresiones</th>
+                <th>Ver</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="ad in adsInsights" :key="ad.ad_id" class="workspace-dashboard__ad-row">
+                <td>
+                  <div class="workspace-dashboard__ad-identity">
+                    <span class="workspace-dashboard__ad-campaign"><i class="fa-solid fa-folder-open" /> {{ ad.campaign_name || 'Desconocida' }}</span>
+                    <strong class="workspace-dashboard__ad-name">{{ ad.ad_name || 'Anuncio sin nombre' }}</strong>
+                    <span class="workspace-dashboard__ad-id">ID: {{ ad.ad_id }}</span>
+                  </div>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <div class="workspace-dashboard__ad-spend">
+                    <strong>${{ parseFloat(ad.spend || 0).toFixed(2) }}</strong>
+                    <div v-if="getAdFbSpend(ad.ad_id) || getAdIgSpend(ad.ad_id)" class="workspace-dashboard__ad-spend-breakdown">
+                      <span v-if="getAdFbSpend(ad.ad_id)"><i class="fa-brands fa-facebook"></i> ${{ getAdFbSpend(ad.ad_id).toFixed(2) }}</span>
+                      <span v-if="getAdIgSpend(ad.ad_id)"><i class="fa-brands fa-instagram"></i> ${{ getAdIgSpend(ad.ad_id).toFixed(2) }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <span class="workspace-dashboard__badge--purchases">{{ getPurchases(ad) }}</span>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <strong>${{ getCPA(ad) }}</strong>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <span class="workspace-dashboard__badge--roas" :class="{ 'warning': parseFloat(getPurchaseROAS(ad)) < 2, 'success': parseFloat(getPurchaseROAS(ad)) >= 2 }">
+                    {{ getPurchaseROAS(ad) }}x
+                  </span>
+                </td>
+                <td>
+                  <div class="workspace-dashboard__ad-clics-info">
+                    <strong>{{ parseInt(ad.clicks || 0).toLocaleString() }}</strong> clics
+                    <span class="workspace-dashboard__small-cpc">(${{ parseFloat(ad.cpc || 0).toFixed(2) }})</span>
+                  </div>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  {{ parseInt(ad.impressions || 0).toLocaleString() }}
+                </td>
+                <td>
+                  <a :href="`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${workspace?.metaAds?.adAccountId?.replace('act_', '')}&selected_ad_ids=${ad.ad_id}`" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook Ad Manager">
+                    <i class="fa-solid fa-arrow-up-right-from-square" />
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -819,6 +958,19 @@ onMounted(() => {
       transform: translateY(-3px);
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04);
     }
+
+    &--spend-detailed {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 1.2rem;
+    }
+  }
+
+  &__kpi-main-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
   }
 
   &__kpi-icon {
@@ -867,6 +1019,268 @@ onMounted(() => {
     font-size: 1.4rem;
     font-weight: 800;
     color: $primary-dark;
+  }
+
+  &__kpi-platform-split {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding-top: 1rem;
+    border-top: 1px dashed rgba($primary-dark, 0.1);
+  }
+
+  &__split-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba($primary-dark, 0.05);
+    display: flex;
+    overflow: hidden;
+  }
+
+  &__split-segment {
+    transition: width 0.4s ease;
+
+    &--fb {
+      background: #1877F2;
+    }
+
+    &--ig {
+      background: #E1306C;
+    }
+  }
+
+  &__split-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+  }
+
+  &__split-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: $primary-dark;
+    font-weight: 700;
+
+    small {
+      opacity: 0.6;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+
+    &--fb i {
+      color: #1877F2;
+    }
+
+    &--ig i {
+      color: #E1306C;
+    }
+  }
+
+  // ==== ADS TABLE SECTION ====
+  &__ads-list-section {
+    background: $white;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba($primary-dark, 0.03);
+    border: 1px solid rgba($primary-dark, 0.05);
+    overflow: hidden;
+  }
+
+  &__ads-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+    background: #fafafa;
+
+    h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: $primary-dark;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      i {
+        color: $primary;
+        font-size: 1.1rem;
+      }
+    }
+  }
+
+  &__table-container {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  &__ads-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+
+    th,
+    td {
+      padding: 1.2rem 1.5rem;
+      text-align: left;
+      border-bottom: 1px solid rgba($primary-dark, 0.04);
+    }
+
+    th {
+      font-weight: 600;
+      color: $text-secondary;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: $white;
+    }
+
+    tbody tr {
+      transition: background 0.15s;
+
+      &:hover {
+        background: #fcfcfc;
+      }
+
+      &:last-child td {
+        border-bottom: none;
+      }
+    }
+  }
+
+  &__ad-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  &__ad-campaign {
+    font-size: 0.8rem;
+    color: $text-secondary;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    i {
+      opacity: 0.6;
+    }
+  }
+
+  &__ad-name {
+    font-size: 1rem;
+    color: $primary-dark;
+    line-height: 1.3;
+  }
+
+  &__ad-id {
+    font-size: 0.75rem;
+    color: rgba($text-secondary, 0.6);
+    font-family: monospace;
+  }
+
+  &__ad-numeric {
+    white-space: nowrap;
+    color: $primary-dark;
+
+    strong {
+      font-size: 1.05rem;
+    }
+  }
+
+  &__ad-spend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  &__ad-spend-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.75rem;
+
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: rgba($primary-dark, 0.04);
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+      color: $text-secondary;
+
+      .fa-facebook {
+        color: #1877F2;
+      }
+
+      .fa-instagram {
+        color: #E1306C;
+      }
+    }
+  }
+
+  &__badge--roas,
+  &__badge--purchases {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+
+  &__badge--roas {
+    background: rgba($primary, 0.1);
+    color: $primary;
+
+    &.success {
+      background: rgba(39, 174, 96, 0.15);
+      color: #27ae60;
+    }
+
+    &.warning {
+      background: rgba(235, 87, 87, 0.15);
+      color: #eb5757;
+    }
+  }
+
+  &__badge--purchases {
+    background: rgba($secondary, 0.15);
+    color: darken(#f1c40f, 20%);
+  }
+
+  &__ad-clics-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    color: $text-secondary;
+
+    strong {
+      color: $primary-dark;
+    }
+  }
+
+  &__small-cpc {
+    font-size: 0.8rem;
+    opacity: 0.8;
+  }
+
+  &__ad-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
+    color: $text-secondary;
+    border: 1px solid rgba($primary-dark, 0.1);
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(#1877f2, 0.1);
+      color: #1877f2;
+      border-color: rgba(#1877f2, 0.3);
+      transform: translateY(-2px);
+    }
   }
 
   &__metrics-loading,
