@@ -39,6 +39,12 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/WorkspaceDashboard.vue'),
         meta: { title: 'Dashboard del Espacio de Trabajo', requiresAuth: true },
       },
+      {
+        path: 'workspaces/:workspaceId/settings',
+        name: 'WorkspaceSettings',
+        component: () => import('../views/settings/WorkspaceSettings.vue'),
+        meta: { title: 'Configuración del Espacio de Trabajo', requiresAuth: true },
+      },
     ],
   },
 

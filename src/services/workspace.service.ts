@@ -26,6 +26,11 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
+  async updateWorkspace(workspaceId: string, name: string): Promise<WorkspaceResponse> {
+    const res = await this.put<WorkspaceResponse>(`workspaces/${workspaceId}`, { name })
+    return res.data
+  }
+
   // ── Users within a workspace ─────────────────────────────
 
   async listUsers(workspaceId: string): Promise<UserListResponse> {

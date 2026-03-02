@@ -36,6 +36,23 @@ class MetaService extends APIBase {
     const response = await this.post<any>('meta/save-integration', data)
     return response.data
   }
+
+  /**
+   * Obtiene la lista de cuentas publicitarias vinculadas al usuario
+   */
+  async listAdAccounts(workspaceId: string) {
+    const response = await this.get<any>(`meta/${workspaceId}/adaccounts`)
+    return response.data
+  }
+
+  /**
+   * Obtiene las métricas en modo solo lectura de todas las campañas
+   */
+  async getAdsInsights(workspaceId: string, adAccountId?: string) {
+    const query = adAccountId ? `?adAccountId=${adAccountId}` : ''
+    const response = await this.get<any>(`meta/${workspaceId}/ads-insights${query}`)
+    return response.data
+  }
 }
 
 export const metaService = new MetaService()

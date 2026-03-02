@@ -161,7 +161,9 @@ export function useMetaAds() {
         workspaceId,
         pageId: page.id,
         pageName: page.name,
-        accessToken: page.access_token
+        // CRÍTICO: Guardamos el User Access Token (longToken) en vez del Page Access Token
+        // ya que solo el token de usuario tiene permisos para leer AdAccounts y campañas.
+        accessToken: longToken.value || page.access_token
       })
       authStep.value = 'done'
     } catch (err: any) {

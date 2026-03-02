@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
-import { useMetaAds } from '@/composables/useMetaAds'
+import { metaService } from '@/services/meta.service'
 import { useUserStore } from '@/stores/user'
 import type { Workspace, ApiError } from '@/types'
 
@@ -15,16 +15,41 @@ const workspace = ref<Workspace | null>(null)
 const isLoading = ref(true)
 const error = ref('')
 
-// Meta Ads Composable
-const {
-  isLoggingIn,
-  error: metaError,
-  authStep,
-  availablePages,
-  initSDK,
-  loginWithMeta,
-  selectPageAndSave
-} = useMetaAds()
+// 2. Metrics & Insight state
+const adsInsights = ref<any[]>([])
+const isLoadingInsights = ref(false)
+
+const aggregatedMetrics = computed(() => {
+  if (!adsInsights.value.length) return null
+
+  let spend = 0
+  let clicks = 0
+  let impressions = 0
+
+  adsInsights.value.forEach(ad => {
+    spend += parseFloat(ad.spend || '0')
+    clicks += parseInt(ad.clicks || '0', 10)
+    impressions += parseInt(ad.impressions || '0', 10)
+  })
+
+  const cpc = clicks > 0 ? (spend / clicks) : 0
+
+  return { spend, clicks, impressions, cpc }
+})
+
+// 3. Methods
+async function fetchAdsInsights() {
+  if (!workspace.value?.metaAds?.adAccountId) return;
+  isLoadingInsights.value = true
+  try {
+    const data = await metaService.getAdsInsights(workspaceId)
+    adsInsights.value = data.insights || []
+  } catch (err) {
+    console.error('Error fetching insights:', err)
+  } finally {
+    isLoadingInsights.value = false
+  }
+}
 
 async function fetchWorkspace() {
   isLoading.value = true
@@ -32,6 +57,9 @@ async function fetchWorkspace() {
   try {
     const { workspace: data } = await workspaceService.getWorkspace(workspaceId)
     workspace.value = data
+    if (data.metaAds?.adAccountId) {
+      void fetchAdsInsights()
+    }
   } catch (err: unknown) {
     const e = err as ApiError
     error.value = e.message || 'Error al cargar el entorno.'
@@ -40,26 +68,8 @@ async function fetchWorkspace() {
   }
 }
 
-async function handleConnectMeta() {
-  try {
-    await loginWithMeta()
-  } catch (err) {
-    console.error('Meta connection failed:', err)
-  }
-}
-
-async function handlePageSelection(page: any) {
-  try {
-    await selectPageAndSave(workspaceId, page)
-    await fetchWorkspace() // Refresh view
-  } catch (err) {
-    console.error('Page selection failed:', err)
-  }
-}
-
 onMounted(() => {
   fetchWorkspace()
-  initSDK()
 })
 </script>
 
@@ -80,10 +90,16 @@ onMounted(() => {
         </div>
       </div>
 
-      <button class="workspace-dashboard__back-btn" @click="router.push({ name: 'SuperadminDashboard' })">
-        <i class="fa-solid fa-arrow-left" />
-        Volver a Global
-      </button>
+      <div class="workspace-dashboard__nav-actions">
+        <button class="workspace-dashboard__btn-ghost" @click="router.push({ name: 'WorkspaceSettings', params: { workspaceId } })" title="Configurar Entorno">
+          <i class="fa-solid fa-gear" />
+          <span class="workspace-dashboard__nav-text">Ajustes</span>
+        </button>  
+        <button class="workspace-dashboard__back-btn" @click="router.push({ name: 'SuperadminDashboard' })">
+          <i class="fa-solid fa-arrow-left" />
+          <span class="workspace-dashboard__nav-text">Volver a Global</span>
+        </button>
+      </div>
     </header>
 
     <div v-if="isLoading" class="workspace-dashboard__loading">
@@ -109,106 +125,83 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- Connection Grid -->
-      <div class="workspace-dashboard__grid">
-        <!-- Meta Card -->
-        <div class="workspace-dashboard__card" :class="{ 'workspace-dashboard__card--connected': workspace?.metaAds }">
-          <div class="workspace-dashboard__card-header">
-            <div class="workspace-dashboard__icon-meta">
-              <i class="fa-brands fa-facebook" />
+      <!-- DASHBOARD DE MÉTRICAS (SOLO SI TIENE C/P) -->
+      <section v-if="workspace?.metaAds?.adAccountId" class="workspace-dashboard__metrics-section">
+        <div class="workspace-dashboard__metrics-header">
+          <h2><i class="fa-solid fa-chart-pie" /> Rendimiento de Campañas</h2>
+          <span class="workspace-dashboard__dates-tag">Últimos 30 días</span>
+        </div>
+
+        <div v-if="isLoadingInsights" class="workspace-dashboard__metrics-loading">
+          <div class="workspace-dashboard__spinner workspace-dashboard__spinner--lg" />
+          <p>Obteniendo métricas en tiempo real desde Meta...</p>
+        </div>
+
+        <div v-else-if="!aggregatedMetrics" class="workspace-dashboard__metrics-empty">
+          <i class="fa-solid fa-chart-column" />
+          <p>No se encontraron datos de campañas gastando en los últimos 30 días.</p>
+        </div>
+
+        <div v-else class="workspace-dashboard__kpi-grid">
+          <!-- KPI: Inversión -->
+          <div class="workspace-dashboard__kpi-card">
+            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--spend">
+              <i class="fa-solid fa-money-bill-trend-up" />
             </div>
-            <div class="workspace-dashboard__card-titles">
-              <h3>Facebook & Instagram Ads</h3>
-              <span v-if="workspace?.metaAds" class="workspace-dashboard__status-tag">Conectado</span>
+            <div class="workspace-dashboard__kpi-data">
+              <span class="workspace-dashboard__kpi-label">Inversión (Spend)</span>
+              <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.spend.toFixed(2) }}</span>
             </div>
           </div>
-
-          <template v-if="workspace?.metaAds">
-            <div class="workspace-dashboard__connected-info">
-              <div class="workspace-dashboard__info-item">
-                <i class="fa-solid fa-file-invoice" />
-                <span>Página: <strong>{{ workspace.metaAds.pageName }}</strong></span>
-              </div>
-              <div v-if="workspace.metaAds.adAccountName" class="workspace-dashboard__info-item">
-                <i class="fa-solid fa-rectangle-ad" />
-                <span>Cuenta: <strong>{{ workspace.metaAds.adAccountName }}</strong></span>
-              </div>
-            </div>
-            <button class="workspace-dashboard__btn-outline" @click="handleConnectMeta">
-              <i class="fa-solid fa-rotate" />
-              Recalibrar conexión
-            </button>
-          </template>
-
-          <template v-else>
-            <p>Conecta tu Business Manager para empezar a optimizar tu ROAS.</p>
-            <button 
-              class="workspace-dashboard__btn-meta" 
-              :disabled="isLoggingIn"
-              @click="handleConnectMeta"
-            >
-              <template v-if="isLoggingIn">
-                <span class="workspace-dashboard__spinner workspace-dashboard__spinner--sm" />
-                Conectando...
-              </template>
-              <template v-else>
-                <i class="fa-solid fa-link" />
-                Conectar Meta Ads
-              </template>
-            </button>
-          </template>
           
-          <p v-if="metaError" class="workspace-dashboard__error-msg">{{ metaError }}</p>
-        </div>
-
-        <div class="workspace-dashboard__card workspace-dashboard__card--disabled">
-          <div class="workspace-dashboard__card-header">
-            <div class="workspace-dashboard__icon-google">
-              <i class="fa-brands fa-google" />
+          <!-- KPI: Clicks -->
+          <div class="workspace-dashboard__kpi-card">
+            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--clicks">
+              <i class="fa-solid fa-hand-pointer" />
             </div>
-            <h3>Google Ads</h3>
+            <div class="workspace-dashboard__kpi-data">
+              <span class="workspace-dashboard__kpi-label">Clics Totales</span>
+              <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.clicks.toLocaleString() }}</span>
+            </div>
           </div>
-          <p>Próximamente: Integración directa con Google Ads Search y Display.</p>
-          <button disabled>Próximamente</button>
+
+          <!-- KPI: CPC -->
+          <div class="workspace-dashboard__kpi-card">
+            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--cpc">
+              <i class="fa-solid fa-bullseye" />
+            </div>
+            <div class="workspace-dashboard__kpi-data">
+              <span class="workspace-dashboard__kpi-label">Costo por Clic (CPC)</span>
+              <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.cpc.toFixed(2) }}</span>
+            </div>
+          </div>
+
+          <!-- KPI: Impresiones -->
+          <div class="workspace-dashboard__kpi-card">
+            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--impressions">
+              <i class="fa-solid fa-eye" />
+            </div>
+            <div class="workspace-dashboard__kpi-data">
+              <span class="workspace-dashboard__kpi-label">Impresiones</span>
+              <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.impressions.toLocaleString() }}</span>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <!-- Pantalla Vacía si no hay Integraciones -->
+      <section v-else class="workspace-dashboard__empty-setup">
+        <div class="workspace-dashboard__setup-illustration">
+          <i class="fa-solid fa-chart-line" />
+        </div>
+        <h3>No hay fuentes de datos conectadas</h3>
+        <p>Para visualizar tus métricas y KPIs, primero debes conectar Meta Ads en la configuración de tu entorno.</p>
+        <button class="workspace-dashboard__btn-primary-lg" @click="router.push({ name: 'WorkspaceSettings', params: { workspaceId } })">
+          <i class="fa-solid fa-gear" /> Ir a Configuración
+        </button>
+      </section>
+
     </main>
-
-    <!-- Modal: Meta Page Picker -->
-    <Transition name="modal">
-      <div v-if="authStep === 'pick_page'" class="workspace-dashboard__overlay">
-        <div class="workspace-dashboard__modal">
-          <div class="workspace-dashboard__modal-header">
-            <h3>Selecciona tu Página</h3>
-            <p>Elige la página que deseas vincular a este entorno.</p>
-          </div>
-          
-          <div class="workspace-dashboard__page-list">
-            <div 
-              v-for="page in availablePages" 
-              :key="page.id" 
-              class="workspace-dashboard__page-item"
-              @click="handlePageSelection(page)"
-            >
-              <div class="workspace-dashboard__page-icon">
-                <i class="fa-solid fa-building" />
-              </div>
-              <div class="workspace-dashboard__page-info">
-                <span class="workspace-dashboard__page-name">{{ page.name }}</span>
-                <span class="workspace-dashboard__page-id">ID: {{ page.id }}</span>
-              </div>
-              <i class="fa-solid fa-chevron-right" />
-            </div>
-          </div>
-
-          <div v-if="availablePages.length === 0" class="workspace-dashboard__empty-pages">
-            <i class="fa-solid fa-face-frown" />
-            <p>No encontramos páginas asociadas a tu cuenta de Facebook.</p>
-            <button class="workspace-dashboard__btn-ghost" @click="authStep = 'idle'">Cerrar</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
   </div>
 </template>
 
@@ -228,6 +221,18 @@ onMounted(() => {
     align-items: center;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid rgba($primary-dark, 0.08);
+  }
+
+  &__nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  &__nav-text {
+    @media (max-width: 600px) {
+      display: none;
+    }
   }
 
   &__context {
@@ -292,10 +297,83 @@ onMounted(() => {
     }
   }
 
+  &__btn-ghost {
+    background: transparent;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: $primary-dark;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba($primary-dark, 0.05);
+    }
+  }
+
   &__content {
     display: flex;
     flex-direction: column;
     gap: 2rem;
+  }
+
+  &__empty-setup {
+    background: $white;
+    padding: 4rem 2rem;
+    border-radius: 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    color: $text-secondary;
+    border: 1px dashed rgba($primary-dark, 0.15);
+
+    h3 {
+      color: $primary-dark;
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    p {
+      max-width: 400px;
+      margin: 0 0 1rem;
+    }
+  }
+
+  &__btn-primary-lg {
+    background: $primary;
+    color: $white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+
+  &__setup-illustration {
+    width: 80px;
+    height: 80px;
+    background: rgba($primary, 0.1);
+    color: $primary;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
   }
 
   &__welcome-card {
@@ -510,11 +588,45 @@ onMounted(() => {
     gap: 0.5rem;
     color: $text-secondary;
     transition: all 0.2s;
+    flex: 1;
 
     &:hover {
       background: rgba($primary, 0.05);
       border-color: $primary;
       color: $primary;
+    }
+  }
+
+  &__btn-ghost {
+    background: transparent;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: $text-secondary;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba($primary-dark, 0.05);
+      color: $primary-dark;
+    }
+  }
+
+  &__actions-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 0.5rem;
+
+    .workspace-dashboard__btn-meta {
+      flex: 1;
     }
   }
 
@@ -633,6 +745,146 @@ onMounted(() => {
     i {
       font-size: 2.5rem;
       opacity: 0.2;
+    }
+  }
+
+  &__modal-footer {
+    padding: 1rem 2rem;
+    background: rgba($primary-dark, 0.02);
+    border-top: 1px solid rgba($primary-dark, 0.05);
+    display: flex;
+    justify-content: flex-end;
+
+    button {
+      padding: 0.5rem 1rem;
+    }
+  }
+
+  // ── Metrics Dashboard ────────────────────────────────
+  &__metrics-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px dashed rgba($primary-dark, 0.1);
+  }
+
+  &__metrics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      color: $primary-dark;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      i {
+        color: $primary;
+      }
+    }
+  }
+
+  &__dates-tag {
+    font-size: 0.8rem;
+    background: rgba($primary, 0.1);
+    color: $primary;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 700;
+  }
+
+  &__kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+  }
+
+  &__kpi-card {
+    background: $white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba($primary-dark, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04);
+    }
+  }
+
+  &__kpi-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+
+    &--spend {
+      background: rgba($BAKANO-GREEN, 0.1);
+      color: $BAKANO-GREEN;
+    }
+
+    &--clicks {
+      background: rgba(#1877f2, 0.1);
+      color: #1877f2;
+    }
+
+    &--cpc {
+      background: rgba($alert-warning, 0.1);
+      color: $alert-warning;
+    }
+
+    &--impressions {
+      background: rgba($primary, 0.1);
+      color: $primary;
+    }
+  }
+
+  &__kpi-data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__kpi-label {
+    font-size: 0.85rem;
+    color: $text-secondary;
+    font-weight: 500;
+  }
+
+  &__kpi-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: $primary-dark;
+  }
+
+  &__metrics-loading,
+  &__metrics-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: $white;
+    border-radius: 12px;
+    border: 1px dashed rgba($primary-dark, 0.1);
+    color: $text-secondary;
+    gap: 1rem;
+
+    i {
+      font-size: 2rem;
+      opacity: 0.5;
     }
   }
 }
