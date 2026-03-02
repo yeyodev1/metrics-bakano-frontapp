@@ -6,7 +6,7 @@ class APIBase {
   private axiosInstance = axios.create()
 
   constructor() {
-    const raw = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8100/api'
+    const raw = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8101/api'
     const trimmed = raw.replace(/\/+$/, '')
     this.baseUrl = trimmed.endsWith('/api') || /\/api\//.test(trimmed)
       ? trimmed
