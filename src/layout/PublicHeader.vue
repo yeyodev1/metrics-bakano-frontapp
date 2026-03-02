@@ -1,18 +1,12 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import logoLight from '@/assets/logos/bakano-dark.png'
-
-const router = useRouter()
-
-function goToLogin(): void {
-  router.push({ name: 'Login' })
-}
 </script>
 
 <template>
   <header class="public-header">
     <div class="public-header__inner">
-      <a class="public-header__brand" href="/" aria-label="Bakano Home">
+      <!-- Brand: RouterLink evita el hard-reload del <a href> nativo -->
+      <RouterLink class="public-header__brand" to="/" aria-label="Bakano Home">
         <img
           :src="logoLight"
           alt="Bakano"
@@ -20,20 +14,17 @@ function goToLogin(): void {
           width="140"
           height="36"
         />
-      </a>
+      </RouterLink>
 
       <nav class="public-header__nav" aria-label="Navegación principal">
-        <button
+        <RouterLink
           id="btn-login"
           class="public-header__cta"
-          type="button"
-          @click="goToLogin"
+          to="/login"
         >
           <span class="public-header__cta-label">Iniciar sesión</span>
-          <svg class="public-header__cta-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        </button>
+          <i class="fa-solid fa-arrow-right public-header__cta-icon" aria-hidden="true" />
+        </RouterLink>
       </nav>
     </div>
   </header>
