@@ -20,8 +20,9 @@ export function useMetaAds() {
   /**
    * IMPORTANT: Reduced scopes to avoid "Invalid Scopes" if the app is not yet a verified Business App.
    * Eliminamos 'ads_management' porque la aplicación solo requiere LECTURA de métricas ('ads_read').
+   * Añadimos 'instagram_basic' para habilitar la lectura de posts orgánicos en el Dashboard.
    */
-  const REQUIRED_SCOPES = 'pages_show_list,pages_read_engagement,ads_read,business_management'
+  const REQUIRED_SCOPES = 'pages_show_list,pages_read_engagement,instagram_basic,ads_read,business_management'
 
   /**
    * statusChangeCallback (As requested from documentation)

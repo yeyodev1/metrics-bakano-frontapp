@@ -10,7 +10,6 @@ import { Chart as ChartJS, Title, Tooltip, Legend, PointElement, LineElement, Ca
 import type { ChartOptions, ChartData } from 'chart.js'
 
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, CategoryScale, LinearScale, Filler)
-
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
@@ -29,6 +28,7 @@ const isLoadingInsights = ref(false)
 const pageInfo = ref<any>(null)
 const igInfo = ref<any>(null)
 const recentPosts = ref<any[]>([])
+const recentPostsIg = ref<any[]>([])
 const isLoadingOrganic = ref(false)
 
 const aggregatedMetrics = computed(() => {
@@ -162,68 +162,7 @@ const chartData = computed<ChartData<'line'>>(() => {
   }
 })
 
-// Organic Followers Chart Settings
-const organicChartOptions = ref<ChartOptions<'line'>>({
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: true, position: 'top', labels: { font: { family: "'Inter', sans-serif" }, usePointStyle: true, boxWidth: 8 } },
-    tooltip: {
-      backgroundColor: 'rgba(23, 15, 35, 0.95)',
-      padding: 12,
-      cornerRadius: 8,
-    }
-  },
-  interaction: { mode: 'index', intersect: false },
-  scales: {
-    x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif" } } },
-    y: { beginAtZero: false, border: { display: false }, grid: { color: 'rgba(0,0,0,0.05)' } }
-  }
-})
 
-function generateGrowthMock(currentFollowers: number) {
-  const result = [];
-  let val = currentFollowers;
-  for (let i = 0; i < 7; i++) {
-    result.unshift(Math.floor(val));
-    val -= (val * (Math.random() * 0.005 + 0.001)); // Retrocede de 0.1% a 0.6% diario
-  }
-  return result;
-}
-
-const organicChartData = computed<ChartData<'line'>>(() => {
-  const labels = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
-  }
-
-  const fbFollowers = parseInt(pageInfo.value?.followers_count || '0');
-  const igFollowers = parseInt(igInfo.value?.followers_count || '0');
-
-  return {
-    labels,
-    datasets: [
-      {
-        label: 'Facebook',
-        borderColor: '#1877F2',
-        backgroundColor: 'rgba(24, 119, 242, 0.1)',
-        fill: true,
-        tension: 0.4,
-        data: fbFollowers > 0 ? generateGrowthMock(fbFollowers) : Array(7).fill(0)
-      },
-      {
-        label: 'Instagram',
-        borderColor: '#E4405F',
-        backgroundColor: 'rgba(228, 64, 95, 0.1)',
-        fill: true,
-        tension: 0.4,
-        data: igFollowers > 0 ? generateGrowthMock(igFollowers) : Array(7).fill(0)
-      }
-    ]
-  }
-})
 
 // 3. Methods
 async function fetchAdsInsights() {
@@ -249,6 +188,7 @@ async function fetchOrganicInsights() {
     pageInfo.value = data.pageInfo
     igInfo.value = data.igInfo
     recentPosts.value = data.recentPosts || []
+    recentPostsIg.value = data.recentPostsIg || []
   } catch (err) {
     console.error('Error fetching organic insights:', err)
   } finally {
@@ -531,20 +471,10 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- GRÁFICO HISTÓRICO ORGÁNICO -->
-      <section v-if="workspace?.metaAds?.pageId && !isLoadingOrganic && (pageInfo || igInfo)" class="workspace-dashboard__chart-section">
-        <div class="workspace-dashboard__chart-header">
-          <h2><i class="fa-solid fa-chart-line" /> Crecimiento de Seguidores (7 días)</h2>
-        </div>
-        <div class="workspace-dashboard__chart-container">
-          <Line :data="organicChartData" :options="organicChartOptions" />
-        </div>
-      </section>
-
-      <!-- TABLA DE PUBLICACIONES RECIENTES -->
+      <!-- TABLA DE PUBLICACIONES RECIENTES FACEBOOK -->
       <section v-if="workspace?.metaAds?.pageId && !isLoadingOrganic && recentPosts.length" class="workspace-dashboard__ads-list-section workspace-dashboard__ads-list-section--organic">
         <div class="workspace-dashboard__ads-header">
-          <h2><i class="fa-regular fa-image" /> Últimas 5 Publicaciones Orgánicas</h2>
+          <h2><i class="fa-brands fa-facebook" style="color: #1877F2;"/> Últimas 5 Publicaciones Facebook</h2>
         </div>
         
         <div class="workspace-dashboard__table-container">
@@ -577,6 +507,52 @@ onMounted(() => {
                 </td>
                 <td>
                   <a v-if="post.permalink_url" :href="post.permalink_url" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook">
+                    <i class="fa-solid fa-arrow-up-right-from-square" />
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <!-- TABLA DE PUBLICACIONES RECIENTES INSTAGRAM -->
+      <section v-if="workspace?.metaAds?.pageId && !isLoadingOrganic && recentPostsIg.length" class="workspace-dashboard__ads-list-section workspace-dashboard__ads-list-section--organic">
+        <div class="workspace-dashboard__ads-header">
+          <h2><i class="fa-brands fa-instagram" style="color: #E4405F;"/> Últimas 5 Publicaciones Instagram</h2>
+        </div>
+        
+        <div class="workspace-dashboard__table-container">
+          <table class="workspace-dashboard__ads-table">
+            <thead>
+              <tr>
+                <th>Publicación</th>
+                <th>Fecha</th>
+                <th>Me gusta / Comentarios</th>
+                <th>Ver Post</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="post in recentPostsIg" :key="post.id" class="workspace-dashboard__ad-row">
+                <td>
+                  <div class="workspace-dashboard__post-identity">
+                    <img v-if="post.media_url" :src="post.media_url" class="workspace-dashboard__post-img" alt="Post img"/>
+                    <div v-else class="workspace-dashboard__post-img-placeholder"><i class="fa-solid fa-file-lines" /></div>
+                    <div class="workspace-dashboard__post-text">
+                       <span class="workspace-dashboard__post-msg">{{ post.caption ? (post.caption.length > 50 ? post.caption.substring(0, 50) + '...' : post.caption) : 'Sin texto' }}</span>
+                       <span class="workspace-dashboard__ad-id">ID: {{ post.id }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  {{ new Date(post.timestamp).toLocaleDateString() }}
+                </td>
+                <td class="workspace-dashboard__ad-numeric">
+                  <strong><i class="fa-solid fa-heart" style="color: #E4405F; margin-right: 4px;"/> {{ post.like_count || 0 }}</strong>
+                  <span style="opacity: 0.5; margin: 0 8px;">|</span>
+                  <strong><i class="fa-solid fa-comment" style="color: #3b82f6; margin-right: 4px;"/> {{ post.comments_count || 0 }}</strong>
+                </td>
+                <td>
+                  <a v-if="post.permalink" :href="post.permalink" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Instagram">
                     <i class="fa-solid fa-arrow-up-right-from-square" />
                   </a>
                 </td>
