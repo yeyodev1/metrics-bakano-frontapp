@@ -21,7 +21,7 @@ export function useMetaAds() {
    * IMPORTANT: Reduced scopes to avoid "Invalid Scopes" if the app is not yet a verified Business App.
    * Eliminamos 'ads_management' porque la aplicación solo requiere LECTURA de métricas ('ads_read').
    */
-  const REQUIRED_SCOPES = 'pages_show_list,pages_read_engagement,ads_read,business_management'
+  const REQUIRED_SCOPES = 'pages_show_list,pages_read_engagement,ads_read,business_management,pages_manage_engagement'
 
   /**
    * statusChangeCallback (As requested from documentation)
@@ -125,7 +125,7 @@ export function useMetaAds() {
       // @ts-ignore
       FB.login((response) => {
         statusChangeCallback(response)
-      }, { scope: REQUIRED_SCOPES })
+      }, { scope: REQUIRED_SCOPES, auth_type: 'rerequest' })
 
     } catch (err: any) {
       isLoggingIn.value = false

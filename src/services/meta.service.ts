@@ -30,7 +30,7 @@ class MetaService extends APIBase {
     pageId: string;
     pageName: string;
     accessToken: string;
-    pageAccessToken: string;
+    pageAccessToken?: string;
     adAccountId?: string;
     adAccountName?: string;
   }) {

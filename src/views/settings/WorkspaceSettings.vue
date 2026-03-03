@@ -166,7 +166,7 @@ async function handleAdAccountSelection(account: any) {
       pageId: workspace.value.metaAds.pageId,
       pageName: workspace.value.metaAds.pageName,
       accessToken: workspace.value.metaAds.accessToken,
-      pageAccessToken: workspace.value.metaAds.pageAccessToken || workspace.value.metaAds.accessToken,
+      pageAccessToken: workspace.value.metaAds.pageAccessToken, // Send existing or undefined to not overwrite 
       adAccountId: account.account_id,
       adAccountName: account.name
     })
