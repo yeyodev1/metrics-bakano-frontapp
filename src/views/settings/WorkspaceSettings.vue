@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
 import { metaService } from '@/services/meta.service'
@@ -11,6 +11,11 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const workspaceId = route.params.workspaceId as string
+
+// Permissions logic
+const canManageWorkspace = computed(() => {
+  return userStore.role === 'admin' || userStore.role === 'superadmin'
+})
 
 // Workspace state
 const workspace = ref<Workspace | null>(null)
@@ -322,7 +327,7 @@ onMounted(() => {
               />
               <span v-else class="workspace-settings__ro-value">{{ workspace?.name }}</span>
               
-              <div class="workspace-settings__field-actions">
+              <div v-if="canManageWorkspace" class="workspace-settings__field-actions">
                 <template v-if="isEditingName">
                   <button class="workspace-settings__btn-icon workspace-settings__btn-icon--success" @click="saveWorkspaceName" :disabled="isSavingName"><i class="fa-solid fa-check" /></button>
                   <button class="workspace-settings__btn-icon workspace-settings__btn-icon--danger" @click="cancelEditName" :disabled="isSavingName"><i class="fa-solid fa-xmark" /></button>
@@ -357,7 +362,7 @@ onMounted(() => {
               </div>
             </div>
             
-            <div class="workspace-settings__integration-right">
+            <div v-if="canManageWorkspace" class="workspace-settings__integration-right">
               <template v-if="workspace?.metaAds">
                 <button v-if="!workspace.metaAds.adAccountId" class="workspace-settings__btn-primary" @click="fetchAdAccounts">
                   Elegir Cuenta Ads
@@ -372,6 +377,11 @@ onMounted(() => {
               <button v-else class="workspace-settings__btn-primary" @click="handleConnectMeta" :disabled="isLoggingIn">
                 {{ isLoggingIn ? 'Conectando...' : 'Conectar' }}
               </button>
+            </div>
+            <div v-else class="workspace-settings__integration-right">
+              <span class="workspace-settings__pill workspace-settings__pill--restricted">
+                <i class="fa-solid fa-lock" /> Solo lectura
+              </span>
             </div>
           </div>
           <p v-if="metaError" class="workspace-settings__error-text">{{ metaError }}</p>
@@ -399,9 +409,10 @@ onMounted(() => {
         <div class="workspace-settings__panel-header">
           <div>
             <h2><i class="fa-solid fa-users" /> Equipo de Trabajo</h2>
-            <p class="workspace-settings__panel-sub">{{ users.length }} usuarios tienen acceso a los datos de este entorno.</p>
+            <p v-if="canManageWorkspace" class="workspace-settings__panel-sub">{{ users.length }} usuarios tienen acceso a los datos de este entorno.</p>
+            <p v-else class="workspace-settings__panel-sub"><i class="fa-solid fa-lock" /> No tienes permisos para gestionar el equipo. Contacta a un administrador.</p>
           </div>
-          <button class="workspace-settings__btn-primary" @click="openCreateUser">
+          <button v-if="canManageWorkspace" class="workspace-settings__btn-primary" @click="openCreateUser">
             <i class="fa-solid fa-user-plus" /> Invitar Usuario
           </button>
         </div>
@@ -418,7 +429,7 @@ onMounted(() => {
               <tr>
                 <th>Usuario</th>
                 <th>Rol</th>
-                <th>Acciones</th>
+                <th v-if="canManageWorkspace">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -437,7 +448,7 @@ onMounted(() => {
                     {{ user.role }}
                   </span>
                 </td>
-                <td>
+                <td v-if="canManageWorkspace">
                   <div class="workspace-settings__table-actions">
                     <button class="workspace-settings__btn-icon" @click="openEditUser(user)">
                       <i class="fa-solid fa-pen" />
@@ -814,6 +825,13 @@ onMounted(() => {
     border-radius: 6px;
     font-size: 0.8rem;
     font-weight: 600;
+
+    &--restricted {
+      background: rgba($text-secondary, 0.05);
+      color: $text-secondary;
+      border: 1px solid rgba($text-secondary, 0.2);
+      padding: 0.4rem 0.8rem;
+    }
   }
 
   &__integration-right {
