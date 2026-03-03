@@ -16,6 +16,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    allowedHosts: ["testing-storybrand-frontend.bakano.ec"],
+  },
   build: {
     target: 'esnext',
   },
