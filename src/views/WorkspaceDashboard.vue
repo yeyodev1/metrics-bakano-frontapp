@@ -129,6 +129,11 @@ const chartOptions = ref<ChartOptions<'line'>>({
       ticks: { font: { family: "'Inter', sans-serif", size: 11 }, color: '#6b7280', callback: (val: any) => '$' + val },
       beginAtZero: true
     }
+  },
+  elements: {
+    line: {
+      tension: 0.4 // Smooth curves
+    }
   }
 })
 
@@ -256,9 +261,8 @@ onMounted(() => {
           <span v-else-if="isLoading">Cargando...</span>
         </div>
         
-        <div v-if="userStore.role === 'superadmin'" class="workspace-dashboard__super-badge">
-          <i class="fa-solid fa-shield-halved" />
-          <span>Navegando como <strong>Superadmin</strong></span>
+        <div v-if="userStore.role === 'superadmin'" class="workspace-dashboard__superadmin-badge">
+          <i class="fa-solid fa-shield-check" /> Superadmin Mode
         </div>
       </div>
 
@@ -673,6 +677,26 @@ onMounted(() => {
     gap: 0.5rem;
   }
 
+  &__superadmin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.05) 100%);
+    color: $primary;
+    border: 1px solid rgba($primary, 0.2);
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    animation: fadeIn 0.5s ease-out;
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+
   &__ws-info {
     display: flex;
     align-items: center;
@@ -955,6 +979,18 @@ onMounted(() => {
   @keyframes shimmer {
     100% {
       transform: translateX(100%);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 

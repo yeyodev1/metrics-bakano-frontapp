@@ -288,9 +288,8 @@ onMounted(() => {
           <p class="workspace-settings__subtitle">Gestiona integraciones, usuarios y preferencias.</p>
         </div>
       </div>
-      <div v-if="userStore.role === 'superadmin'" class="workspace-settings__super-badge">
-        <i class="fa-solid fa-shield-halved" />
-        <span>Modo Superadmin</span>
+      <div v-if="userStore.role === 'superadmin'" class="workspace-settings__superadmin-badge">
+        <i class="fa-solid fa-shield-check" /> Superadmin Mode
       </div>
     </header>
 
@@ -575,8 +574,6 @@ onMounted(() => {
 <style lang="scss" scoped>
 .workspace-settings {
   padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -725,16 +722,24 @@ onMounted(() => {
   }
 
   // Roles Badge
-  &__super-badge {
-    display: flex;
+  &__superadmin-badge {
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.85rem;
-    color: $alert-warning;
     padding: 0.4rem 0.8rem;
-    background: rgba($alert-warning, 0.1);
-    border-radius: 8px;
-    font-weight: 700;
+    background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.05) 100%);
+    color: $primary;
+    border: 1px solid rgba($primary, 0.2);
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    animation: fadeIn 0.5s ease-out;
+
+    i {
+      font-size: 0.9rem;
+    }
   }
 
   // Integrations card
@@ -1110,6 +1115,24 @@ onMounted(() => {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

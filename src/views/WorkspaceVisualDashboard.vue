@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
 import { metaService } from '@/services/meta.service'
+import { useUserStore } from '@/stores/user'
 import type { Workspace } from '@/types'
 import { Line, Bar } from 'vue-chartjs'
 import {
@@ -22,6 +23,7 @@ import type { ChartOptions, ChartData } from 'chart.js'
 ChartJS.register(Title, Tooltip, Legend, PointElement, LineElement, BarElement, CategoryScale, LinearScale, Filler)
 
 const route = useRoute()
+const userStore = useUserStore()
 const workspaceId = route.params.workspaceId as string
 
 const workspace = ref<Workspace | null>(null)
@@ -89,10 +91,22 @@ const timeSeriesData = computed<ChartData<'line'>>(() => {
       {
         label: 'Inversión Diaria ($)',
         borderColor: '#7C3AED',
-        backgroundColor: 'rgba(124, 58, 237, 0.1)',
+        backgroundColor: function (context: any): any {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return undefined;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(124, 58, 237, 0.4)');
+          gradient.addColorStop(1, 'rgba(124, 58, 237, 0.0)');
+          return gradient;
+        },
         borderWidth: 3,
         fill: true,
         tension: 0.4,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#7C3AED',
+        pointBorderWidth: 2,
+        pointRadius: sortedDaily.length > 15 ? 0 : 3,
         data: sortedDaily.map(d => parseFloat(d.spend || '0'))
       }
     ]
@@ -158,7 +172,12 @@ onMounted(fetchWorkspace)
   <div class="visual-dashboard">
     <header class="visual-dashboard__header">
       <div class="visual-dashboard__title-row">
-        <h1><i class="fa-solid fa-chart-pie" /> Analítica Visual</h1>
+        <div class="visual-dashboard__title-group">
+          <h1><i class="fa-solid fa-chart-pie" /> Analítica Visual</h1>
+          <div v-if="userStore.role === 'superadmin'" class="visual-dashboard__superadmin-badge">
+            <i class="fa-solid fa-shield-check" /> Superadmin Mode
+          </div>
+        </div>
         <div class="visual-dashboard__date-selector">
           <button 
             :class="{ active: datePreset === 'this_month' }" 
@@ -249,6 +268,18 @@ onMounted(fetchWorkspace)
       justify-content: space-between;
       align-items: center;
     }
+  }
+
+  &__title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    @media (min-width: 1024px) {
+      flex-direction: row;
+      align-items: center;
+      gap: 1.5rem;
+    }
 
     h1 {
       font-size: 1.5rem;
@@ -265,6 +296,26 @@ onMounted(fetchWorkspace)
       i {
         color: $primary;
       }
+    }
+  }
+
+  &__superadmin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.05) 100%);
+    color: $primary;
+    border: 1px solid rgba($primary, 0.2);
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    animation: fadeIn 0.5s ease-out;
+
+    i {
+      font-size: 0.9rem;
     }
   }
 
@@ -627,6 +678,18 @@ onMounted(fetchWorkspace)
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

@@ -206,9 +206,8 @@ onMounted(fetchWorkspaces)
       </div>
       
       <div class="superadmin-dashboard__topbar-right">
-        <div class="superadmin-dashboard__role-info">
-          <i class="fa-solid fa-shield-halved" />
-          <span>Navegando como <strong>Superadmin</strong></span>
+        <div class="superadmin-dashboard__superadmin-badge">
+          <i class="fa-solid fa-shield-check" /> Superadmin Mode
         </div>
         <button
           id="btn-create-workspace"
@@ -477,19 +476,24 @@ onMounted(fetchWorkspaces)
     gap: 1.5rem;
   }
 
-  &__role-info {
-    display: flex;
+  &__superadmin-badge {
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.9rem;
-    color: $text-secondary;
+    padding: 0.4rem 0.8rem;
+    background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.05) 100%);
+    color: $primary;
+    border: 1px solid rgba($primary, 0.2);
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    animation: fadeIn 0.5s ease-out;
 
     i {
-      color: $alert-warning;
-    }
-
-    strong {
-      color: $primary-dark;
+      font-size: 0.9rem;
+      color: $primary; // Override icon color for consistency
     }
   }
 
@@ -849,6 +853,24 @@ onMounted(fetchWorkspaces)
   @keyframes spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 

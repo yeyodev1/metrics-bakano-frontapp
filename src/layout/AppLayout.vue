@@ -12,8 +12,10 @@ const userStore = useUserStore()
 
 const workspaces = ref<Workspace[]>([])
 const isDropdownOpen = ref(false)
+const isSidebarOpen = ref(false)
 
 const currentWorkspaceId = computed(() => {
+  if (route.name === 'SuperadminDashboard') return null
   return route.params.workspaceId as string || userStore.workspaceId || workspaces.value[0]?._id
 })
 
@@ -69,18 +71,44 @@ function logout(): void {
   userStore.clear()
   router.push({ name: 'Login' })
 }
+
+// Close sidebar on navigation (mobile)
+router.afterEach(() => {
+  isSidebarOpen.value = false
+})
+
 </script>
 
 <template>
   <div class="app-layout">
-    <aside class="app-layout__sidebar">
-      <div class="app-layout__brand">
-        <img :src="logoDark" alt="Bakano" class="app-layout__logo" width="110" height="28" />
+    <!-- MOBILE HEADER -->
+    <header class="app-layout__mobile-header">
+      <button class="app-layout__menu-toggle" @click="isSidebarOpen = true">
+        <i class="fa-solid fa-bars" />
+      </button>
+      <img :src="logoDark" alt="Bakano" class="app-layout__logo-mobile" width="100" />
+      <div class="app-layout__mobile-spacer" />
+    </header>
+
+    <!-- BACKDROP -->
+    <Transition name="fade">
+      <div v-if="isSidebarOpen" class="app-layout__backdrop" @click="isSidebarOpen = false" />
+    </Transition>
+
+    <aside class="app-layout__sidebar" :class="{ 'app-layout__sidebar--open': isSidebarOpen }">
+      <div class="app-layout__sidebar-header">
+        <div class="app-layout__brand">
+          <img :src="logoDark" alt="Bakano" class="app-layout__logo" width="110" height="28" />
+        </div>
+        <button class="app-layout__close-sidebar" @click="isSidebarOpen = false">
+          <i class="fa-solid fa-xmark" />
+        </button>
       </div>
 
       <!-- WORKSPACE SELECTOR -->
-      <div v-if="activeWorkspace" class="app-layout__ws-selector">
+      <div class="app-layout__ws-selector">
         <button 
+          v-if="activeWorkspace"
           class="app-layout__ws-button app-layout__ws-button--interactive"
           @click="toggleDropdown"
         >
@@ -101,13 +129,24 @@ function logout(): void {
           <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
         </button>
 
+        <!-- GLOBAL VIEW PLACEHOLDER (Deselected state) -->
+        <div v-else class="app-layout__ws-button app-layout__ws-button--global">
+          <div class="app-layout__ws-avatar app-layout__ws-avatar--global">
+            <i class="fa-solid fa-earth-americas" />
+          </div>
+          <div class="app-layout__ws-info">
+            <span class="app-layout__ws-label">Control Central</span>
+            <span class="app-layout__ws-name">Vista Global</span>
+          </div>
+        </div>
+
         <Transition name="dropdown-fade">
-          <div v-if="isDropdownOpen" class="app-layout__ws-dropdown">
+          <div v-if="isDropdownOpen && activeWorkspace" class="app-layout__ws-dropdown">
             <button 
               v-for="ws in workspaces" 
               :key="ws._id" 
               class="app-layout__ws-option" 
-              :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace._id }" 
+              :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace?._id }" 
               @click="selectWorkspace(ws)"
             >
                <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
@@ -121,7 +160,7 @@ function logout(): void {
                  <span v-else>{{ ws.name.substring(0, 2).toUpperCase() }}</span>
                </div>
                <span class="app-layout__ws-option-name">{{ ws.name }}</span>
-               <i v-if="ws._id === activeWorkspace._id" class="fa-solid fa-check" />
+               <i v-if="ws._id === activeWorkspace?._id" class="fa-solid fa-check" />
             </button>
           </div>
         </Transition>
@@ -174,30 +213,130 @@ function logout(): void {
 <style lang="scss" scoped>
 .app-layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background-color: #f8f7f5;
 
+  @media (min-width: 768px) {
+    flex-direction: row;
+  }
+
+  // ── Mobile Header ──────────────────────────────────────
+  &__mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background-color: $primary-dark;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: 60px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+
+    @media (min-width: 768px) {
+      display: none;
+    }
+  }
+
+  &__menu-toggle {
+    background: none;
+    border: none;
+    color: $white;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__logo-mobile {
+    height: 22px;
+    width: auto;
+  }
+
+  &__mobile-spacer {
+    width: 40px; // Balance the hamburger
+  }
+
+  // ── Backdrop ───────────────────────────────────────────
+  &__backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+
+    @media (min-width: 768px) {
+      display: none;
+    }
+  }
+
   // ── Sidebar ────────────────────────────────────────────
   &__sidebar {
-    display: none;
+    display: flex;
     flex-direction: column;
-    width: 270px;
+    width: 280px;
     flex-shrink: 0;
     background-color: $primary-dark;
     padding: 1.5rem 1rem;
-    position: sticky;
+    position: fixed;
     top: 0;
-    height: 100vh;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
     overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     @media (min-width: 768px) {
-      display: flex;
+      position: sticky;
+      transform: none;
+      width: 270px;
+      height: 100vh;
+    }
+
+    &--open {
+      transform: translateX(0);
+    }
+  }
+
+  &__sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+
+    @media (min-width: 768px) {
+      justify-content: center;
+
+      .app-layout__close-sidebar {
+        display: none;
+      }
+    }
+  }
+
+  &__close-sidebar {
+    background: rgba($white, 0.1);
+    border: none;
+    color: $white;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover {
+      background: rgba($white, 0.2);
     }
   }
 
   &__brand {
     padding: 0.5rem 0.75rem 1.2rem;
-    margin-bottom: 0.5rem;
   }
 
   &__logo {
@@ -227,32 +366,47 @@ function logout(): void {
     transition: all 0.2s;
 
     &--interactive {
+      background: rgba($white, 0.03);
+      border: 1px solid rgba($white, 0.05);
       cursor: pointer;
 
       &:hover {
-        background: rgba($white, 0.08);
-        border-color: rgba($primary, 0.4);
+        background: rgba($white, 0.06);
+        border-color: rgba($white, 0.1);
       }
     }
 
-    &:not(.app-layout__ws-button--interactive) {
+    &--global {
+      background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.02) 100%);
+      border: 1px solid rgba($primary, 0.2);
       cursor: default;
     }
   }
 
   &__ws-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
     background: $primary;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
     font-size: 0.9rem;
     color: $white;
-    overflow: hidden;
     flex-shrink: 0;
+    overflow: hidden;
+
+    &--fallback {
+      background: rgba($white, 0.1);
+      color: rgba($white, 0.6);
+    }
+
+    &--global {
+      background: rgba($primary, 0.2);
+      color: $primary;
+      font-size: 1.1rem;
+    }
 
     &--sm {
       width: 28px;
@@ -503,5 +657,15 @@ function logout(): void {
 .dropdown-fade-leave-to {
   opacity: 0;
   transform: translateY(-5px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
