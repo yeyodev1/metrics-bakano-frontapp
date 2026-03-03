@@ -22,6 +22,7 @@ const error = ref('')
 // 2. Metrics & Insight state
 const adsInsights = ref<any[]>([])
 const dailySpend = ref<any[]>([])
+const datePreset = ref('this_month')
 const spendByPlatform = ref<any[]>([])
 const adsSpendByPlatform = ref<any[]>([])
 const isLoadingInsights = ref(false)
@@ -190,7 +191,8 @@ async function fetchAdsInsights() {
   if (!workspace.value?.metaAds?.adAccountId) return;
   isLoadingInsights.value = true
   try {
-    const data = await metaService.getAdsInsights(workspaceId)
+    // We pass the currently selected datePreset
+    const data = await metaService.getAdsInsights(workspaceId, workspace.value.metaAds.adAccountId, datePreset.value)
     adsInsights.value = data.insights || []
     dailySpend.value = data.dailySpend || []
     spendByPlatform.value = data.spendByPlatform || []
@@ -298,8 +300,25 @@ onMounted(() => {
       <!-- DASHBOARD DE MÉTRICAS (SOLO SI TIENE C/P) -->
       <section v-if="workspace?.metaAds?.adAccountId" class="workspace-dashboard__metrics-section">
         <div class="workspace-dashboard__metrics-header">
-          <h2><i class="fa-solid fa-chart-pie" /> Rendimiento de Campañas</h2>
-          <span class="workspace-dashboard__dates-tag">Últimos 30 días</span>
+          <div class="workspace-dashboard__metrics-title">
+            <h2><i class="fa-solid fa-chart-pie" /> Rendimiento de Campañas</h2>
+            <div class="workspace-dashboard__date-selector">
+              <button 
+                class="workspace-dashboard__date-btn" 
+                :class="{ 'workspace-dashboard__date-btn--active': datePreset === 'this_month' }"
+                @click="datePreset = 'this_month'; fetchAdsInsights();"
+              >
+                Mes Actual
+              </button>
+              <button 
+                class="workspace-dashboard__date-btn" 
+                :class="{ 'workspace-dashboard__date-btn--active': datePreset === 'last_30d' }"
+                @click="datePreset = 'last_30d'; fetchAdsInsights();"
+              >
+                Últimos 30 días
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-if="isLoadingInsights" class="workspace-dashboard__metrics-loading">
@@ -309,7 +328,7 @@ onMounted(() => {
 
         <div v-else-if="!aggregatedMetrics" class="workspace-dashboard__metrics-empty">
           <i class="fa-solid fa-chart-column" />
-          <p>No se encontraron datos de campañas gastando en los últimos 30 días.</p>
+          <p>No se encontraron datos de campañas gastando en el periodo seleccionado.</p>
         </div>
 
         <div v-else class="workspace-dashboard__kpi-grid">
@@ -1165,32 +1184,46 @@ onMounted(() => {
     border-top: 1px dashed rgba($primary-dark, 0.1);
   }
 
-  &__metrics-header {
+  &__metrics-title {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+  }
 
-    h2 {
-      margin: 0;
-      font-size: 1.3rem;
+  &__date-selector {
+    display: flex;
+    background: rgba($primary-dark, 0.05);
+    padding: 3px;
+    border-radius: 10px;
+    gap: 4px;
+  }
+
+  &__date-btn {
+    border: none;
+    background: transparent;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
       color: $primary-dark;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      background: rgba($white, 0.5);
+    }
 
-      i {
-        color: $primary;
-      }
+    &--active {
+      background: $white;
+      color: $primary;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
   }
 
   &__dates-tag {
-    font-size: 0.8rem;
-    background: rgba($primary, 0.1);
-    color: $primary;
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    font-weight: 700;
+    display: none; // Unused now
   }
 
   &__kpi-grid {

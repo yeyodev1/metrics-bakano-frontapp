@@ -49,8 +49,9 @@ class MetaService extends APIBase {
   /**
    * Obtiene las métricas en modo solo lectura de todas las campañas
    */
-  async getAdsInsights(workspaceId: string, adAccountId?: string) {
-    const query = adAccountId ? `?adAccountId=${adAccountId}` : ''
+  async getAdsInsights(workspaceId: string, adAccountId?: string, datePreset: string = 'this_month') {
+    let query = `?datePreset=${datePreset}`
+    if (adAccountId) query += `&adAccountId=${adAccountId}`
     const response = await this.get<any>(`meta/${workspaceId}/ads-insights${query}`)
     return response.data
   }
