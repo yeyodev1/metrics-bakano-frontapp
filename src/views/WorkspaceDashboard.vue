@@ -21,6 +21,7 @@ const error = ref('')
 
 // 2. Metrics & Insight state
 const adsInsights = ref<any[]>([])
+const dailySpend = ref<any[]>([])
 const spendByPlatform = ref<any[]>([])
 const adsSpendByPlatform = ref<any[]>([])
 const isLoadingInsights = ref(false)
@@ -131,6 +132,41 @@ const chartOptions = ref<ChartOptions<'line'>>({
 })
 
 const chartData = computed<ChartData<'line'>>(() => {
+  // If we have dailySpend data, use it for a time-series chart (Metricool style)
+  if (dailySpend.value.length) {
+    // Sort by date to ensure the line goes from left to right
+    const sortedDaily = [...dailySpend.value].sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+
+    return {
+      labels: sortedDaily.map(d => new Date(d.date_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })),
+      datasets: [
+        {
+          label: 'Inversión Diaria ($)',
+          borderColor: '#7C3AED',
+          backgroundColor: function (context: any): any {
+            const chart = context.chart;
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return undefined;
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(124, 58, 237, 0.4)');
+            gradient.addColorStop(1, 'rgba(124, 58, 237, 0.0)');
+            return gradient;
+          },
+          borderWidth: 3,
+          pointBackgroundColor: '#ffffff',
+          pointBorderColor: '#7C3AED',
+          pointBorderWidth: 2,
+          pointRadius: sortedDaily.length > 15 ? 0 : 3, // Hide points if too many for cleaner look
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.4,
+          data: sortedDaily.map(d => parseFloat(d.spend || '0'))
+        }
+      ]
+    }
+  }
+
+  // Fallback to per-ad spend if daily data is not available
   const topAds = [...adsInsights.value].sort((a, b) => parseFloat(b.spend || '0') - parseFloat(a.spend || '0')).slice(0, 8)
 
   return {
@@ -139,23 +175,8 @@ const chartData = computed<ChartData<'line'>>(() => {
       {
         label: 'Inversión ($)',
         borderColor: '#7C3AED',
-        backgroundColor: function (context: any): any {
-          const chart = context.chart;
-          const { ctx, chartArea } = chart;
-          if (!chartArea) return undefined;
-          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(124, 58, 237, 0.5)'); // purple
-          gradient.addColorStop(1, 'rgba(124, 58, 237, 0.0)');
-          return gradient;
-        },
-        borderWidth: 3,
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#7C3AED',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        fill: true,
-        tension: 0.4, // Curva suave (spline) estilo metricool
+        backgroundColor: 'rgba(124, 58, 237, 0.2)',
+        borderWidth: 2,
         data: topAds.map(ad => parseFloat(ad.spend || '0'))
       }
     ]
@@ -171,6 +192,7 @@ async function fetchAdsInsights() {
   try {
     const data = await metaService.getAdsInsights(workspaceId)
     adsInsights.value = data.insights || []
+    dailySpend.value = data.dailySpend || []
     spendByPlatform.value = data.spendByPlatform || []
     adsSpendByPlatform.value = data.adsSpendByPlatform || []
   } catch (err) {
