@@ -135,7 +135,12 @@ function logout(): void {
         
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceDashboard', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-chart-line" aria-hidden="true" />
-          <span>Dashboard de Client</span>
+          <span>Dashboard Detallado</span>
+        </RouterLink>
+
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceVisualDashboard', params: { workspaceId: activeWorkspace._id } }">
+          <i class="fa-solid fa-chart-pie" aria-hidden="true" />
+          <span>Analítica Visual</span>
         </RouterLink>
 
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceSettings', params: { workspaceId: activeWorkspace._id } }">

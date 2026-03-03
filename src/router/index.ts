@@ -40,6 +40,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Dashboard del Espacio de Trabajo', requiresAuth: true },
       },
       {
+        path: 'workspaces/:workspaceId/visual',
+        name: 'WorkspaceVisualDashboard',
+        component: () => import('../views/WorkspaceVisualDashboard.vue'),
+        meta: { title: 'Analítica Visual', requiresAuth: true },
+      },
+      {
         path: 'workspaces/:workspaceId/settings',
         name: 'WorkspaceSettings',
         component: () => import('../views/settings/WorkspaceSettings.vue'),

@@ -274,9 +274,15 @@ onMounted(() => {
       </div>
     </header>
 
-    <div v-if="isLoading" class="workspace-dashboard__loading">
-      <div class="workspace-dashboard__spinner" />
-      <p>Cargando datos del entorno...</p>
+    <!-- Initial Skeleton Loading -->
+    <div v-if="isLoading" class="workspace-dashboard__skeleton">
+      <div class="workspace-dashboard__skeleton-row skeleton-shimmer" style="height: 180px; border-radius: 20px;" />
+      <div class="workspace-dashboard__skeleton-grid">
+        <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+        <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+        <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+      </div>
+      <div class="workspace-dashboard__skeleton-row skeleton-shimmer" style="height: 400px; border-radius: 24px;" />
     </div>
 
     <div v-else-if="error" class="workspace-dashboard__error-state">
@@ -321,158 +327,168 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-if="isLoadingInsights" class="workspace-dashboard__metrics-loading">
-          <div class="workspace-dashboard__spinner workspace-dashboard__spinner--lg" />
-          <p>Obteniendo métricas en tiempo real desde Meta...</p>
+        <!-- Initial or Refresh Insights Skeleton Loading -->
+        <div v-if="isLoadingInsights && !aggregatedMetrics" class="workspace-dashboard__skeleton-grid" style="margin-top: 2rem;">
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
         </div>
 
-        <div v-else-if="!aggregatedMetrics" class="workspace-dashboard__metrics-empty">
+        <div v-else-if="isLoadingInsights && aggregatedMetrics" class="workspace-dashboard__skeleton-grid" style="margin-top: 2rem;">
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+        </div>
+
+        <div v-if="!isLoadingInsights && !aggregatedMetrics" class="workspace-dashboard__metrics-empty">
           <i class="fa-solid fa-chart-column" />
           <p>No se encontraron datos de campañas gastando en el periodo seleccionado.</p>
         </div>
 
-        <div v-else class="workspace-dashboard__kpi-grid">
-          <!-- KPI: Inversión -->
-          <div class="workspace-dashboard__kpi-card" :class="{ 'workspace-dashboard__kpi-card--spend-detailed': totalPlatformSpend > 0 }">
-            <div class="workspace-dashboard__kpi-main-info">
-              <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--spend">
-                <i class="fa-solid fa-money-bill-trend-up" />
+        <div v-else class="workspace-dashboard__metrics-container">
+          <div v-if="aggregatedMetrics" class="workspace-dashboard__kpi-grid">
+            <!-- KPI: Inversión -->
+            <div class="workspace-dashboard__kpi-card" :class="{ 'workspace-dashboard__kpi-card--spend-detailed': totalPlatformSpend > 0 }">
+              <div class="workspace-dashboard__kpi-main-info">
+                <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--spend">
+                  <i class="fa-solid fa-money-bill-trend-up" />
+                </div>
+                <div class="workspace-dashboard__kpi-data">
+                  <span class="workspace-dashboard__kpi-label">Inversión Total</span>
+                  <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.spend.toFixed(2) }}</span>
+                </div>
+              </div>
+
+              <div v-if="totalPlatformSpend > 0" class="workspace-dashboard__kpi-platform-split">
+                <div class="workspace-dashboard__split-bar">
+                  <div class="workspace-dashboard__split-segment workspace-dashboard__split-segment--fb" :style="{ width: fbSpendPercent + '%' }"></div>
+                  <div class="workspace-dashboard__split-segment workspace-dashboard__split-segment--ig" :style="{ width: igSpendPercent + '%' }"></div>
+                </div>
+                <div class="workspace-dashboard__split-labels">
+                  <span v-if="fbSpend > 0" class="workspace-dashboard__split-label workspace-dashboard__split-label--fb">
+                    <i class="fa-brands fa-facebook" /> ${{ fbSpend.toFixed(2) }}
+                    <small>({{ Math.round(fbSpendPercent) }}%)</small>
+                  </span>
+                  <span v-if="igSpend > 0" class="workspace-dashboard__split-label workspace-dashboard__split-label--ig">
+                    <i class="fa-brands fa-instagram" /> ${{ igSpend.toFixed(2) }}
+                    <small>({{ Math.round(igSpendPercent) }}%)</small>
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- KPI: Clicks -->
+            <div class="workspace-dashboard__kpi-card">
+              <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--clicks">
+                <i class="fa-solid fa-hand-pointer" />
               </div>
               <div class="workspace-dashboard__kpi-data">
-                <span class="workspace-dashboard__kpi-label">Inversión Total</span>
-                <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.spend.toFixed(2) }}</span>
+                <span class="workspace-dashboard__kpi-label">Clics Totales</span>
+                <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.clicks.toLocaleString() }}</span>
               </div>
             </div>
 
-            <div v-if="totalPlatformSpend > 0" class="workspace-dashboard__kpi-platform-split">
-              <div class="workspace-dashboard__split-bar">
-                <div class="workspace-dashboard__split-segment workspace-dashboard__split-segment--fb" :style="{ width: fbSpendPercent + '%' }"></div>
-                <div class="workspace-dashboard__split-segment workspace-dashboard__split-segment--ig" :style="{ width: igSpendPercent + '%' }"></div>
+            <!-- KPI: CPC -->
+            <div class="workspace-dashboard__kpi-card">
+              <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--cpc">
+                <i class="fa-solid fa-bullseye" />
               </div>
-              <div class="workspace-dashboard__split-labels">
-                <span v-if="fbSpend > 0" class="workspace-dashboard__split-label workspace-dashboard__split-label--fb">
-                  <i class="fa-brands fa-facebook" /> ${{ fbSpend.toFixed(2) }}
-                  <small>({{ Math.round(fbSpendPercent) }}%)</small>
-                </span>
-                <span v-if="igSpend > 0" class="workspace-dashboard__split-label workspace-dashboard__split-label--ig">
-                  <i class="fa-brands fa-instagram" /> ${{ igSpend.toFixed(2) }}
-                  <small>({{ Math.round(igSpendPercent) }}%)</small>
-                </span>
+              <div class="workspace-dashboard__kpi-data">
+                <span class="workspace-dashboard__kpi-label">Costo por Clic (CPC)</span>
+                <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.cpc.toFixed(2) }}</span>
               </div>
             </div>
-          </div>
-          
-          <!-- KPI: Clicks -->
-          <div class="workspace-dashboard__kpi-card">
-            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--clicks">
-              <i class="fa-solid fa-hand-pointer" />
-            </div>
-            <div class="workspace-dashboard__kpi-data">
-              <span class="workspace-dashboard__kpi-label">Clics Totales</span>
-              <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.clicks.toLocaleString() }}</span>
-            </div>
-          </div>
 
-          <!-- KPI: CPC -->
-          <div class="workspace-dashboard__kpi-card">
-            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--cpc">
-              <i class="fa-solid fa-bullseye" />
-            </div>
-            <div class="workspace-dashboard__kpi-data">
-              <span class="workspace-dashboard__kpi-label">Costo por Clic (CPC)</span>
-              <span class="workspace-dashboard__kpi-value">${{ aggregatedMetrics.cpc.toFixed(2) }}</span>
+            <!-- KPI: Impresiones -->
+            <div class="workspace-dashboard__kpi-card">
+              <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--impressions">
+                <i class="fa-solid fa-eye" />
+              </div>
+              <div class="workspace-dashboard__kpi-data">
+                <span class="workspace-dashboard__kpi-label">Impresiones</span>
+                <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.impressions.toLocaleString() }}</span>
+              </div>
             </div>
           </div>
 
-          <!-- KPI: Impresiones -->
-          <div class="workspace-dashboard__kpi-card">
-            <div class="workspace-dashboard__kpi-icon workspace-dashboard__kpi-icon--impressions">
-              <i class="fa-solid fa-eye" />
+          <!-- GRÁFICO DE RENDIMIENTO -->
+          <section v-if="adsInsights.length" class="workspace-dashboard__chart-section">
+            <div class="workspace-dashboard__chart-header">
+              <h2><i class="fa-solid fa-ranking-star" /> Tendencia de Inversión por Anuncio (Top 8)</h2>
             </div>
-            <div class="workspace-dashboard__kpi-data">
-              <span class="workspace-dashboard__kpi-label">Impresiones</span>
-              <span class="workspace-dashboard__kpi-value">{{ aggregatedMetrics.impressions.toLocaleString() }}</span>
+            <div class="workspace-dashboard__chart-container">
+              <Line :data="chartData" :options="chartOptions" />
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
 
-      <!-- GRÁFICO DE RENDIMIENTO -->
-      <section v-if="workspace?.metaAds?.adAccountId && !isLoadingInsights && adsInsights.length" class="workspace-dashboard__chart-section">
-        <div class="workspace-dashboard__chart-header">
-          <h2><i class="fa-solid fa-ranking-star" /> Tendencia de Inversión por Anuncio (Top 8)</h2>
-        </div>
-        <div class="workspace-dashboard__chart-container">
-          <Line :data="chartData" :options="chartOptions" />
-        </div>
-      </section>
-
-      <!-- TABLA DETALLADA DE ANUNCIOS -->
-      <section v-if="workspace?.metaAds?.adAccountId && !isLoadingInsights && adsInsights.length" class="workspace-dashboard__ads-list-section">
-        <div class="workspace-dashboard__ads-header">
-          <h2><i class="fa-solid fa-list-ul" /> Desglose por Anuncio</h2>
-        </div>
-        
-        <div class="workspace-dashboard__table-container">
-          <table class="workspace-dashboard__ads-table">
-            <thead>
-              <tr>
-                <th>Campaña & Anuncio</th>
-                <th>Inversión</th>
-                <th>Compras</th>
-                <th>CPA</th>
-                <th>ROAS</th>
-                <th>Clics / CPC</th>
-                <th>Impresiones</th>
-                <th>Ver</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="ad in adsInsights" :key="ad.ad_id" class="workspace-dashboard__ad-row">
-                <td>
-                  <div class="workspace-dashboard__ad-identity">
-                    <span class="workspace-dashboard__ad-campaign"><i class="fa-solid fa-folder-open" /> {{ ad.campaign_name || 'Desconocida' }}</span>
-                    <strong class="workspace-dashboard__ad-name">{{ ad.ad_name || 'Anuncio sin nombre' }}</strong>
-                    <span class="workspace-dashboard__ad-id">ID: {{ ad.ad_id }}</span>
-                  </div>
-                </td>
-                <td class="workspace-dashboard__ad-numeric">
-                  <div class="workspace-dashboard__ad-spend">
-                    <strong>${{ parseFloat(ad.spend || 0).toFixed(2) }}</strong>
-                    <div v-if="getAdFbSpend(ad.ad_id) || getAdIgSpend(ad.ad_id)" class="workspace-dashboard__ad-spend-breakdown">
-                      <span v-if="getAdFbSpend(ad.ad_id)"><i class="fa-brands fa-facebook"></i> ${{ getAdFbSpend(ad.ad_id).toFixed(2) }}</span>
-                      <span v-if="getAdIgSpend(ad.ad_id)"><i class="fa-brands fa-instagram"></i> ${{ getAdIgSpend(ad.ad_id).toFixed(2) }}</span>
-                    </div>
-                  </div>
-                </td>
-                <td class="workspace-dashboard__ad-numeric">
-                  <span class="workspace-dashboard__badge--purchases">{{ getPurchases(ad) }}</span>
-                </td>
-                <td class="workspace-dashboard__ad-numeric">
-                  <strong>${{ getCPA(ad) }}</strong>
-                </td>
-                <td class="workspace-dashboard__ad-numeric">
-                  <span class="workspace-dashboard__badge--roas" :class="{ 'warning': parseFloat(getPurchaseROAS(ad)) < 2, 'success': parseFloat(getPurchaseROAS(ad)) >= 2 }">
-                    {{ getPurchaseROAS(ad) }}x
-                  </span>
-                </td>
-                <td>
-                  <div class="workspace-dashboard__ad-clics-info">
-                    <strong>{{ parseInt(ad.clicks || 0).toLocaleString() }}</strong> clics
-                    <span class="workspace-dashboard__small-cpc">(${{ parseFloat(ad.cpc || 0).toFixed(2) }})</span>
-                  </div>
-                </td>
-                <td class="workspace-dashboard__ad-numeric">
-                  {{ parseInt(ad.impressions || 0).toLocaleString() }}
-                </td>
-                <td>
-                  <a :href="`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${workspace?.metaAds?.adAccountId?.replace('act_', '')}&selected_ad_ids=${ad.ad_id}`" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook Ad Manager">
-                    <i class="fa-solid fa-arrow-up-right-from-square" />
-                  </a>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <!-- TABLA DETALLADA DE ANUNCIOS -->
+          <section v-if="adsInsights.length" class="workspace-dashboard__ads-list-section">
+            <div class="workspace-dashboard__ads-header">
+              <h2><i class="fa-solid fa-list-ul" /> Desglose por Anuncio</h2>
+            </div>
+            
+            <div class="workspace-dashboard__table-container">
+              <table class="workspace-dashboard__ads-table">
+                <thead>
+                  <tr>
+                    <th>Campaña & Anuncio</th>
+                    <th>Inversión</th>
+                    <th>Compras</th>
+                    <th>CPA</th>
+                    <th>ROAS</th>
+                    <th>Clics / CPC</th>
+                    <th>Impresiones</th>
+                    <th>Ver</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="ad in adsInsights" :key="ad.ad_id" class="workspace-dashboard__ad-row">
+                    <td>
+                      <div class="workspace-dashboard__ad-identity">
+                        <span class="workspace-dashboard__ad-campaign"><i class="fa-solid fa-folder-open" /> {{ ad.campaign_name || 'Desconocida' }}</span>
+                        <strong class="workspace-dashboard__ad-name">{{ ad.ad_name || 'Anuncio sin nombre' }}</strong>
+                        <span class="workspace-dashboard__ad-id">ID: {{ ad.ad_id }}</span>
+                      </div>
+                    </td>
+                    <td class="workspace-dashboard__ad-numeric">
+                      <div class="workspace-dashboard__ad-spend">
+                        <strong>${{ parseFloat(ad.spend || 0).toFixed(2) }}</strong>
+                        <div v-if="getAdFbSpend(ad.ad_id) || getAdIgSpend(ad.ad_id)" class="workspace-dashboard__ad-spend-breakdown">
+                          <span v-if="getAdFbSpend(ad.ad_id)"><i class="fa-brands fa-facebook"></i> ${{ getAdFbSpend(ad.ad_id).toFixed(2) }}</span>
+                          <span v-if="getAdIgSpend(ad.ad_id)"><i class="fa-brands fa-instagram"></i> ${{ getAdIgSpend(ad.ad_id).toFixed(2) }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="workspace-dashboard__ad-numeric">
+                      <span class="workspace-dashboard__badge--purchases">{{ getPurchases(ad) }}</span>
+                    </td>
+                    <td class="workspace-dashboard__ad-numeric">
+                      <strong>${{ getCPA(ad) }}</strong>
+                    </td>
+                    <td class="workspace-dashboard__ad-numeric">
+                      <span class="workspace-dashboard__badge--roas" :class="{ 'warning': parseFloat(getPurchaseROAS(ad)) < 2, 'success': parseFloat(getPurchaseROAS(ad)) >= 2 }">
+                        {{ getPurchaseROAS(ad) }}x
+                      </span>
+                    </td>
+                    <td>
+                      <div class="workspace-dashboard__ad-clics-info">
+                        <strong>{{ parseInt(ad.clicks || 0).toLocaleString() }}</strong> clics
+                        <span class="workspace-dashboard__small-cpc">(${{ parseFloat(ad.cpc || 0).toFixed(2) }})</span>
+                      </div>
+                    </td>
+                    <td class="workspace-dashboard__ad-numeric">
+                      {{ parseInt(ad.impressions || 0).toLocaleString() }}
+                    </td>
+                    <td>
+                      <a :href="`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${workspace?.metaAds?.adAccountId?.replace('act_', '')}&selected_ad_ids=${ad.ad_id}`" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook Ad Manager">
+                        <i class="fa-solid fa-arrow-up-right-from-square" />
+                      </a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -482,9 +498,11 @@ onMounted(() => {
           <h2><i class="fa-solid fa-users" /> Resumen de Comunidad Orgánica</h2>
         </div>
 
-        <div v-if="isLoadingOrganic" class="workspace-dashboard__metrics-loading">
-          <div class="workspace-dashboard__spinner workspace-dashboard__spinner--lg" />
-          <p>Obteniendo métricas orgánicas desde la Fan Page...</p>
+        <!-- Organic Metrics Skeleton Loading -->
+        <div v-if="isLoadingOrganic" class="workspace-dashboard__skeleton-grid">
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
+          <div class="workspace-dashboard__skeleton-card skeleton-shimmer" />
         </div>
 
         <div v-else-if="pageInfo" class="workspace-dashboard__kpi-grid">
@@ -934,6 +952,12 @@ onMounted(() => {
     }
   }
 
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
   // ── Meta Ads Specific Styles ───────────────────────────
   &__card--connected {
     border-color: rgba($primary, 0.3);
@@ -1182,6 +1206,68 @@ onMounted(() => {
     margin-top: 2rem;
     padding-top: 2rem;
     border-top: 1px dashed rgba($primary-dark, 0.1);
+    position: relative;
+  }
+
+  &__insights-loader {
+    position: absolute;
+    inset: -1rem;
+    background: rgba($white, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 24px;
+    transition: all 0.3s ease;
+  }
+
+  &__loader-card {
+    background: $white;
+    padding: 2rem 3rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    border: 1px solid rgba($primary, 0.1);
+
+    span {
+      font-size: 1rem;
+      font-weight: 700;
+      color: $primary-dark;
+      letter-spacing: -0.01em;
+    }
+
+    .workspace-dashboard__spinner--md {
+      width: 40px;
+      height: 40px;
+      border-width: 4px;
+    }
+  }
+
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: opacity 0.3s ease;
+  }
+
+  .fade-enter-from,
+  .fade-leave-to {
+    opacity: 0;
+  }
+
+  .is-refreshing {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  &__metrics-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
   }
 
   &__metrics-title {
@@ -1662,6 +1748,61 @@ onMounted(() => {
     color: rgba($primary-dark, 0.3);
     font-size: 1.2rem;
     flex-shrink: 0;
+  }
+
+  &__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1rem;
+
+    @media (min-width: 768px) {
+      padding: 0;
+    }
+  }
+
+  &__skeleton-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+
+    @media (min-width: 1024px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  &__skeleton-card {
+    height: 120px;
+    background: rgba($white, 0.5);
+    border-radius: 20px;
+    border: 1px solid rgba($primary-dark, 0.05);
+  }
+
+  &__skeleton-row {
+    background: rgba($white, 0.5);
+    border: 1px solid rgba($primary-dark, 0.05);
+  }
+
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: rgba($primary-dark, 0.03);
+
+    &::after {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      transform: translateX(-100%);
+      background-image: linear-gradient(90deg,
+          rgba(255, 255, 255, 0) 0,
+          rgba(255, 255, 255, 0.2) 20%,
+          rgba(255, 255, 255, 0.5) 60%,
+          rgba(255, 255, 255, 0));
+      animation: shimmer 2s infinite;
+      content: '';
+    }
   }
 
   &__post-text {
