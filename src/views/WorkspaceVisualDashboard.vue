@@ -61,6 +61,104 @@ const igSpend = computed(() => {
   return ig ? parseFloat(ig.spend) : 0
 })
 
+// New Metrics Computeds (CTR & CPC over time)
+const sortedDailyMetrics = computed(() => {
+  return [...dailySpend.value].sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+})
+
+const ctrTimeSeriesData = computed<ChartData<'line'>>(() => {
+  const metrics = sortedDailyMetrics.value
+  return {
+    labels: metrics.map(d => new Date(d.date_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })),
+    datasets: [{
+      label: 'CTR (%)',
+      borderColor: '#10B981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      borderWidth: 2,
+      data: metrics.map(d => {
+        const clicks = parseInt(d.clicks || '0')
+        const impressions = parseInt(d.impressions || '0')
+        return impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0
+      }),
+      fill: true,
+      tension: 0.4,
+      pointRadius: metrics.length > 20 ? 0 : 4,
+      pointBackgroundColor: '#fff'
+    }]
+  }
+})
+
+const cpcTimeSeriesData = computed<ChartData<'line'>>(() => {
+  const metrics = sortedDailyMetrics.value
+  return {
+    labels: metrics.map(d => new Date(d.date_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })),
+    datasets: [{
+      label: 'CPC ($)',
+      borderColor: '#F59E0B',
+      backgroundColor: 'rgba(245, 158, 11, 0.1)',
+      borderWidth: 2,
+      data: metrics.map(d => {
+        const spend = parseFloat(d.spend || '0')
+        const clicks = parseInt(d.clicks || '0')
+        return clicks > 0 ? Number((spend / clicks).toFixed(2)) : 0
+      }),
+      fill: true,
+      tension: 0.4,
+      pointRadius: metrics.length > 20 ? 0 : 4,
+      pointBackgroundColor: '#fff'
+    }]
+  }
+})
+
+const engagementData = computed<ChartData<'bar'>>(() => {
+  const metrics = sortedDailyMetrics.value
+  return {
+    labels: metrics.map(d => new Date(d.date_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })),
+    datasets: [
+      {
+        label: 'Clics',
+        backgroundColor: '#7C3AED',
+        data: metrics.map(d => parseInt(d.clicks || '0')),
+        borderRadius: 4
+      },
+      {
+        label: 'Impresiones (Base 100)',
+        backgroundColor: 'rgba(124, 58, 237, 0.2)',
+        data: metrics.map(d => Math.round(parseInt(d.impressions || '0') / 100)),
+        borderRadius: 4
+      }
+    ]
+  }
+})
+
+const cprTimeSeriesData = computed<ChartData<'line'>>(() => {
+  const metrics = sortedDailyMetrics.value
+  return {
+    labels: metrics.map(d => new Date(d.date_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })),
+    datasets: [{
+      label: 'CPR ($) - Mensajes',
+      borderColor: '#3B82F6',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      borderWidth: 2,
+      data: metrics.map(d => {
+        const spend = parseFloat(d.spend || '0')
+        // We look for conversation starters as the primary "Result"
+        const actions = d.actions || []
+        const results = actions.find((a: any) =>
+          a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+          a.action_type === 'onsite_conversion.total_messaging_connection'
+        )
+        const count = results ? parseInt(results.value || '0') : 0
+        return count > 0 ? Number((spend / count).toFixed(2)) : 0
+      }),
+      fill: true,
+      tension: 0.4,
+      pointRadius: metrics.length > 20 ? 0 : 4,
+      pointBackgroundColor: '#fff'
+    }]
+  }
+})
+
 // Chart 1: Time Series (Daily Spend)
 const timeSeriesOptions = ref<ChartOptions<'line'>>({
   responsive: true,
@@ -80,6 +178,23 @@ const timeSeriesOptions = ref<ChartOptions<'line'>>({
       beginAtZero: true,
       ticks: { callback: (val) => '$' + val }
     }
+  }
+})
+
+const percentageOptions = ref<ChartOptions<'line'>>({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    y: { beginAtZero: true, ticks: { callback: (val) => val + '%' } }
+  }
+})
+
+const numericOptions = ref<ChartOptions<'bar' | 'line'>>({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6 } }
   }
 })
 
@@ -138,6 +253,12 @@ const platformOptions = ref<ChartOptions<'bar'>>({
 async function fetchAdsInsights() {
   if (!workspace.value?.metaAds?.adAccountId) return
   isLoadingInsights.value = true
+
+  // Clear stale data to trigger skeletons immediately
+  adsInsights.value = []
+  dailySpend.value = []
+  spendByPlatform.value = []
+
   try {
     const data = await metaService.getAdsInsights(workspaceId, workspace.value.metaAds.adAccountId, datePreset.value)
     adsInsights.value = data.insights || []
@@ -226,16 +347,56 @@ onMounted(fetchWorkspace)
       <!-- Graphical Layout -->
       <div class="visual-dashboard__charts-layout">
         <div class="visual-dashboard__chart-item visual-dashboard__chart-item--main">
-          <h3>Evolución de Inversión Diaria</h3>
+          <div class="visual-dashboard__chart-header">
+            <h3><i class="fa-solid fa-money-bill-trend-up" /> Evolución de Inversión Diaria</h3>
+          </div>
           <div class="chart-container">
             <Line :data="timeSeriesData" :options="timeSeriesOptions" />
           </div>
         </div>
 
         <div class="visual-dashboard__chart-item">
-          <h3>Distribución por Plataforma</h3>
+          <div class="visual-dashboard__chart-header">
+            <h3><i class="fa-solid fa-layer-group" /> Canales</h3>
+          </div>
           <div class="chart-container">
             <Bar :data="platformData" :options="platformOptions" />
+          </div>
+        </div>
+
+        <div class="visual-dashboard__chart-item">
+          <div class="visual-dashboard__chart-header">
+            <h3><i class="fa-solid fa-bolt" /> Efectividad (CTR %)</h3>
+          </div>
+          <div class="chart-container">
+            <Line :data="ctrTimeSeriesData" :options="percentageOptions" />
+          </div>
+        </div>
+
+        <div class="visual-dashboard__chart-item">
+          <div class="visual-dashboard__chart-header">
+            <h3><i class="fa-solid fa-hand-pointer" /> Engagement (Clics vs Imp/100)</h3>
+          </div>
+          <div class="chart-container">
+            <Bar :data="engagementData" :options="numericOptions" />
+          </div>
+        </div>
+
+        <div class="visual-dashboard__chart-item visual-dashboard__chart-item--full">
+          <div class="visual-dashboard__chart-header">
+            <h3><i class="fa-solid fa-bullseye" /> Evolución del CPR (Costo por Resultado)</h3>
+          </div>
+          <div class="chart-container chart-container--wide">
+            <Line :data="cprTimeSeriesData" :options="timeSeriesOptions" />
+          </div>
+        </div>
+
+        <div class="visual-dashboard__chart-item visual-dashboard__chart-item--full">
+          <div class="visual-dashboard__chart-header">
+            <h3><i class="fa-solid fa-tags" /> Evolución del CPC</h3>
+          </div>
+          <div class="chart-container chart-container--wide">
+            <Line :data="cpcTimeSeriesData" :options="timeSeriesOptions" />
           </div>
         </div>
       </div>
@@ -444,11 +605,15 @@ onMounted(fetchWorkspace)
 
   &__charts-layout {
     display: grid;
-    grid-template-columns: 1fr; // Stack on mobile
+    grid-template-columns: 1fr;
     gap: 1.5rem;
 
-    @media (min-width: 1200px) {
-      grid-template-columns: 2fr 1fr;
+    @media (min-width: 1024px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (min-width: 1400px) {
+      grid-template-columns: repeat(3, 1fr);
     }
   }
 
@@ -456,32 +621,66 @@ onMounted(fetchWorkspace)
     background: $white;
     padding: 1.25rem;
     border-radius: 20px;
-    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
     border: 1px solid rgba($primary-dark, 0.04);
+    display: flex;
+    flex-direction: column;
+
+    &--main {
+      @media (min-width: 1024px) {
+        grid-column: span 2;
+      }
+    }
+
+    &--full {
+      @media (min-width: 1024px) {
+        grid-column: 1 / -1;
+      }
+    }
 
     @media (min-width: 768px) {
-      padding: 2rem;
+      padding: 1.75rem;
       border-radius: 24px;
     }
 
     h3 {
-      margin: 0 0 1.25rem;
+      margin: 0;
       font-size: 1rem;
       color: $primary-dark;
       font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      i {
+        color: rgba($primary, 0.6);
+        font-size: 0.9rem;
+      }
 
       @media (min-width: 768px) {
-        font-size: 1.1rem;
-        margin-bottom: 1.5rem;
+        font-size: 1.05rem;
       }
     }
+  }
 
-    .chart-container {
-      height: 300px;
-      width: 100%;
+  &__chart-header {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
+  .chart-container {
+    height: 280px;
+    width: 100%;
+
+    @media (min-width: 768px) {
+      height: 320px;
+    }
+
+    &--wide {
       @media (min-width: 768px) {
-        height: 400px;
+        height: 380px;
       }
     }
   }

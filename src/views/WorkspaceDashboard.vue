@@ -195,6 +195,13 @@ const chartData = computed<ChartData<'line'>>(() => {
 async function fetchAdsInsights() {
   if (!workspace.value?.metaAds?.adAccountId) return;
   isLoadingInsights.value = true
+
+  // Clear stale data to trigger skeletons immediately
+  adsInsights.value = []
+  dailySpend.value = []
+  spendByPlatform.value = []
+  adsSpendByPlatform.value = []
+
   try {
     // We pass the currently selected datePreset
     const data = await metaService.getAdsInsights(workspaceId, workspace.value.metaAds.adAccountId, datePreset.value)
