@@ -7,7 +7,8 @@
     "allowSyntheticDefaultImports": true,
     "types": ["node"],
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true
   },
   "include": ["vite.config.ts"]
 }
