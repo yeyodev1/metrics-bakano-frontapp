@@ -81,6 +81,7 @@ export interface UpdateUserPayload {
   name?: string
   email?: string
   password?: string
+  role?: 'admin' | 'colaborador'
 }
 
 export interface UserResponse {

@@ -52,7 +52,8 @@ async function handleSubmit() {
     if (modalOptions.value.mode === 'edit' && modalOptions.value.user) {
       const payload: UpdateUserPayload = {
         name: userForm.value.name,
-        email: userForm.value.email
+        email: userForm.value.email,
+        role: userForm.value.role
       }
       if (userForm.value.password) payload.password = userForm.value.password
 
@@ -116,7 +117,7 @@ async function handleSubmit() {
             </label>
             <input v-model="userForm.password" type="password" minlength="8" placeholder="••••••••" />
           </div>
-          <div v-if="modalOptions.mode === 'create'" class="global-modal__form-group">
+          <div class="global-modal__form-group">
             <label>Nivel de acceso (Rol)</label>
             <select v-model="userForm.role" class="global-modal__select">
               <option value="admin">Administrador (Control total del entorno)</option>
