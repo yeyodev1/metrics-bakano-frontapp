@@ -245,7 +245,7 @@ onMounted(() => {
     <!-- Header -->
     <header class="workspace-settings__header">
       <div class="workspace-settings__context">
-        <button class="workspace-settings__back-btn" @click="router.push({ name: 'WorkspaceDashboard', params: { workspaceId } })">
+        <button class="workspace-settings__back-btn" @click="router.push({ name: 'AppDashboard', params: { workspaceId } })">
           <i class="fa-solid fa-arrow-left" />
         </button>
         <div>

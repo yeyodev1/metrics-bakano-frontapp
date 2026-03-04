@@ -17,7 +17,7 @@ const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
 
 const currentWorkspaceId = computed(() => {
-  if (route.name === 'SuperadminDashboard') return null
+  if (route.name === 'AdminWorkspaces') return null
   return route.params.workspaceId as string || userStore.workspaceId || workspaces.value[0]?._id
 })
 
@@ -50,7 +50,7 @@ function toggleDropdown(e: Event) {
 
 function selectWorkspace(ws: Workspace) {
   isDropdownOpen.value = false
-  router.push({ name: 'WorkspaceDashboard', params: { workspaceId: ws._id } })
+  router.push({ name: 'AppDashboard', params: { workspaceId: ws._id } })
 }
 
 function closeDropdownOnClickOutside(e: Event) {
@@ -80,7 +80,7 @@ async function logout(): Promise<void> {
 
   if (isConfirmed) {
     userStore.clear()
-    router.push({ name: 'Login' })
+    router.push({ name: 'AuthLogin' })
   }
 }
 
@@ -179,22 +179,22 @@ router.afterEach(() => {
       </div>
 
       <nav class="app-layout__nav">
-        <RouterLink v-if="userStore.role === 'superadmin'" class="app-layout__nav-item" :to="{ name: 'SuperadminDashboard' }">
+        <RouterLink v-if="userStore.role === 'superadmin'" class="app-layout__nav-item" :to="{ name: 'AdminWorkspaces' }">
           <i class="fa-solid fa-grid-2" aria-hidden="true" />
           <span>Vista Global (Superadmin)</span>
         </RouterLink>
         
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceDashboard', params: { workspaceId: activeWorkspace._id } }">
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppDashboard', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-chart-line" aria-hidden="true" />
           <span>Dashboard Detallado</span>
         </RouterLink>
 
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceVisualDashboard', params: { workspaceId: activeWorkspace._id } }">
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppVisual', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-chart-pie" aria-hidden="true" />
           <span>Analítica Visual</span>
         </RouterLink>
 
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'WorkspaceSettings', params: { workspaceId: activeWorkspace._id } }">
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-gear" aria-hidden="true" />
           <span>Configuración</span>
         </RouterLink>

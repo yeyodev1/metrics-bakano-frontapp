@@ -73,6 +73,11 @@ watch(searchQuery, () => {
 })
 
 async function selectWorkspace(workspace: Workspace): Promise<void> {
+  if (selectedWorkspace.value?._id === workspace._id) {
+    selectedWorkspace.value = null
+    users.value = []
+    return
+  }
   selectedWorkspace.value = workspace
   users.value = []
   isLoadingUsers.value = true
@@ -272,8 +277,14 @@ onMounted(fetchWorkspaces)
       <section class="superadmin-dashboard__users">
         <div v-if="!selectedWorkspace" class="superadmin-dashboard__placeholder">
           <div class="superadmin-dashboard__placeholder-content">
-            <i class="fa-solid fa-arrow-left" />
-            <p>Selecciona un entorno para gestionar sus usuarios</p>
+            <div class="superadmin-dashboard__placeholder-orb">
+              <i class="fa-solid fa-briefcase" />
+              <div class="superadmin-dashboard__placeholder-arrow">
+                <i class="fa-solid fa-arrow-pointer" />
+              </div>
+            </div>
+            <h3>Gestión de Usuarios</h3>
+            <p>Selecciona un entorno de la lista para ver y gestionar sus miembros.</p>
           </div>
         </div>
 
@@ -287,7 +298,7 @@ onMounted(fetchWorkspaces)
               <button
                 class="superadmin-dashboard__btn-outline"
                 type="button"
-                @click="router.push({ name: 'WorkspaceDashboard', params: { workspaceId: selectedWorkspace?._id } })"
+                @click="router.push({ name: 'AppDashboard', params: { workspaceId: selectedWorkspace?._id } })"
               >
                 <i class="fa-solid fa-right-to-bracket" />
                 Ingresar al entorno
@@ -964,18 +975,97 @@ onMounted(fetchWorkspaces)
     display: flex;
     align-items: center;
     justify-content: center;
-    color: $text-secondary;
+    padding: 3rem;
+    background: radial-gradient(circle at center, rgba($primary, 0.02) 0%, transparent 70%);
 
     &-content {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1rem;
+      text-align: center;
+      max-width: 320px;
+      gap: 1.25rem;
+      animation: fadeIn 0.8s ease-out;
 
-      i {
-        font-size: 2rem;
-        opacity: 0.3;
+      h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: $primary-dark;
+        font-weight: 700;
       }
+
+      p {
+        margin: 0;
+        color: $text-secondary;
+        line-height: 1.6;
+        font-size: 0.95rem;
+      }
+    }
+
+    &-orb {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      background: $white;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.25rem;
+      color: $primary;
+      box-shadow:
+        0 10px 25px rgba($primary, 0.1),
+        0 4px 10px rgba($primary, 0.05);
+      margin-bottom: 0.5rem;
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset: -10px;
+        border-radius: 30px;
+        border: 2px dashed rgba($primary, 0.1);
+        animation: rotate 20s linear infinite;
+      }
+    }
+
+    &-arrow {
+      position: absolute;
+      bottom: -5px;
+      right: -5px;
+      width: 32px;
+      height: 32px;
+      background: $primary;
+      color: $white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      border: 3px solid $white;
+      box-shadow: 0 4px 10px rgba($primary, 0.3);
+      animation: bounceSmall 2s infinite;
+    }
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes bounceSmall {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-3px);
     }
   }
 

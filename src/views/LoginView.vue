@@ -49,9 +49,9 @@ async function handleSubmit(): Promise<void> {
 
     // Role-based redirect
     if (user.role === 'superadmin') {
-      router.push({ name: 'SuperadminDashboard' })
+      router.push({ name: 'AdminWorkspaces' })
     } else if (targetWorkspaceId) {
-      router.push({ name: 'WorkspaceDashboard', params: { workspaceId: targetWorkspaceId } })
+      router.push({ name: 'AppDashboard', params: { workspaceId: targetWorkspaceId } })
     } else {
       router.push({ name: 'Home' })
     }

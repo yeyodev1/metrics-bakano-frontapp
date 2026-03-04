@@ -8,15 +8,15 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       {
         path: '',
-        name: 'Home',
+        name: 'PublicHome',
         component: () => import('../views/HomeView.vue'),
-        meta: { title: 'Inicio | Bakano Ads' },
+        meta: { title: 'Bakano Ads: Impulsando tu ROAS' },
       },
       {
         path: 'login',
-        name: 'Login',
+        name: 'AuthLogin',
         component: () => import('../views/LoginView.vue'),
-        meta: { title: 'Iniciar Sesión | Bakano Ads' },
+        meta: { title: 'Bakano Ads: Acceso Cliente' },
       },
     ],
   },
@@ -29,27 +29,27 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       {
         path: 'workspaces',
-        name: 'SuperadminDashboard',
+        name: 'AdminWorkspaces',
         component: () => import('../views/SuperadminDashboard.vue'),
-        meta: { title: 'Entornos de Trabajo | Bakano Ads', requiresAuth: true, requiresRole: 'superadmin' },
+        meta: { title: 'Bakano Ads: Gestión de Entornos', requiresAuth: true, requiresRole: 'superadmin' },
       },
       {
         path: 'workspaces/:workspaceId',
-        name: 'WorkspaceDashboard',
+        name: 'AppDashboard',
         component: () => import('../views/WorkspaceDashboard.vue'),
-        meta: { title: 'Dashboard del Espacio de Trabajo | Bakano Ads', requiresAuth: true },
+        meta: { title: 'Bakano Ads: Dashboard Detallado', requiresAuth: true },
       },
       {
         path: 'workspaces/:workspaceId/visual',
-        name: 'WorkspaceVisualDashboard',
+        name: 'AppVisual',
         component: () => import('../views/WorkspaceVisualDashboard.vue'),
-        meta: { title: 'Analítica Visual | Bakano Ads', requiresAuth: true },
+        meta: { title: 'Bakano Ads: Análisis Visual', requiresAuth: true },
       },
       {
         path: 'workspaces/:workspaceId/settings',
-        name: 'WorkspaceSettings',
+        name: 'AppSettings',
         component: () => import('../views/settings/WorkspaceSettings.vue'),
-        meta: { title: 'Configuración | Bakano Ads', requiresAuth: true },
+        meta: { title: 'Bakano Ads: Configuración del Entorno', requiresAuth: true },
       },
     ],
   },
@@ -57,7 +57,7 @@ const routes: Array<RouteRecordRaw> = [
   // ── Catch-all ─────────────────────────────────────────────
   {
     path: '/:pathMatch(.*)*',
-    redirect: { name: 'Login' },
+    redirect: { name: 'AuthLogin' },
   },
 ]
 
@@ -76,21 +76,21 @@ router.beforeEach((to, _from, next) => {
 
   // Unauthenticated trying to access protected route
   if (requiresAuth && !hasToken) {
-    return next({ name: 'Login', replace: true })
+    return next({ name: 'AuthLogin', replace: true })
   }
 
   // Already authenticated trying to access public routes
-  if (hasToken && (to.name === 'Login' || to.name === 'Home' || to.path === '/')) {
+  if (hasToken && (to.name === 'AuthLogin' || to.name === 'PublicHome' || to.path === '/')) {
     try {
       const [, payloadSegment] = token.split('.')
       if (payloadSegment) {
         const payload = JSON.parse(atob(payloadSegment)) as { role?: string; workspaceId?: string }
         if (payload.role === 'superadmin') {
-          return next({ name: 'SuperadminDashboard' })
+          return next({ name: 'AdminWorkspaces' })
         } else {
           const workspaceId = payload.workspaceId || localStorage.getItem('user_workspaceId')
           if (workspaceId) {
-            return next({ name: 'WorkspaceDashboard', params: { workspaceId } })
+            return next({ name: 'AppDashboard', params: { workspaceId } })
           }
         }
       }
@@ -107,10 +107,10 @@ router.beforeEach((to, _from, next) => {
       if (!payloadSegment) throw new Error('Malformed JWT')
       const payload = JSON.parse(atob(payloadSegment)) as { role?: string }
       if (payload.role !== requiresRole) {
-        return next({ name: 'Login', replace: true })
+        return next({ name: 'AuthLogin', replace: true })
       }
     } catch {
-      return next({ name: 'Login', replace: true })
+      return next({ name: 'AuthLogin', replace: true })
     }
   }
 

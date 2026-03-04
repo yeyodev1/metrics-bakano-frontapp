@@ -274,11 +274,11 @@ onMounted(() => {
       </div>
 
       <div class="workspace-dashboard__nav-actions">
-        <button class="workspace-dashboard__btn-ghost" @click="router.push({ name: 'WorkspaceSettings', params: { workspaceId } })" title="Configurar Entorno">
+        <button class="workspace-dashboard__btn-ghost" @click="router.push({ name: 'AppSettings', params: { workspaceId } })" title="Configurar Entorno">
           <i class="fa-solid fa-gear" />
           <span class="workspace-dashboard__nav-text">Ajustes</span>
         </button>  
-        <button v-if="userStore.role === 'superadmin'" class="workspace-dashboard__back-btn" @click="router.push({ name: 'SuperadminDashboard' })">
+        <button v-if="userStore.role === 'superadmin'" class="workspace-dashboard__back-btn" @click="router.push({ name: 'AdminWorkspaces' })">
           <i class="fa-solid fa-arrow-left" />
           <span class="workspace-dashboard__nav-text">Volver a Global</span>
         </button>
@@ -299,7 +299,7 @@ onMounted(() => {
     <div v-else-if="error" class="workspace-dashboard__error-state">
       <i class="fa-solid fa-circle-exclamation" />
       <p>{{ error }}</p>
-      <button @click="router.push({ name: 'SuperadminDashboard' })">Volver al Dashboard</button>
+      <button @click="router.push({ name: 'AdminWorkspaces' })">Volver al Dashboard</button>
     </div>
 
     <main v-else class="workspace-dashboard__content">
@@ -639,7 +639,7 @@ onMounted(() => {
         </div>
         <h3>No hay fuentes de datos conectadas</h3>
         <p>Para visualizar tus métricas y KPIs, primero debes conectar Meta Ads en la configuración de tu entorno.</p>
-        <button class="workspace-dashboard__btn-primary-lg" @click="router.push({ name: 'WorkspaceSettings', params: { workspaceId } })">
+        <button class="workspace-dashboard__btn-primary-lg" @click="router.push({ name: 'AppSettings', params: { workspaceId } })">
           <i class="fa-solid fa-gear" /> Ir a Configuración
         </button>
       </section>
