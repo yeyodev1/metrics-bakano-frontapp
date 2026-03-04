@@ -87,8 +87,11 @@ router.beforeEach((to, _from, next) => {
         const payload = JSON.parse(atob(payloadSegment)) as { role?: string; workspaceId?: string }
         if (payload.role === 'superadmin') {
           return next({ name: 'SuperadminDashboard' })
-        } else if (payload.workspaceId) {
-          return next({ name: 'WorkspaceDashboard', params: { workspaceId: payload.workspaceId } })
+        } else {
+          const workspaceId = payload.workspaceId || localStorage.getItem('user_workspaceId')
+          if (workspaceId) {
+            return next({ name: 'WorkspaceDashboard', params: { workspaceId } })
+          }
         }
       }
     } catch {

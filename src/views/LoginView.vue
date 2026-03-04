@@ -35,20 +35,23 @@ async function handleSubmit(): Promise<void> {
     // Persist token for the request interceptor
     localStorage.setItem('access_token', token)
 
+    // Select a workspace ID to redirect to
+    const targetWorkspaceId = user.workspaceId || (user.workspaces?.[0]?.workspaceId ?? null)
+
     // Hydrate the user store (also persists to localStorage)
     userStore.setUser({
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      workspaceId: user.workspaceId
+      workspaceId: targetWorkspaceId || undefined
     })
 
     // Role-based redirect
     if (user.role === 'superadmin') {
       router.push({ name: 'SuperadminDashboard' })
-    } else if (user.workspaceId) {
-      router.push({ name: 'WorkspaceDashboard', params: { workspaceId: user.workspaceId } })
+    } else if (targetWorkspaceId) {
+      router.push({ name: 'WorkspaceDashboard', params: { workspaceId: targetWorkspaceId } })
     } else {
       router.push({ name: 'Home' })
     }

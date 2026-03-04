@@ -14,8 +14,12 @@ export interface AuthUser {
   _id: string
   name?: string
   email: string
-  role: 'superadmin' | 'admin' | 'colaborador'
+  role: 'superadmin' | 'user'
   workspaceId?: string
+  workspaces?: Array<{
+    workspaceId: string
+    role: 'admin' | 'colaborador'
+  }>
 }
 
 export interface LoginResponse {
