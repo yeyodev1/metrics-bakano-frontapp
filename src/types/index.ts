@@ -45,6 +45,7 @@ export interface Workspace {
     adAccountName?: string
     lastSyncedAt: string
   }
+  userRole?: 'admin' | 'colaborador'
   createdAt: string
   updatedAt: string
 }

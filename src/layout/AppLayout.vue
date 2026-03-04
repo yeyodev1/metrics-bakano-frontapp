@@ -207,7 +207,13 @@ router.afterEach(() => {
           </div>
           <div class="app-layout__user-info">
             <span class="app-layout__user-email">{{ userStore.name || userStore.email }}</span>
-            <span class="app-layout__user-role">{{ userStore.role === 'superadmin' ? 'Superadmin' : (userStore.role === 'admin' ? 'Admin / Owner' : 'Colaborador') }}</span>
+            <span class="app-layout__user-role">
+              {{
+                userStore.role === 'superadmin'
+                  ? 'Superadmin'
+                  : ((activeWorkspace?.userRole || userStore.role) === 'admin' ? 'Admin / Owner' : 'Colaborador')
+              }}
+            </span>
           </div>
         </div>
         <button class="app-layout__logout" type="button" @click="logout" aria-label="Cerrar sesión" title="Cerrar sesión">
