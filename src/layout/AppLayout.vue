@@ -3,12 +3,14 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { workspaceService } from '@/services/workspace.service'
+import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
 import logoDark from '@/assets/logos/bakano-light.png'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const confirm = useConfirm()
 
 const workspaces = ref<Workspace[]>([])
 const isDropdownOpen = ref(false)
@@ -67,9 +69,19 @@ function handleImgError(e: Event) {
   }
 }
 
-function logout(): void {
-  userStore.clear()
-  router.push({ name: 'Login' })
+async function logout(): Promise<void> {
+  const isConfirmed = await confirm.confirm({
+    title: '¿Cerrar sesión?',
+    message: 'Tendrás que iniciar sesión nuevamente para acceder a la plataforma.',
+    confirmText: 'Sí, salir',
+    cancelText: 'Cancelar',
+    requireHold: true
+  })
+
+  if (isConfirmed) {
+    userStore.clear()
+    router.push({ name: 'Login' })
+  }
 }
 
 // Close sidebar on navigation (mobile)
@@ -182,7 +194,7 @@ router.afterEach(() => {
           <span>Analítica Visual</span>
         </RouterLink>
 
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceSettings', params: { workspaceId: activeWorkspace._id } }">
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'WorkspaceSettings', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-gear" aria-hidden="true" />
           <span>Configuración</span>
         </RouterLink>
@@ -562,6 +574,10 @@ router.afterEach(() => {
       border-left: 3px solid $primary;
       border-radius: 0 8px 8px 0;
       padding-left: calc(1rem - 3px);
+    }
+
+    &--bottom {
+      margin-top: auto;
     }
   }
 
