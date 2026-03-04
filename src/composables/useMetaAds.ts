@@ -83,7 +83,7 @@ export function useMetaAds() {
           appId: META_APP_ID,
           cookie: true,
           xfbml: true,
-          version: 'v19.0'
+          version: 'v22.0'
         })
 
         // As requested: track page view
