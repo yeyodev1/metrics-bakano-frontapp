@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import GlobalToast from '@/components/common/GlobalToast.vue'
 import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
+import GlobalUserFormModal from '@/components/common/GlobalUserFormModal.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -33,6 +34,7 @@ onUnmounted(() => {
     <RouterView />
     <GlobalToast />
     <GlobalConfirmModal />
+    <GlobalUserFormModal />
   </div>
 </template>
 

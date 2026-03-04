@@ -3,12 +3,14 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { useUserFormModal } from '@/composables/useUserFormModal'
+import { workspaceService } from '@/services/workspace.service'
+import type { Workspace, WorkspaceUser, ApiError } from '@/types'
 
 const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
-import { workspaceService } from '@/services/workspace.service'
-import type { Workspace, WorkspaceUser, ApiError, CreateUserPayload, UpdateUserPayload } from '@/types'
+const userModal = useUserFormModal()
 
 // ── State ──────────────────────────────────────────────────
 const workspaces = ref<Workspace[]>([])
@@ -23,19 +25,6 @@ const showCreateWorkspace = ref(false)
 const newWorkspaceName = ref('')
 const isSavingWorkspace = ref(false)
 const workspaceError = ref('')
-
-// User modal (Create/Edit)
-const showUserModal = ref(false)
-const isEditingUser = ref(false)
-const selectedUser = ref<WorkspaceUser | null>(null)
-const userForm = ref<CreateUserPayload & { id?: string }>({
-  name: '',
-  email: '',
-  password: '',
-  role: 'colaborador'
-})
-const isSavingUser = ref(false)
-const userError = ref('')
 
 // ── User Management (Create/Edit/Delete) ───────────────────
 async function fetchWorkspaces(): Promise<void> {
@@ -90,88 +79,30 @@ async function handleCreateWorkspace(): Promise<void> {
 }
 
 // ── User Management (Create/Edit/Delete) ───────────────────
-function openCreateUser(): void {
-  isEditingUser.value = false
-  selectedUser.value = null
-  userForm.value = {
-    name: '',
-    email: '',
-    password: '',
-    role: 'colaborador'
+
+async function openCreateUser(): Promise<void> {
+  if (!selectedWorkspace.value) return
+  const newUser = await userModal.open({
+    mode: 'create',
+    workspaceId: selectedWorkspace.value._id
+  })
+  if (newUser) {
+    users.value.unshift(newUser)
   }
-  userError.value = ''
-  showUserModal.value = true
 }
 
-function openEditUser(user: WorkspaceUser): void {
-  isEditingUser.value = true
-  selectedUser.value = user
-  userForm.value = {
-    name: user.name || '',
-    email: user.email,
-    password: '', // Password is empty for edit unless they want to change it
-    role: user.role
-  }
-  userError.value = ''
-  showUserModal.value = true
-}
-
-async function handleSaveUser(): Promise<void> {
-  if (!selectedWorkspace.value || isSavingUser.value) return
-
-  // Basic validation
-  if (!userForm.value.email.trim()) {
-    userError.value = 'El correo es obligatorio.'
-    return
-  }
-  if (!isEditingUser.value && userForm.value.password.length < 8) {
-    userError.value = 'La contraseña debe tener al menos 8 caracteres.'
-    return
-  }
-
-  isSavingUser.value = true
-  userError.value = ''
-
-  try {
-    if (isEditingUser.value && selectedUser.value) {
-      // Update
-      const payload: UpdateUserPayload = {
-        name: userForm.value.name,
-        email: userForm.value.email
-      }
-      if (userForm.value.password) payload.password = userForm.value.password
-
-      const { user } = await workspaceService.updateUser(
-        selectedWorkspace.value._id,
-        selectedUser.value._id,
-        payload
-      )
-
-      const index = users.value.findIndex(u => u._id === user._id)
-      if (index !== -1) users.value[index] = user
-      toast.success('Usuario actualizado correctamente.')
-
-    } else {
-      // Create
-      const { user } = await workspaceService.createUser(selectedWorkspace.value._id, {
-        name: userForm.value.name,
-        email: userForm.value.email,
-        password: userForm.value.password,
-        role: userForm.value.role
-      })
-      users.value.unshift(user)
-      toast.success('Usuario invitado correctamente.')
+async function openEditUser(user: WorkspaceUser): Promise<void> {
+  if (!selectedWorkspace.value) return
+  const updatedUser = await userModal.open({
+    mode: 'edit',
+    workspaceId: selectedWorkspace.value._id,
+    user
+  })
+  if (updatedUser) {
+    const index = users.value.findIndex(u => u._id === updatedUser._id)
+    if (index !== -1) {
+      users.value[index] = updatedUser
     }
-    showUserModal.value = false
-  } catch (err: unknown) {
-    const e = err as ApiError
-    if (e.status === 409) {
-      userError.value = 'Ese correo ya está en uso.'
-    } else {
-      toast.error('Ocurrió un error al guardar el usuario.')
-    }
-  } finally {
-    isSavingUser.value = false
   }
 }
 
@@ -384,51 +315,6 @@ onMounted(fetchWorkspaces)
               <button type="button" class="superadmin-dashboard__btn-ghost" @click="showCreateWorkspace = false">Cancelar</button>
               <button type="submit" class="superadmin-dashboard__btn-primary" :disabled="isSavingWorkspace">
                 <span v-if="!isSavingWorkspace">Crear</span>
-                <span v-else class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Modal: User (Create/Edit) -->
-    <Transition name="modal">
-      <div v-if="showUserModal" class="superadmin-dashboard__overlay" @click.self="showUserModal = false">
-        <div class="superadmin-dashboard__modal">
-          <div class="superadmin-dashboard__modal-header">
-            <h3>{{ isEditingUser ? 'Editar Usuario' : 'Nuevo Usuario' }}</h3>
-            <button class="superadmin-dashboard__close-btn" @click="showUserModal = false">
-              <i class="fa-solid fa-xmark" />
-            </button>
-          </div>
-          <form @submit.prevent="handleSaveUser">
-            <div class="superadmin-dashboard__form-group">
-              <label>Nombre</label>
-              <input v-model="userForm.name" type="text" placeholder="Nombre completo" />
-            </div>
-            <div class="superadmin-dashboard__form-group">
-              <label>Email</label>
-              <input v-model="userForm.email" type="email" placeholder="email@ejemplo.com" required />
-            </div>
-            <div class="superadmin-dashboard__form-group">
-              <label>Contraseña {{ isEditingUser ? '(opcional)' : '' }}</label>
-              <input v-model="userForm.password" type="password" placeholder="••••••••" :required="!isEditingUser" minlength="8" />
-            </div>
-            <div v-if="!isEditingUser" class="superadmin-dashboard__form-group">
-              <label>Rol</label>
-              <select v-model="userForm.role" class="superadmin-dashboard__select">
-                <option value="admin">Administrador</option>
-                <option value="colaborador">Colaborador</option>
-              </select>
-            </div>
-            
-            <p v-if="userError" class="superadmin-dashboard__error">{{ userError }}</p>
-            
-            <div class="superadmin-dashboard__modal-footer">
-              <button type="button" class="superadmin-dashboard__btn-ghost" @click="showUserModal = false">Cancelar</button>
-              <button type="submit" class="superadmin-dashboard__btn-primary" :disabled="isSavingUser">
-                <span v-if="!isSavingUser">{{ isEditingUser ? 'Guardar Cambios' : 'Crear Usuario' }}</span>
                 <span v-else class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
               </button>
             </div>

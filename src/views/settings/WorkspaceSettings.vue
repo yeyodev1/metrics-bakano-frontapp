@@ -7,7 +7,8 @@ import { useMetaAds } from '@/composables/useMetaAds'
 import { useUserStore } from '@/stores/user'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
-import type { Workspace, WorkspaceUser, ApiError, CreateUserPayload, UpdateUserPayload } from '@/types'
+import { useUserFormModal } from '@/composables/useUserFormModal'
+import type { Workspace, WorkspaceUser, ApiError } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +17,7 @@ const workspaceId = route.params.workspaceId as string
 
 const confirm = useConfirm()
 const toast = useToast()
+const userModal = useUserFormModal()
 
 // Permissions logic
 const canManageWorkspace = computed(() => {
@@ -50,19 +52,6 @@ const {
 const isFetchingAdAccounts = ref(false)
 const showAdAccountModal = ref(false)
 const adAccountsList = ref<any[]>([])
-
-// User modal (Create/Edit)
-const showUserModal = ref(false)
-const isEditingUser = ref(false)
-const selectedUser = ref<WorkspaceUser | null>(null)
-const userForm = ref<CreateUserPayload & { id?: string }>({
-  name: '',
-  email: '',
-  password: '',
-  role: 'colaborador'
-})
-const isSavingUser = ref(false)
-const userError = ref('')
 
 // ── Initial Fetch ─────────────────────────────────────────
 
@@ -191,74 +180,27 @@ async function handleAdAccountSelection(account: any) {
 
 // ── User Management ───────────────────────────────────────
 
-function openCreateUser(): void {
-  isEditingUser.value = false
-  selectedUser.value = null
-  userForm.value = { name: '', email: '', password: '', role: 'colaborador' }
-  userError.value = ''
-  showUserModal.value = true
+async function openCreateUser(): Promise<void> {
+  const newUser = await userModal.open({
+    mode: 'create',
+    workspaceId
+  })
+  if (newUser) {
+    users.value.unshift(newUser)
+  }
 }
 
-function openEditUser(user: WorkspaceUser): void {
-  isEditingUser.value = true
-  selectedUser.value = user
-  userForm.value = {
-    name: user.name || '',
-    email: user.email,
-    password: '',
-    role: user.role
-  }
-  userError.value = ''
-  showUserModal.value = true
-}
-
-async function handleSaveUser(): Promise<void> {
-  if (isSavingUser.value) return
-
-  if (!userForm.value.email.trim()) {
-    userError.value = 'El correo es obligatorio.'
-    return
-  }
-  if (!isEditingUser.value && userForm.value.password.length < 8) {
-    userError.value = 'La contraseña debe tener al menos 8 caracteres.'
-    return
-  }
-
-  isSavingUser.value = true
-  userError.value = ''
-
-  try {
-    if (isEditingUser.value && selectedUser.value) {
-      const payload: UpdateUserPayload = {
-        name: userForm.value.name,
-        email: userForm.value.email
-      }
-      if (userForm.value.password) payload.password = userForm.value.password
-
-      const { user } = await workspaceService.updateUser(workspaceId, selectedUser.value._id, payload)
-      const index = users.value.findIndex(u => u._id === user._id)
-      if (index !== -1) users.value[index] = user
-      toast.success('Usuario actualizado correctamente.')
-    } else {
-      const { user } = await workspaceService.createUser(workspaceId, {
-        name: userForm.value.name,
-        email: userForm.value.email,
-        password: userForm.value.password,
-        role: userForm.value.role
-      })
-      users.value.unshift(user)
-      toast.success('Usuario invitado correctamente.')
+async function openEditUser(user: WorkspaceUser): Promise<void> {
+  const updatedUser = await userModal.open({
+    mode: 'edit',
+    workspaceId,
+    user
+  })
+  if (updatedUser) {
+    const index = users.value.findIndex(u => u._id === updatedUser._id)
+    if (index !== -1) {
+      users.value[index] = updatedUser
     }
-    showUserModal.value = false
-  } catch (err: unknown) {
-    const e = err as ApiError
-    if (e.status === 409) {
-      userError.value = 'Ese correo ya está en uso.'
-    } else {
-      toast.error('Ocurrió un error al guardar o invitar al usuario.')
-    }
-  } finally {
-    isSavingUser.value = false
   }
 }
 
@@ -527,43 +469,6 @@ onMounted(() => {
           <div class="workspace-settings__modal-footer">
             <button class="workspace-settings__btn-ghost" @click="showAdAccountModal = false">Cancelar</button>
           </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Modal: User -->
-    <Transition name="modal">
-      <div v-if="showUserModal" class="workspace-settings__overlay" @click.self="showUserModal = false">
-        <div class="workspace-settings__modal">
-          <div class="workspace-settings__modal-header">
-            <h3>{{ isEditingUser ? 'Editar Usuario' : 'Invitar Usuario' }}</h3>
-          </div>
-          <form @submit.prevent="handleSaveUser" class="workspace-settings__form">
-            <div class="workspace-settings__form-group">
-              <label>Nombre</label>
-              <input v-model="userForm.name" type="text" placeholder="Ej: Carlos Silva" />
-            </div>
-            <div class="workspace-settings__form-group">
-              <label>Email</label>
-              <input v-model="userForm.email" type="email" required />
-            </div>
-            <div class="workspace-settings__form-group">
-              <label>Contraseña</label>
-              <input v-model="userForm.password" type="password" :required="!isEditingUser" minlength="8" />
-            </div>
-            <div v-if="!isEditingUser" class="workspace-settings__form-group">
-              <label>Nivel de acceso (Rol)</label>
-              <select v-model="userForm.role">
-                <option value="admin">Administrador (Control total del entorno)</option>
-                <option value="colaborador">Colaborador (Solo ver reportes y configurar)</option>
-              </select>
-            </div>
-            <p v-if="userError" class="workspace-settings__error-text">{{ userError }}</p>
-            <div class="workspace-settings__modal-footer">
-              <button type="button" class="workspace-settings__btn-ghost" @click="showUserModal = false">Cancelar</button>
-              <button type="submit" class="workspace-settings__btn-primary" :disabled="isSavingUser">Guardar</button>
-            </div>
-          </form>
         </div>
       </div>
     </Transition>
