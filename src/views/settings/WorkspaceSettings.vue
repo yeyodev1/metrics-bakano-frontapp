@@ -5,12 +5,17 @@ import { workspaceService } from '@/services/workspace.service'
 import { metaService } from '@/services/meta.service'
 import { useMetaAds } from '@/composables/useMetaAds'
 import { useUserStore } from '@/stores/user'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import type { Workspace, WorkspaceUser, ApiError, CreateUserPayload, UpdateUserPayload } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const workspaceId = route.params.workspaceId as string
+
+const confirm = useConfirm()
+const toast = useToast()
 
 // Permissions logic
 const canManageWorkspace = computed(() => {
@@ -59,11 +64,6 @@ const userForm = ref<CreateUserPayload & { id?: string }>({
 const isSavingUser = ref(false)
 const userError = ref('')
 
-// Delete confirmation
-const showDeleteConfirm = ref(false)
-const userToDelete = ref<WorkspaceUser | null>(null)
-const isDeletingUser = ref(false)
-
 // ── Initial Fetch ─────────────────────────────────────────
 
 async function fetchWorkspace() {
@@ -111,6 +111,7 @@ async function saveWorkspaceName() {
     const data = await workspaceService.updateWorkspace(workspaceId, editNameValue.value)
     if (workspace.value) workspace.value.name = data.workspace.name
     editNameValue.value = data.workspace.name
+    toast.success('Nombre actualizado')
   } catch (err: unknown) {
     const e = err as ApiError
     workspaceError.value = e.message || 'Error al actualizar el entorno.'
@@ -142,8 +143,10 @@ async function handlePageSelection(page: any) {
   try {
     await selectPageAndSave(workspaceId, page)
     await fetchWorkspace()
+    toast.success('Página de Facebook vinculada exitosamente.')
   } catch (err) {
     console.error('Page selection failed:', err)
+    toast.error('Ocurrió un error al vincular la página.')
   }
 }
 
@@ -155,7 +158,7 @@ async function fetchAdAccounts() {
     showAdAccountModal.value = true
   } catch (err) {
     console.error('Error fetching ad accounts:', err)
-    alert("Ocurrió un error al cargar las cuentas publicitarias.")
+    toast.error("Ocurrió un error al cargar las cuentas publicitarias.")
   } finally {
     isFetchingAdAccounts.value = false
   }
@@ -177,9 +180,10 @@ async function handleAdAccountSelection(account: any) {
     })
     showAdAccountModal.value = false
     await fetchWorkspace()
+    toast.success('Cuenta publicitaria de Meta vinculada correctamente.')
   } catch (err) {
     console.error('Error saving ad account:', err)
-    alert("Ocurrió un error al vincular la cuenta publicitaria.")
+    toast.error("Ocurrió un error al vincular la cuenta publicitaria.")
   } finally {
     isFetchingAdAccounts.value = false
   }
@@ -234,6 +238,7 @@ async function handleSaveUser(): Promise<void> {
       const { user } = await workspaceService.updateUser(workspaceId, selectedUser.value._id, payload)
       const index = users.value.findIndex(u => u._id === user._id)
       if (index !== -1) users.value[index] = user
+      toast.success('Usuario actualizado correctamente.')
     } else {
       const { user } = await workspaceService.createUser(workspaceId, {
         name: userForm.value.name,
@@ -242,35 +247,38 @@ async function handleSaveUser(): Promise<void> {
         role: userForm.value.role
       })
       users.value.unshift(user)
+      toast.success('Usuario invitado correctamente.')
     }
     showUserModal.value = false
   } catch (err: unknown) {
     const e = err as ApiError
-    if (e.status === 409) userError.value = 'Ese correo ya está en uso.'
-    else userError.value = 'Error al guardar el usuario.'
+    if (e.status === 409) {
+      userError.value = 'Ese correo ya está en uso.'
+    } else {
+      toast.error('Ocurrió un error al guardar o invitar al usuario.')
+    }
   } finally {
     isSavingUser.value = false
   }
 }
 
-function confirmDeleteUser(user: WorkspaceUser): void {
-  userToDelete.value = user
-  showDeleteConfirm.value = true
-}
+async function confirmDeleteUser(user: WorkspaceUser): Promise<void> {
+  const isConfirmed = await confirm.confirm({
+    title: '¿Retirar acceso?',
+    message: `Se revocará permanentemente el acceso de ${user.email} a este entorno.`,
+    confirmText: 'Sí, Revocar Acceso',
+    cancelText: 'Cancelar',
+    requireHold: true
+  })
 
-async function handleDeleteUser(): Promise<void> {
-  if (!userToDelete.value || isDeletingUser.value) return
-
-  isDeletingUser.value = true
-  try {
-    await workspaceService.deleteUser(workspaceId, userToDelete.value._id)
-    users.value = users.value.filter(u => u._id !== userToDelete.value?._id)
-    showDeleteConfirm.value = false
-  } catch (err: unknown) {
-    alert('Error al eliminar el usuario.')
-  } finally {
-    isDeletingUser.value = false
-    userToDelete.value = null
+  if (isConfirmed) {
+    try {
+      await workspaceService.deleteUser(workspaceId, user._id)
+      users.value = users.value.filter(u => u._id !== user._id)
+      toast.success('Acceso revocado correctamente.')
+    } catch (err: unknown) {
+      toast.error('Ocurrió un error al retirar el acceso.')
+    }
   }
 }
 
@@ -556,25 +564,6 @@ onMounted(() => {
               <button type="submit" class="workspace-settings__btn-primary" :disabled="isSavingUser">Guardar</button>
             </div>
           </form>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Modal: Delete Confirm -->
-    <Transition name="modal">
-      <div v-if="showDeleteConfirm" class="workspace-settings__overlay">
-        <div class="workspace-settings__modal workspace-settings__modal--sm">
-          <div class="workspace-settings__modal-body" style="text-align: center; padding: 2rem;">
-            <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: #ff4757; margin-bottom: 1rem;" />
-            <h3>¿Retirar acceso?</h3>
-            <p>Se revocará permanentemente el acceso de <strong>{{ userToDelete?.email }}</strong> a este entorno.</p>
-          </div>
-          <div class="workspace-settings__modal-footer" style="justify-content: center;">
-            <button class="workspace-settings__btn-ghost" @click="showDeleteConfirm = false">Cancelar</button>
-            <button class="workspace-settings__btn-primary" style="background: #ff4757;" @click="handleDeleteUser" :disabled="isDeletingUser">
-              Sí, Revocar Acceso
-            </button>
-          </div>
         </div>
       </div>
     </Transition>

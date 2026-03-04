@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
+const confirm = useConfirm()
+const toast = useToast()
 import { workspaceService } from '@/services/workspace.service'
 import type { Workspace, WorkspaceUser, ApiError, CreateUserPayload, UpdateUserPayload } from '@/types'
 
@@ -33,12 +37,7 @@ const userForm = ref<CreateUserPayload & { id?: string }>({
 const isSavingUser = ref(false)
 const userError = ref('')
 
-// Delete confirmation
-const showDeleteConfirm = ref(false)
-const userToDelete = ref<WorkspaceUser | null>(null)
-const isDeletingUser = ref(false)
-
-// ── Fetch ──────────────────────────────────────────────────
+// ── User Management (Create/Edit/Delete) ───────────────────
 async function fetchWorkspaces(): Promise<void> {
   isLoadingWorkspaces.value = true
   try {
@@ -76,10 +75,15 @@ async function handleCreateWorkspace(): Promise<void> {
     const { workspace } = await workspaceService.createWorkspace(newWorkspaceName.value.trim())
     workspaces.value.unshift(workspace)
     showCreateWorkspace.value = false
+    toast.success(`Entorno "${workspace.name}" creado con éxito.`)
     selectWorkspace(workspace)
   } catch (err: unknown) {
     const e = err as ApiError
-    workspaceError.value = e.status === 409 ? 'Ya existe un entorno con ese nombre.' : 'Error al crear el entorno.'
+    if (e.status === 409) {
+      workspaceError.value = 'Ya existe un entorno con ese nombre.'
+    } else {
+      toast.error('Ocurrió un error al crear el entorno.')
+    }
   } finally {
     isSavingWorkspace.value = false
   }
@@ -145,6 +149,7 @@ async function handleSaveUser(): Promise<void> {
 
       const index = users.value.findIndex(u => u._id === user._id)
       if (index !== -1) users.value[index] = user
+      toast.success('Usuario actualizado correctamente.')
 
     } else {
       // Create
@@ -155,35 +160,40 @@ async function handleSaveUser(): Promise<void> {
         role: userForm.value.role
       })
       users.value.unshift(user)
+      toast.success('Usuario invitado correctamente.')
     }
     showUserModal.value = false
   } catch (err: unknown) {
     const e = err as ApiError
-    if (e.status === 409) userError.value = 'Ese correo ya está en uso.'
-    else userError.value = 'Error al guardar el usuario.'
+    if (e.status === 409) {
+      userError.value = 'Ese correo ya está en uso.'
+    } else {
+      toast.error('Ocurrió un error al guardar el usuario.')
+    }
   } finally {
     isSavingUser.value = false
   }
 }
 
-function confirmDeleteUser(user: WorkspaceUser): void {
-  userToDelete.value = user
-  showDeleteConfirm.value = true
-}
+async function confirmDeleteUser(user: WorkspaceUser): Promise<void> {
+  if (!selectedWorkspace.value) return
 
-async function handleDeleteUser(): Promise<void> {
-  if (!selectedWorkspace.value || !userToDelete.value || isDeletingUser.value) return
+  const isConfirmed = await confirm.confirm({
+    title: '¿Eliminar usuario?',
+    message: `Esta acción no se puede deshacer. Se eliminará a ${user.email} permanentemente del entorno.`,
+    confirmText: 'Sí, eliminar',
+    cancelText: 'Cancelar',
+    requireHold: true
+  })
 
-  isDeletingUser.value = true
-  try {
-    await workspaceService.deleteUser(selectedWorkspace.value._id, userToDelete.value._id)
-    users.value = users.value.filter(u => u._id !== userToDelete.value?._id)
-    showDeleteConfirm.value = false
-  } catch (err: unknown) {
-    alert('Error al eliminar el usuario.')
-  } finally {
-    isDeletingUser.value = false
-    userToDelete.value = null
+  if (isConfirmed) {
+    try {
+      await workspaceService.deleteUser(selectedWorkspace.value._id, user._id)
+      users.value = users.value.filter(u => u._id !== user._id)
+      toast.success('Usuario eliminado exitosamente.')
+    } catch (err: unknown) {
+      toast.error('Ocurrió un error al eliminar el usuario.')
+    }
   }
 }
 
@@ -423,28 +433,6 @@ onMounted(fetchWorkspaces)
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Modal: Delete Confirm -->
-    <Transition name="modal">
-      <div v-if="showDeleteConfirm" class="superadmin-dashboard__overlay" @click.self="showDeleteConfirm = false">
-        <div class="superadmin-dashboard__modal superadmin-dashboard__modal--small">
-          <div class="superadmin-dashboard__confirm-content">
-            <div class="superadmin-dashboard__warn-icon">
-              <i class="fa-solid fa-triangle-exclamation" />
-            </div>
-            <h3>¿Eliminar usuario?</h3>
-            <p>Esta acción no se puede deshacer. Se eliminará a <strong>{{ userToDelete?.email }}</strong> permanentemente.</p>
-          </div>
-          <div class="superadmin-dashboard__modal-footer superadmin-dashboard__modal-footer--center">
-            <button class="superadmin-dashboard__btn-ghost" @click="showDeleteConfirm = false">Cancelar</button>
-            <button class="superadmin-dashboard__btn-danger" @click="handleDeleteUser" :disabled="isDeletingUser">
-              <span v-if="!isDeletingUser">Sí, eliminar</span>
-              <span v-else class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
-            </button>
-          </div>
         </div>
       </div>
     </Transition>
