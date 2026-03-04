@@ -412,6 +412,10 @@ onMounted(fetchWorkspaces)
 
     @media (min-width: 1024px) {
       display: grid;
+      grid-template-columns: 300px 1fr;
+    }
+
+    @media (min-width: 1280px) {
       grid-template-columns: 350px 1fr;
     }
   }
@@ -630,6 +634,7 @@ onMounted(fetchWorkspaces)
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    min-width: 0; // Allow content to shrink
     transition: box-shadow 0.2s ease;
     background: $white;
 
@@ -642,6 +647,12 @@ onMounted(fetchWorkspaces)
       justify-content: space-between;
       align-items: center;
       padding: 1.25rem;
+    }
+
+    // Special handling for the 1024px - 1087px range where the panel is narrow
+    @media (min-width: 1024px) and (max-width: 1150px) {
+      flex-direction: column;
+      align-items: stretch;
     }
   }
 
@@ -735,6 +746,11 @@ onMounted(fetchWorkspaces)
     @media (min-width: 640px) {
       padding-top: 0;
       border-top: none;
+    }
+
+    @media (min-width: 1024px) and (max-width: 1150px) {
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba($primary-dark, 0.05);
     }
   }
 
