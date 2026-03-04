@@ -209,6 +209,12 @@ async function openEditUser(user: WorkspaceUser): Promise<void> {
 }
 
 async function confirmDeleteUser(user: WorkspaceUser): Promise<void> {
+  // Prevent self-deletion
+  if (user._id === userStore.id) {
+    toast.error('¿Estas tratando de dañar el sistema? ¿Borrándote a ti mismo? Por dios, desloguéate como una persona normal... jajaja')
+    return
+  }
+
   const isConfirmed = await confirm.confirm({
     title: '¿Retirar acceso?',
     message: `Se revocará permanentemente el acceso de ${user.email} a este entorno.`,
