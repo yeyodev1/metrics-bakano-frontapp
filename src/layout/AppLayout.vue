@@ -217,7 +217,7 @@ router.afterEach(() => {
     </aside>
 
     <main class="app-layout__main">
-      <RouterView />
+      <RouterView :key="$route.fullPath" />
     </main>
   </div>
 </template>

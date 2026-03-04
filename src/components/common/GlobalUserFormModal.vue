@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useUserFormModal } from '@/composables/useUserFormModal'
 import { workspaceService } from '@/services/workspace.service'
 import { useToast } from '@/composables/useToast'
-import type { CreateUserPayload, UpdateUserPayload, ApiError } from '@/types'
+import type { CreateUserPayload, UpdateUserPayload } from '@/types'
 
 const { isVisible, modalOptions, close } = useUserFormModal()
 const toast = useToast()
@@ -40,7 +40,7 @@ async function handleSubmit() {
     userError.value = 'El correo es obligatorio.'
     return
   }
-  if (modalOptions.value.mode === 'create' && userForm.value.password.length < 8) {
+  if (modalOptions.value.mode === 'create' && userForm.value.password && userForm.value.password.length < 8) {
     userError.value = 'La contraseña debe tener al menos 8 caracteres.'
     return
   }
@@ -73,12 +73,14 @@ async function handleSubmit() {
       toast.success('Usuario invitado correctamente.')
       close(user)
     }
-  } catch (err: unknown) {
-    const e = err as ApiError
-    if (e.status === 409) {
-      userError.value = 'Ese correo ya está en uso.'
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.message || err.message || '';
+    if (err.status === 409 || err.response?.status === 409) {
+      userError.value = 'El usuario ya existe en este entorno.';
+    } else if (errorMsg.includes('contraseña es requerida') || errorMsg.includes('PASSWORD_REQUIRED')) {
+      userError.value = 'El usuario es nuevo, se requiere una contraseña.';
     } else {
-      toast.error('Ocurrió un error al guardar o invitar al usuario.')
+      toast.error(errorMsg || 'Ocurrió un error al guardar o invitar al usuario.');
     }
   } finally {
     isSaving.value = false
@@ -106,8 +108,13 @@ async function handleSubmit() {
             <input v-model="userForm.email" type="email" required placeholder="email@ejemplo.com" />
           </div>
           <div class="global-modal__form-group">
-            <label>Contraseña {{ modalOptions.mode === 'edit' ? '(opcional)' : '' }}</label>
-            <input v-model="userForm.password" type="password" :required="modalOptions.mode === 'create'" minlength="8" placeholder="••••••••" />
+            <label>
+              Contraseña
+              <span style="font-size: 0.8em; font-weight: normal; color: #64748b; margin-left: 0.5rem;">
+                {{ modalOptions.mode === 'edit' ? '(Dejar en blanco para no cambiar)' : '(Opcional si el usuario ya está registrado)' }}
+              </span>
+            </label>
+            <input v-model="userForm.password" type="password" minlength="8" placeholder="••••••••" />
           </div>
           <div v-if="modalOptions.mode === 'create'" class="global-modal__form-group">
             <label>Nivel de acceso (Rol)</label>
