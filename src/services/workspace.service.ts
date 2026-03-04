@@ -16,8 +16,8 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
-  async listWorkspaces(): Promise<WorkspaceListResponse> {
-    const res = await this.get<WorkspaceListResponse>('workspaces')
+  async listWorkspaces(params: { search?: string; page?: number; limit?: number } = {}): Promise<WorkspaceListResponse> {
+    const res = await this.get<WorkspaceListResponse>('workspaces', undefined, { params })
     return res.data
   }
 

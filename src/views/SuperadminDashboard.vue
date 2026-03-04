@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -15,6 +15,10 @@ const userModal = useUserFormModal()
 // ── State ──────────────────────────────────────────────────
 const workspaces = ref<Workspace[]>([])
 const isLoadingWorkspaces = ref(false)
+const searchQuery = ref('')
+const page = ref(1)
+const hasMore = ref(false)
+const isLoadingMore = ref(false)
 
 const selectedWorkspace = ref<Workspace | null>(null)
 const users = ref<WorkspaceUser[]>([])
@@ -26,16 +30,47 @@ const newWorkspaceName = ref('')
 const isSavingWorkspace = ref(false)
 const workspaceError = ref('')
 
-// ── User Management (Create/Edit/Delete) ───────────────────
-async function fetchWorkspaces(): Promise<void> {
-  isLoadingWorkspaces.value = true
+// ── Workspace Management ──────────────────────────────────
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+
+async function fetchWorkspaces(isLoadMore = false): Promise<void> {
+  if (isLoadMore) {
+    isLoadingMore.value = true
+    page.value++
+  } else {
+    isLoadingWorkspaces.value = true
+    page.value = 1
+  }
+
   try {
-    const { workspaces: data } = await workspaceService.listWorkspaces()
-    workspaces.value = data
+    const response = await workspaceService.listWorkspaces({
+      search: searchQuery.value.trim() || undefined,
+      page: page.value,
+      limit: 10
+    })
+
+    if (isLoadMore) {
+      workspaces.value = [...workspaces.value, ...response.workspaces]
+    } else {
+      workspaces.value = response.workspaces
+    }
+
+    hasMore.value = response.metadata?.hasMore ?? false
+  } catch (err) {
+    toast.error('Error al cargar entornos')
   } finally {
     isLoadingWorkspaces.value = false
+    isLoadingMore.value = false
   }
 }
+
+// Watch for search query changes with debounce
+watch(searchQuery, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    fetchWorkspaces()
+  }, 400)
+})
 
 async function selectWorkspace(workspace: Workspace): Promise<void> {
   selectedWorkspace.value = workspace
@@ -168,8 +203,19 @@ onMounted(fetchWorkspaces)
       <!-- Left: workspace list -->
       <section class="superadmin-dashboard__workspaces">
         <div class="superadmin-dashboard__section-header">
-          <h3>Entornos</h3>
-          <span class="superadmin-dashboard__count">{{ workspaces.length }}</span>
+          <div class="superadmin-dashboard__section-title">
+            <h3>Entornos</h3>
+            <span class="superadmin-dashboard__count">{{ workspaces.length }}</span>
+          </div>
+          <div class="superadmin-dashboard__search-wrap">
+            <i class="fa-solid fa-magnifying-glass" />
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Buscar..." 
+              class="superadmin-dashboard__search-input"
+            />
+          </div>
         </div>
 
         <div v-if="isLoadingWorkspaces" class="superadmin-dashboard__loading">
@@ -208,6 +254,18 @@ onMounted(fetchWorkspaces)
             </div>
           </li>
         </ul>
+
+        <!-- Load More -->
+        <div v-if="hasMore" class="superadmin-dashboard__load-more">
+          <button 
+            class="superadmin-dashboard__btn-ghost superadmin-dashboard__btn-ghost--full"
+            :disabled="isLoadingMore"
+            @click="fetchWorkspaces(true)"
+          >
+            <span v-if="!isLoadingMore">Cargar más</span>
+            <span v-else class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+          </button>
+        </div>
       </section>
 
       <!-- Right: Users panel -->
@@ -438,12 +496,50 @@ onMounted(fetchWorkspaces)
     padding: 1.25rem;
     border-bottom: 1px solid rgba($primary-dark, 0.05);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 1rem; // Spacing between header and search
 
     h3 {
       margin: 0;
       font-size: 1.1rem;
+    }
+  }
+
+  &__section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  &__search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%; // Ensure it fills the container
+
+    i {
+      position: absolute;
+      left: 0.875rem;
+      font-size: 0.85rem;
+      color: $text-secondary;
+      pointer-events: none;
+    }
+  }
+
+  &__search-input {
+    width: 100%;
+    padding: 0.6rem 0.75rem 0.6rem 2.5rem;
+    border-radius: 10px;
+    border: 1.5px solid rgba($primary-dark, 0.1);
+    font-size: 0.9rem;
+    background: rgba($primary-dark, 0.02);
+    transition: all 0.25s ease;
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      background: $white;
+      box-shadow: 0 0 0 4px rgba($primary, 0.1);
     }
   }
 
@@ -851,6 +947,16 @@ onMounted(fetchWorkspaces)
     &:hover {
       background: rgba($primary-dark, 0.05);
     }
+
+    &--full {
+      width: 100%;
+      border-radius: 0;
+      padding: 1rem;
+    }
+  }
+
+  &__load-more {
+    border-top: 1px solid rgba($primary-dark, 0.05);
   }
 
   &__placeholder {

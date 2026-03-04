@@ -62,6 +62,12 @@ export interface WorkspaceResponse {
 export interface WorkspaceListResponse {
   message: string
   workspaces: Workspace[]
+  metadata?: {
+    total: number
+    page: number
+    limit: number
+    hasMore: boolean
+  }
 }
 
 // ── User types ───────────────────────────────────────────
