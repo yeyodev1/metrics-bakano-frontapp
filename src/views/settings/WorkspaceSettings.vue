@@ -20,8 +20,12 @@ const toast = useToast()
 const userModal = useUserFormModal()
 
 // Permissions logic
-const canManageWorkspace = computed(() => {
-  return userStore.role === 'admin' || userStore.role === 'superadmin'
+const canManageIntegrations = computed(() => {
+  return userStore.role === 'superadmin'
+})
+
+const canManageTeam = computed(() => {
+  return userStore.role === 'admin' || userStore.role === 'superadmin' || workspace.value?.userRole === 'admin'
 })
 
 // Workspace state
@@ -277,7 +281,7 @@ onMounted(() => {
               />
               <span v-else class="workspace-settings__ro-value">{{ workspace?.name }}</span>
               
-              <div v-if="canManageWorkspace" class="workspace-settings__field-actions">
+              <div v-if="canManageIntegrations" class="workspace-settings__field-actions">
                 <template v-if="isEditingName">
                   <button class="workspace-settings__btn-icon workspace-settings__btn-icon--success" @click="saveWorkspaceName" :disabled="isSavingName"><i class="fa-solid fa-check" /></button>
                   <button class="workspace-settings__btn-icon workspace-settings__btn-icon--danger" @click="cancelEditName" :disabled="isSavingName"><i class="fa-solid fa-xmark" /></button>
@@ -312,7 +316,7 @@ onMounted(() => {
               </div>
             </div>
             
-            <div v-if="canManageWorkspace" class="workspace-settings__integration-right">
+            <div v-if="canManageIntegrations" class="workspace-settings__integration-right">
               <template v-if="workspace?.metaAds">
                 <button v-if="!workspace.metaAds.adAccountId" class="workspace-settings__btn-primary" @click="fetchAdAccounts">
                   Elegir Cuenta Ads
@@ -359,10 +363,10 @@ onMounted(() => {
         <div class="workspace-settings__panel-header">
           <div>
             <h2><i class="fa-solid fa-users" /> Equipo de Trabajo</h2>
-            <p v-if="canManageWorkspace" class="workspace-settings__panel-sub">{{ users.length }} usuarios tienen acceso a los datos de este entorno.</p>
+            <p v-if="canManageTeam" class="workspace-settings__panel-sub">{{ users.length }} usuarios tienen acceso a los datos de este entorno.</p>
             <p v-else class="workspace-settings__panel-sub"><i class="fa-solid fa-lock" /> No tienes permisos para gestionar el equipo. Contacta a un administrador.</p>
           </div>
-          <button v-if="canManageWorkspace" class="workspace-settings__btn-primary" @click="openCreateUser">
+          <button v-if="canManageTeam" class="workspace-settings__btn-primary" @click="openCreateUser">
             <i class="fa-solid fa-user-plus" /> Invitar Usuario
           </button>
         </div>
@@ -380,7 +384,7 @@ onMounted(() => {
                 <tr>
                   <th>Usuario</th>
                   <th>Rol</th>
-                  <th v-if="canManageWorkspace">Acciones</th>
+                  <th v-if="canManageTeam">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -399,7 +403,7 @@ onMounted(() => {
                       {{ user.role }}
                     </span>
                   </td>
-                  <td v-if="canManageWorkspace">
+                  <td v-if="canManageTeam">
                     <div class="workspace-settings__table-actions">
                       <button class="workspace-settings__btn-icon" @click="openEditUser(user)">
                         <i class="fa-solid fa-pen" />
