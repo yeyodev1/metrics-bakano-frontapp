@@ -624,16 +624,24 @@ onMounted(fetchWorkspaces)
   }
 
   &__user-card {
-    padding: 1.25rem;
+    padding: 1rem;
     border: 1px solid rgba($primary-dark, 0.08);
     border-radius: 12px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 1rem;
     transition: box-shadow 0.2s ease;
+    background: $white;
 
     &:hover {
       box-shadow: 0 4px 12px rgba($primary-dark, 0.05);
+    }
+
+    @media (min-width: 640px) {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem;
     }
   }
 
@@ -641,6 +649,7 @@ onMounted(fetchWorkspaces)
     display: flex;
     align-items: center;
     gap: 1rem;
+    min-width: 0; // Critical for truncation
   }
 
   &__user-avatar {
@@ -668,21 +677,27 @@ onMounted(fetchWorkspaces)
   &__user-info {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
   }
 
   &__user-name-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
+    min-width: 0;
   }
 
   &__user-name {
     font-weight: 600;
     color: $primary-dark;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__role-badge {
+    flex-shrink: 0;
     font-size: 0.65rem;
     text-transform: uppercase;
     font-weight: 800;
@@ -704,11 +719,23 @@ onMounted(fetchWorkspaces)
   &__user-email {
     font-size: 0.85rem;
     color: $text-secondary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__user-actions {
     display: flex;
     gap: 0.5rem;
+    justify-content: flex-end;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba($primary-dark, 0.05);
+    flex-shrink: 0;
+
+    @media (min-width: 640px) {
+      padding-top: 0;
+      border-top: none;
+    }
   }
 
   &__action-btn {
