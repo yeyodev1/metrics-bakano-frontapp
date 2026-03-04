@@ -10,13 +10,13 @@ const routes: Array<RouteRecordRaw> = [
         path: '',
         name: 'Home',
         component: () => import('../views/HomeView.vue'),
-        meta: { title: 'Home' },
+        meta: { title: 'Inicio | Bakano Ads' },
       },
       {
         path: 'login',
         name: 'Login',
         component: () => import('../views/LoginView.vue'),
-        meta: { title: 'Iniciar Sesión' },
+        meta: { title: 'Iniciar Sesión | Bakano Ads' },
       },
     ],
   },
@@ -31,25 +31,25 @@ const routes: Array<RouteRecordRaw> = [
         path: 'workspaces',
         name: 'SuperadminDashboard',
         component: () => import('../views/SuperadminDashboard.vue'),
-        meta: { title: 'Entornos de trabajo', requiresAuth: true, requiresRole: 'superadmin' },
+        meta: { title: 'Entornos de Trabajo | Bakano Ads', requiresAuth: true, requiresRole: 'superadmin' },
       },
       {
         path: 'workspaces/:workspaceId',
         name: 'WorkspaceDashboard',
         component: () => import('../views/WorkspaceDashboard.vue'),
-        meta: { title: 'Dashboard del Espacio de Trabajo', requiresAuth: true },
+        meta: { title: 'Dashboard del Espacio de Trabajo | Bakano Ads', requiresAuth: true },
       },
       {
         path: 'workspaces/:workspaceId/visual',
         name: 'WorkspaceVisualDashboard',
         component: () => import('../views/WorkspaceVisualDashboard.vue'),
-        meta: { title: 'Analítica Visual', requiresAuth: true },
+        meta: { title: 'Analítica Visual | Bakano Ads', requiresAuth: true },
       },
       {
         path: 'workspaces/:workspaceId/settings',
         name: 'WorkspaceSettings',
         component: () => import('../views/settings/WorkspaceSettings.vue'),
-        meta: { title: 'Configuración del Espacio de Trabajo', requiresAuth: true },
+        meta: { title: 'Configuración | Bakano Ads', requiresAuth: true },
       },
     ],
   },
@@ -112,6 +112,11 @@ router.beforeEach((to, _from, next) => {
   }
 
   next()
+})
+
+router.afterEach((to) => {
+  const title = to.meta?.title as string | undefined
+  document.title = title || 'Bakano Ads - Plataforma de Clientes'
 })
 
 export default router

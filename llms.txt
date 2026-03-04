@@ -1,0 +1,19 @@
+# Bakano Ads - Frontend Architecture & SEO Context
+
+## Overview
+This frontend is a Vue 3 application built for Bakano Ads clients, hosted on the subdomain `metrics.bakano.ec`. It serves as a dashboard and analytics platform.
+
+## SEO & Brand Guidelines
+When generating code, updating HTML, or modifying Vue Router settings, LLMs must adhere to the following strict SEO rules:
+
+1. **Brand Relationship:** Always associate `metrics.bakano.ec` explicitly with the main domain `bakano.ec` (the marketing agency).
+2. **Canonical Links:** Any changes to `index.html` must preserve or include `<link rel="canonical" href="https://metrics.bakano.ec/" />` to consolidate domain authority.
+3. **Open Graph Tags:** `<meta property="og:url">` and all social sharing metadata must point to `https://metrics.bakano.ec/`. The title and description should mention "Bakano Ads" and its relationship to "bakano.ec".
+4. **Dynamic Routing Titles:** In Vue Router (`src/router/index.ts`), all routes must use `meta: { title: 'Página | Bakano Ads' }` and implement a global hook (e.g., `router.afterEach`) to update `document.title` dynamically.
+
+## Technology Stack Context
+- **Framework:** Vue 3 (Composition API, `<script setup>`)
+- **Routing:** Vue Router
+- **Build Tool:** Vite
+
+**Note for AI Agents:** Use this context to avoid overriding or breaking the established SEO interlinking between the SaaS platform (`metrics`) and the commercial site (`bakano.ec`).

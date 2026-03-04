@@ -1,0 +1,32 @@
+# Guías de SEO y Meta Tags (Bakano Ads - Plataforma Clientes)
+
+## 📌 Contexto de Marca
+- **Aplicación:** Bakano Ads Analytics
+- **Dominio Principal (Agencia matriz):** `bakano.ec`
+- **Subdominio de la Plataforma (App Frontend):** `https://metrics.bakano.ec/`
+
+## 🛠️ Reglas Fundamentales de SEO Estratégico
+
+1. **Relación Semántica con el Dominio Principal (Canonical Tag):**
+   - Siempre que se configure SEO técnico a nivel de HTML, se DEBE incluir un tag canónico hacia el subdominio principal de la app, consolidando su autoridad:
+   ```html
+   <link rel="canonical" href="https://metrics.bakano.ec/" />
+   ```
+
+2. **Open Graph Metadata (Redes Sociales y Mensajería):**
+   - Para que las previsualizaciones al compartir enlaces (Slack, WhatsApp, LinkedIn) se vean profesionales, los atributos Open Graph deben apuntar explícitamente a `https://metrics.bakano.ec/`.
+   - Incluir descripciones que evidencien el nexo ("...para clientes de bakano.ec").
+   ```html
+   <meta property="og:url" content="https://metrics.bakano.ec/" />
+   <meta property="og:site_name" content="Bakano Ads Analytics" />
+   ```
+
+3. **Formatos de Titles (HTML Dinámico) con Vue Router:**
+   - De requerir expandir el array de rutas (Vue Router) o inyectar Títulos dinámicos document.title, la estructura siempre debe ser: `{Nombre de Sección} | Bakano Ads` o `Bakano Ads - Plataforma de Clientes`.
+   - Se debe manejar globalmente con guardias o interceptores (ej. `router.afterEach`).
+
+4. **Meta Keywords & Descriptions:**
+   - Incluir las palabras clave raíz del negocio en meta fields: **Bakano, bakano.ec, Bakano Ads, agencia de marketing, ROAS, Analítica**.
+   - Asocia siempre el valor que ofrece la plataforma con maximizar ROAS y profesionalismo.
+
+Estas reglas deben ser aplicadas rigurosamente al reescribir o refactorizar archivos de despliegue principal como `index.html` o la instanciación principal de las Rutas en `Vue Router`.
