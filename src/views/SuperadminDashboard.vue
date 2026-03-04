@@ -236,9 +236,15 @@ onMounted(fetchWorkspaces)
           <p>Cargando entornos...</p>
         </div>
 
-        <div v-else-if="workspaces.length === 0" class="superadmin-dashboard__empty">
-          <i class="fa-regular fa-building-circle-xmark superadmin-dashboard__empty-icon" aria-hidden="true" />
-          <p>No hay entornos de trabajo aún.</p>
+        <div v-else-if="workspaces.length === 0" class="superadmin-dashboard__empty-state">
+          <div class="superadmin-dashboard__empty-state-icon">
+            <i class="fa-solid fa-layer-group" aria-hidden="true" />
+          </div>
+          <h4 class="superadmin-dashboard__empty-state-title">No hay entornos de trabajo</h4>
+          <p class="superadmin-dashboard__empty-state-desc">Crea un nuevo entorno para empezar a organizar a tus clientes y colaboradores.</p>
+          <button class="superadmin-dashboard__btn-outline superadmin-dashboard__btn-outline--sm" @click="openCreateWorkspace">
+            <i class="fa-solid fa-plus" /> Crear primer entorno
+          </button>
         </div>
 
         <ul v-else class="superadmin-dashboard__workspace-list" role="list">
@@ -302,9 +308,15 @@ onMounted(fetchWorkspaces)
             <span class="superadmin-dashboard__spinner" />
           </div>
 
-          <div v-else-if="users.length === 0" class="superadmin-dashboard__empty">
-            <i class="fa-solid fa-users-slash superadmin-dashboard__empty-icon" />
-            <p>No hay usuarios en este entorno.</p>
+          <div v-else-if="users.length === 0" class="superadmin-dashboard__empty-state">
+            <div class="superadmin-dashboard__empty-state-icon superadmin-dashboard__empty-state-icon--users">
+              <i class="fa-solid fa-users" />
+            </div>
+            <h4 class="superadmin-dashboard__empty-state-title">Sin usuarios registrados</h4>
+            <p class="superadmin-dashboard__empty-state-desc">Este entorno está vacío. Añade administradores y colaboradores para que puedan analizar los datos.</p>
+            <button class="superadmin-dashboard__btn-primary superadmin-dashboard__btn-primary--sm" @click="openCreateUser">
+              <i class="fa-solid fa-user-plus" /> Invitar Usuario
+            </button>
           </div>
 
           <div v-else class="superadmin-dashboard__user-grid">
@@ -452,10 +464,18 @@ onMounted(fetchWorkspaces)
 
   &__topbar {
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 1rem;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid rgba($primary-dark, 0.1);
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      align-items: center;
+      gap: 0;
+    }
   }
 
   &__ws-badge {
@@ -470,10 +490,23 @@ onMounted(fetchWorkspaces)
     font-weight: 600;
   }
 
+  &__title {
+    font-size: 1.5rem;
+    margin: 0;
+  }
+
   &__topbar-right {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    width: 100%;
+
+    @media (min-width: 768px) {
+      width: auto;
+      flex-wrap: nowrap;
+      gap: 1.5rem;
+    }
   }
 
   &__superadmin-badge {
@@ -498,19 +531,29 @@ onMounted(fetchWorkspaces)
   }
 
   &__body {
-    display: grid;
-    grid-template-columns: 350px 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 2rem;
     align-items: start;
+
+    @media (min-width: 1024px) {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+    }
   }
 
   &__workspaces,
   &__users {
+    width: 100%;
     background: $white;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba($primary-dark, 0.05);
     border: 1px solid rgba($primary-dark, 0.05);
-    min-height: 600px;
+    min-height: 400px;
+
+    @media (min-width: 1024px) {
+      min-height: 600px;
+    }
   }
 
   &__section-header {
@@ -533,6 +576,52 @@ onMounted(fetchWorkspaces)
     border-radius: 6px;
     font-size: 0.8rem;
     font-weight: 700;
+  }
+
+  // ── Empty States ─────────────────────────────────────────
+  &__empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    height: 100%;
+    color: $text-secondary;
+
+    &-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba($primary, 0.05) 0%, rgba($primary, 0.1) 100%);
+      color: $primary;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 8px 24px rgba($primary, 0.1);
+
+      &--users {
+        background: linear-gradient(135deg, rgba($BAKANO-GREEN, 0.05) 0%, rgba($BAKANO-GREEN, 0.1) 100%);
+        color: darken($BAKANO-GREEN, 10%);
+        box-shadow: 0 8px 24px rgba($BAKANO-GREEN, 0.15);
+      }
+    }
+
+    &-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: $primary-dark;
+      margin: 0 0 0.5rem;
+    }
+
+    &-desc {
+      font-size: 0.95rem;
+      max-width: 320px;
+      margin: 0 0 1.5rem;
+      line-height: 1.5;
+    }
   }
 
   // ── Workspace Card ───────────────────────────────────────
@@ -599,15 +688,26 @@ onMounted(fetchWorkspaces)
   &__users-header {
     padding: 1.5rem;
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
     align-items: flex-start;
+    gap: 1rem;
     border-bottom: 1px solid rgba($primary-dark, 0.05);
+
+    @media (min-width: 640px) {
+      flex-direction: row;
+      align-items: flex-start;
+    }
   }
 
   &__users-title {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     color: $primary-dark;
+
+    @media (min-width: 640px) {
+      font-size: 1.25rem;
+    }
   }
 
   &__users-sub {
@@ -618,15 +718,35 @@ onMounted(fetchWorkspaces)
 
   &__users-actions-top {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.75rem;
     align-items: center;
+    width: 100%;
+
+    button {
+      flex: 1;
+      justify-content: center;
+
+      @media (min-width: 640px) {
+        flex: auto;
+      }
+    }
+
+    @media (min-width: 640px) {
+      width: auto;
+      flex-wrap: nowrap;
+    }
   }
 
   &__user-grid {
     padding: 1.5rem;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
     gap: 1rem;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
   }
 
   &__user-card {
@@ -757,6 +877,11 @@ onMounted(fetchWorkspaces)
       border-color: $primary;
       color: $primary;
     }
+
+    &--sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
   }
 
   &__btn-primary {
@@ -770,10 +895,16 @@ onMounted(fetchWorkspaces)
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    transition: opacity 0.2s;
+    transition: box-shadow 0.2s, opacity 0.2s;
 
     &:hover {
-      opacity: 0.9;
+      box-shadow: 0 4px 12px rgba($primary, 0.3);
+      opacity: 0.95;
+    }
+
+    &--sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
     }
 
     &:disabled {
