@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
 import { metaService } from '@/services/meta.service'
@@ -252,8 +252,23 @@ async function fetchWorkspace() {
   }
 }
 
+// Fix: iOS Safari / mobile Chrome bfcache bug.
+// When user taps a target="_blank" link and hits Back, the browser restores
+// the page from bfcache with event.persisted = true. Vue's event system is
+// broken at that point, so we force a reload to recover.
+function handlePageShow(event: PageTransitionEvent) {
+  if (event.persisted) {
+    window.location.reload()
+  }
+}
+
 onMounted(() => {
   fetchWorkspace()
+  window.addEventListener('pageshow', handlePageShow)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('pageshow', handlePageShow)
 })
 </script>
 
@@ -491,7 +506,7 @@ onMounted(() => {
                       {{ parseInt(ad.impressions || 0).toLocaleString() }}
                     </td>
                     <td>
-                      <a :href="`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${workspace?.metaAds?.adAccountId?.replace('act_', '')}&selected_ad_ids=${ad.ad_id}`" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook Ad Manager">
+                      <a :href="`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${workspace?.metaAds?.adAccountId?.replace('act_', '')}&selected_ad_ids=${ad.ad_id}`" target="_blank" rel="noopener noreferrer" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook Ad Manager">
                         <i class="fa-solid fa-arrow-up-right-from-square" />
                       </a>
                     </td>
@@ -576,7 +591,7 @@ onMounted(() => {
                   <strong><i class="fa-solid fa-share"/> {{ post.shares?.count || 0 }}</strong>
                 </td>
                 <td>
-                  <a v-if="post.permalink_url" :href="post.permalink_url" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook">
+                  <a v-if="post.permalink_url" :href="post.permalink_url" target="_blank" rel="noopener noreferrer" class="workspace-dashboard__ad-link-btn" title="Ver en Facebook">
                     <i class="fa-solid fa-arrow-up-right-from-square" />
                   </a>
                 </td>
@@ -622,7 +637,7 @@ onMounted(() => {
                   <strong><i class="fa-solid fa-comment" style="color: #3b82f6; margin-right: 4px;"/> {{ post.comments_count || 0 }}</strong>
                 </td>
                 <td>
-                  <a v-if="post.permalink" :href="post.permalink" target="_blank" class="workspace-dashboard__ad-link-btn" title="Ver en Instagram">
+                  <a v-if="post.permalink" :href="post.permalink" target="_blank" rel="noopener noreferrer" class="workspace-dashboard__ad-link-btn" title="Ver en Instagram">
                     <i class="fa-solid fa-arrow-up-right-from-square" />
                   </a>
                 </td>
