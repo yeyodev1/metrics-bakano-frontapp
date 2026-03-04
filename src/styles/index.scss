@@ -3,9 +3,10 @@
 
 @use "sass:color";
 @use "sass:math";
+@use "sass:meta";
 
 @function _to-percent($value) {
-  @if type-of($value) == 'number' and unit($value) == '%' {
+  @if meta.type-of($value) == 'number' and math.unit($value) == '%' {
     @return $value;
   }
   @return $value * 1%;
