@@ -374,43 +374,45 @@ onMounted(() => {
           <div v-else-if="users.length === 0" class="workspace-settings__empty-list">
              Nadie ha sido invitado a este entorno aún.
           </div>
-          <table v-else class="workspace-settings__table">
-            <thead>
-              <tr>
-                <th>Usuario</th>
-                <th>Rol</th>
-                <th v-if="canManageWorkspace">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="user in users" :key="user._id">
-                <td>
-                  <div class="workspace-settings__user-cell">
-                    <div class="workspace-settings__avatar">{{ (user.name || user.email).charAt(0).toUpperCase() }}</div>
-                    <div class="workspace-settings__user-cell-info">
-                      <strong>{{ user.name || 'Invitado' }}</strong>
-                      <span>{{ user.email }}</span>
+          <div v-else class="workspace-settings__table-wrapper">
+            <table class="workspace-settings__table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th v-if="canManageWorkspace">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="user in users" :key="user._id">
+                  <td>
+                    <div class="workspace-settings__user-cell">
+                      <div class="workspace-settings__avatar">{{ (user.name || user.email).charAt(0).toUpperCase() }}</div>
+                      <div class="workspace-settings__user-cell-info">
+                        <strong>{{ user.name || 'Invitado' }}</strong>
+                        <span>{{ user.email }}</span>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td>
-                  <span class="workspace-settings__role-badge" :class="`workspace-settings__role-badge--${user.role}`">
-                    {{ user.role }}
-                  </span>
-                </td>
-                <td v-if="canManageWorkspace">
-                  <div class="workspace-settings__table-actions">
-                    <button class="workspace-settings__btn-icon" @click="openEditUser(user)">
-                      <i class="fa-solid fa-pen" />
-                    </button>
-                    <button class="workspace-settings__btn-icon workspace-settings__btn-icon--danger" @click="confirmDeleteUser(user)">
-                      <i class="fa-solid fa-trash" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  </td>
+                  <td>
+                    <span class="workspace-settings__role-badge" :class="`workspace-settings__role-badge--${user.role}`">
+                      {{ user.role }}
+                    </span>
+                  </td>
+                  <td v-if="canManageWorkspace">
+                    <div class="workspace-settings__table-actions">
+                      <button class="workspace-settings__btn-icon" @click="openEditUser(user)">
+                        <i class="fa-solid fa-pen" />
+                      </button>
+                      <button class="workspace-settings__btn-icon workspace-settings__btn-icon--danger" @click="confirmDeleteUser(user)">
+                        <i class="fa-solid fa-trash" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -486,21 +488,32 @@ onMounted(() => {
 
   &__header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 1.5rem;
     border-bottom: 1px solid rgba($primary-dark, 0.1);
     padding-bottom: 1.5rem;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
   }
 
   &__context {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
 
     h1 {
       margin: 0;
-      font-size: 1.8rem;
+      font-size: 1.4rem;
       color: $primary-dark;
+      line-height: 1.2;
+
+      @media (min-width: 768px) {
+        font-size: 1.8rem;
+      }
     }
   }
 
@@ -554,12 +567,19 @@ onMounted(() => {
   }
 
   &__panel-header {
-    padding: 1.5rem 2rem;
+    padding: 1.25rem 1.5rem;
     border-bottom: 1px solid rgba($primary-dark, 0.06);
     background: #fafafa;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 1rem;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem;
+    }
 
     h2 {
       margin: 0;
@@ -583,11 +603,16 @@ onMounted(() => {
   }
 
   &__panel-body {
-    padding: 2rem;
+    padding: 1.25rem;
+
+    @media (min-width: 768px) {
+      padding: 2rem;
+    }
   }
 
   // General Info Text Input
   &__field-group {
+    width: 100%;
     max-width: 500px;
 
     label {
@@ -655,14 +680,21 @@ onMounted(() => {
 
   &__integration-card {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.25rem;
     border: 1px solid rgba($primary-dark, 0.1);
     border-radius: 12px;
     margin-bottom: 1rem;
     transition: all 0.2s;
     background: $white;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+    }
 
     &--active {
       border-color: rgba($primary, 0.3);
@@ -677,8 +709,14 @@ onMounted(() => {
 
   &__integration-left {
     display: flex;
-    align-items: center;
-    gap: 1.5rem;
+    align-items: flex-start;
+    gap: 1rem;
+    min-width: 0;
+
+    @media (min-width: 768px) {
+      align-items: center;
+      gap: 1.5rem;
+    }
   }
 
   &__integration-icon {
@@ -694,9 +732,16 @@ onMounted(() => {
   }
 
   &__integration-info {
+    flex: 1;
+    min-width: 0;
+
     h3 {
       margin: 0 0 0.25rem;
-      font-size: 1.1rem;
+      font-size: 1rem;
+
+      @media (min-width: 768px) {
+        font-size: 1.1rem;
+      }
     }
 
     p {
@@ -708,6 +753,7 @@ onMounted(() => {
 
   &__integration-details {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     margin-top: 0.5rem;
   }
@@ -715,10 +761,19 @@ onMounted(() => {
   &__pill {
     background: $primary-light;
     color: $primary;
-    padding: 0.2rem 0.6rem;
+    padding: 0.25rem 0.6rem;
     border-radius: 6px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+
+    @media (min-width: 768px) {
+      font-size: 0.8rem;
+      max-width: 250px;
+    }
 
     &--restricted {
       background: rgba($text-secondary, 0.05);
@@ -732,6 +787,17 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    justify-content: flex-end;
+
+    @media (max-width: 767px) {
+      border-top: 1px solid rgba($primary-dark, 0.05);
+      padding-top: 1rem;
+
+      button {
+        flex: 1;
+        justify-content: center;
+      }
+    }
   }
 
   // Buttons inside Settings
@@ -813,6 +879,14 @@ onMounted(() => {
   }
 
   // Users Table
+  &__table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -0.5rem;
+    padding: 0 0.5rem;
+  }
+
   &__table {
     width: 100%;
     border-collapse: collapse;
