@@ -1403,27 +1403,38 @@ onMounted(fetchWorkspaces)
   // ── Tabs ──────────────────────────────────────────────────
   &__tabs {
     display: flex;
-    gap: 0.5rem;
+    gap: 0;
     border-bottom: 2px solid rgba($primary-dark, 0.08);
     padding-bottom: 0;
   }
 
   &__tab {
+    flex: 1; // mobile: full width split equally
     background: transparent;
     border: none;
-    padding: 0.75rem 1.25rem;
+    padding: 0.75rem 0.5rem;
     border-radius: 8px 8px 0 0;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: $text-secondary;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    gap: 0.4rem;
     position: relative;
     bottom: -2px;
     border-bottom: 2px solid transparent;
+    text-align: center;
+
+    @media (min-width: 640px) {
+      flex: none;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.9rem;
+      gap: 0.5rem;
+      justify-content: flex-start;
+    }
 
     &:hover {
       color: $primary-dark;
@@ -1506,17 +1517,38 @@ onMounted(fetchWorkspaces)
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0;
     transition: box-shadow 0.2s;
 
     &:hover {
       box-shadow: 0 4px 16px rgba($alert-error, 0.08);
     }
 
+    // On mobile: main info + actions separated with a border-top (same pattern as user-card)
+    .superadmin-dashboard__user-main {
+      padding-bottom: 1rem;
+    }
+
+    .superadmin-dashboard__user-actions {
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba($primary-dark, 0.05);
+      justify-content: flex-end;
+    }
+
     @media (min-width: 640px) {
       flex-direction: row;
       align-items: center;
       justify-content: space-between;
+      gap: 1rem;
+
+      .superadmin-dashboard__user-main {
+        padding-bottom: 0;
+      }
+
+      .superadmin-dashboard__user-actions {
+        padding-top: 0;
+        border-top: none;
+      }
     }
 
     &--self {
@@ -1547,6 +1579,7 @@ onMounted(fetchWorkspaces)
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
     flex-shrink: 0;
+    white-space: nowrap;
   }
 
   &__self-tag {
