@@ -55,6 +55,22 @@ class WorkspaceService extends APIBase {
   async deleteUser(workspaceId: string, userId: string): Promise<void> {
     await this.delete(`workspaces/${workspaceId}/users/${userId}`)
   }
+
+  // ── Global Superadmin Management ─────────────────────────────
+
+  async listSuperadmins(): Promise<{ admins: any[] }> {
+    const res = await this.get<{ admins: any[] }>('admin/superadmins')
+    return res.data
+  }
+
+  async createSuperadmin(payload: { name?: string; email: string; password: string }): Promise<{ user: any }> {
+    const res = await this.post<{ user: any }>('admin/superadmins', payload)
+    return res.data
+  }
+
+  async deleteSuperadmin(userId: string): Promise<void> {
+    await this.delete(`admin/superadmins/${userId}`)
+  }
 }
 
 export const workspaceService = new WorkspaceService()

@@ -4,15 +4,22 @@ import { useRouter } from 'vue-router'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { useUserFormModal } from '@/composables/useUserFormModal'
+import { useSuperadminModal } from '@/composables/useSuperadminModal'
 import { workspaceService } from '@/services/workspace.service'
+import { useUserStore } from '@/stores/user'
 import type { Workspace, WorkspaceUser, ApiError } from '@/types'
+
+const userStore = useUserStore()
 
 const router = useRouter()
 const confirm = useConfirm()
 const toast = useToast()
 const userModal = useUserFormModal()
+const superadminModal = useSuperadminModal()
 
 // ── State ──────────────────────────────────────────────────
+const activeTab = ref<'workspaces' | 'superadmins'>('workspaces')
+
 const workspaces = ref<Workspace[]>([])
 const isLoadingWorkspaces = ref(false)
 const searchQuery = ref('')
@@ -29,6 +36,10 @@ const showCreateWorkspace = ref(false)
 const newWorkspaceName = ref('')
 const isSavingWorkspace = ref(false)
 const workspaceError = ref('')
+
+// ── Superadmin Management State ────────────────────────────
+const superadmins = ref<any[]>([])
+const isLoadingSuperadmins = ref(false)
 
 // ── Workspace Management ──────────────────────────────────
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
@@ -168,6 +179,52 @@ async function confirmDeleteUser(user: WorkspaceUser): Promise<void> {
   }
 }
 
+// ── Superadmin Management Actions ─────────────────────────
+async function fetchSuperadmins(): Promise<void> {
+  isLoadingSuperadmins.value = true
+  try {
+    const { admins } = await workspaceService.listSuperadmins()
+    superadmins.value = admins
+  } catch {
+    toast.error('Error al cargar superadmins')
+  } finally {
+    isLoadingSuperadmins.value = false
+  }
+}
+
+function openCreateSuperadmin(): void {
+  superadminModal.open().then((user) => {
+    if (user) superadmins.value.unshift(user)
+  })
+}
+
+async function confirmDeleteSuperadmin(admin: any): Promise<void> {
+  const isConfirmed = await confirm.confirm({
+    title: '¿Eliminar superadmin?',
+    message: `Esta acción es irreversible. Se eliminará a ${admin.email} con todos sus privilegios de sistema.`,
+    confirmText: 'Sí, eliminar superadmin',
+    cancelText: 'Cancelar',
+    requireHold: true
+  })
+
+  if (isConfirmed) {
+    try {
+      await workspaceService.deleteSuperadmin(admin._id)
+      superadmins.value = superadmins.value.filter(a => a._id !== admin._id)
+      toast.success('Superadmin eliminado.')
+    } catch {
+      toast.error('Error al eliminar el superadmin.')
+    }
+  }
+}
+
+function switchTab(tab: 'workspaces' | 'superadmins'): void {
+  activeTab.value = tab
+  if (tab === 'superadmins' && superadmins.value.length === 0) {
+    fetchSuperadmins()
+  }
+}
+
 onMounted(fetchWorkspaces)
 </script>
 
@@ -177,7 +234,7 @@ onMounted(fetchWorkspaces)
     <!-- Top bar -->
     <header class="superadmin-dashboard__topbar">
       <div class="superadmin-dashboard__topbar-left">
-        <div v-if="selectedWorkspace" class="superadmin-dashboard__ws-badge">
+        <div v-if="activeTab === 'workspaces' && selectedWorkspace" class="superadmin-dashboard__ws-badge">
           <i class="fa-solid fa-briefcase" />
           <span>{{ selectedWorkspace.name }}</span>
         </div>
@@ -191,6 +248,7 @@ onMounted(fetchWorkspaces)
           <i class="fa-solid fa-shield-check" /> Superadmin Mode
         </div>
         <button
+          v-if="activeTab === 'workspaces'"
           id="btn-create-workspace"
           class="superadmin-dashboard__btn-primary"
           type="button"
@@ -199,11 +257,38 @@ onMounted(fetchWorkspaces)
           <i class="fa-solid fa-plus" aria-hidden="true" />
           Nuevo entorno
         </button>
+        <button
+          v-else
+          class="superadmin-dashboard__btn-danger-outline"
+          type="button"
+          @click="openCreateSuperadmin"
+        >
+          <i class="fa-solid fa-user-shield" />
+          Nuevo Superadmin
+        </button>
       </div>
     </header>
 
-    <!-- Content: split -->
-    <div class="superadmin-dashboard__body">
+    <!-- Tab Navigation -->
+    <nav class="superadmin-dashboard__tabs">
+      <button
+        class="superadmin-dashboard__tab"
+        :class="{ 'superadmin-dashboard__tab--active': activeTab === 'workspaces' }"
+        @click="switchTab('workspaces')"
+      >
+        <i class="fa-solid fa-layer-group" /> Entornos & Clientes
+      </button>
+      <button
+        class="superadmin-dashboard__tab superadmin-dashboard__tab--danger"
+        :class="{ 'superadmin-dashboard__tab--active superadmin-dashboard__tab--danger-active': activeTab === 'superadmins' }"
+        @click="switchTab('superadmins')"
+      >
+        <i class="fa-solid fa-user-shield" /> Superadmins del Sistema
+      </button>
+    </nav>
+
+    <!-- Content: Workspaces Tab -->
+    <div v-if="activeTab === 'workspaces'" class="superadmin-dashboard__body">
 
       <!-- Left: workspace list -->
       <section class="superadmin-dashboard__workspaces">
@@ -364,6 +449,77 @@ onMounted(fetchWorkspaces)
       </section>
     </div>
 
+    <!-- Content: Superadmins Tab -->
+    <div v-if="activeTab === 'superadmins'" class="superadmin-dashboard__superadmins-panel">
+
+      <!-- Danger Alert -->
+      <div class="superadmin-dashboard__danger-alert">
+        <div class="superadmin-dashboard__danger-alert-icon">
+          <i class="fa-solid fa-triangle-exclamation" />
+        </div>
+        <div class="superadmin-dashboard__danger-alert-body">
+          <strong>Zona de Alto Privilegio</strong>
+          <p>Los usuarios Superadmin tienen <strong>acceso total e irrestricto</strong> al sistema: pueden crear y eliminar entornos, gestionar cualquier usuario, y modificar cualquier configuración de clientes. Crea estas cuentas solo para personas de absoluta confianza.</p>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div v-if="isLoadingSuperadmins" class="superadmin-dashboard__loading">
+        <span class="superadmin-dashboard__spinner" />
+        <p>Cargando superadmins...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="superadmins.length === 0" class="superadmin-dashboard__empty-state">
+        <div class="superadmin-dashboard__empty-state-icon superadmin-dashboard__empty-state-icon--danger">
+          <i class="fa-solid fa-user-shield" />
+        </div>
+        <h4 class="superadmin-dashboard__empty-state-title">No hay superadmins registrados</h4>
+        <p class="superadmin-dashboard__empty-state-desc">Solo verás tu propia cuenta en esta lista una vez que se sincronice.</p>
+      </div>
+
+      <!-- Superadmin List -->
+      <div v-else class="superadmin-dashboard__superadmin-grid">
+        <div
+          v-for="admin in superadmins"
+          :key="admin._id"
+          class="superadmin-dashboard__superadmin-card"
+          :class="{ 'superadmin-dashboard__superadmin-card--self': admin._id === userStore.id }"
+        >
+          <div class="superadmin-dashboard__user-main">
+            <div class="superadmin-dashboard__superadmin-avatar">
+              <i class="fa-solid fa-user-shield" />
+            </div>
+            <div class="superadmin-dashboard__user-info">
+              <div class="superadmin-dashboard__user-name-row">
+                <span class="superadmin-dashboard__user-name">{{ admin.name || 'Sin nombre' }}</span>
+                <span class="superadmin-dashboard__role-badge superadmin-dashboard__role-badge--superadmin">
+                  superadmin
+                </span>
+                <span v-if="admin._id === userStore.id" class="superadmin-dashboard__self-tag">
+                  <i class="fa-solid fa-circle-check" /> Tú
+                </span>
+              </div>
+              <span class="superadmin-dashboard__user-email">{{ admin.email }}</span>
+            </div>
+          </div>
+          <div class="superadmin-dashboard__user-actions">
+            <button
+              v-if="admin._id !== userStore.id"
+              class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--danger"
+              title="Eliminar superadmin"
+              @click="confirmDeleteSuperadmin(admin)"
+            >
+              <i class="fa-solid fa-trash-can" />
+            </button>
+            <span v-else class="superadmin-dashboard__self-lock" title="No puedes eliminarte a ti mismo">
+              <i class="fa-solid fa-lock" />
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal: Create Workspace -->
     <Transition name="modal">
       <div v-if="showCreateWorkspace" class="superadmin-dashboard__overlay" @click.self="showCreateWorkspace = false">
@@ -394,6 +550,7 @@ onMounted(fetchWorkspaces)
 
   </div>
 </template>
+
 
 <style lang="scss" scoped>
 .superadmin-dashboard {
@@ -1243,7 +1400,251 @@ onMounted(fetchWorkspaces)
     margin: 0;
   }
 
+  // ── Tabs ──────────────────────────────────────────────────
+  &__tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid rgba($primary-dark, 0.08);
+    padding-bottom: 0;
+  }
+
+  &__tab {
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    bottom: -2px;
+    border-bottom: 2px solid transparent;
+
+    &:hover {
+      color: $primary-dark;
+      background: rgba($primary-dark, 0.03);
+    }
+
+    &--active {
+      color: $primary;
+      border-bottom: 2px solid $primary;
+      background: $white;
+    }
+
+    &--danger {
+      &:hover {
+        color: $alert-error;
+        background: rgba($alert-error, 0.04);
+      }
+    }
+
+    &--danger-active {
+      color: $alert-error !important;
+      border-bottom-color: $alert-error !important;
+    }
+  }
+
+  // ── Superadmins Panel ─────────────────────────────────────
+  &__superadmins-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  &__danger-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba($alert-error, 0.06);
+    border: 1px solid rgba($alert-error, 0.2);
+    border-left: 4px solid $alert-error;
+    border-radius: 10px;
+    color: darken($alert-error, 10%);
+
+    &-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      padding-top: 0.1rem;
+    }
+
+    &-body {
+      strong {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 0.35rem;
+      }
+
+      p {
+        margin: 0;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: rgba(darken($alert-error, 20%), 0.85);
+      }
+    }
+  }
+
+  &__superadmin-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+  }
+
+  &__superadmin-card {
+    background: $white;
+    border: 1px solid rgba($alert-error, 0.15);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: box-shadow 0.2s;
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba($alert-error, 0.08);
+    }
+
+    @media (min-width: 640px) {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    &--self {
+      border-color: rgba($primary, 0.2);
+      background: rgba($primary, 0.01);
+    }
+  }
+
+  &__superadmin-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba($alert-error, 0.1);
+    color: $alert-error;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  &__role-badge--superadmin {
+    background: rgba($alert-error, 0.1);
+    color: $alert-error;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  &__self-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    color: $primary;
+    font-weight: 700;
+    background: rgba($primary, 0.08);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+  }
+
+  &__self-lock {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: rgba($primary-dark, 0.04);
+    color: rgba($text-secondary, 0.5);
+    font-size: 0.85rem;
+  }
+
+  // ── Danger Button Variant ─────────────────────────────────
+  &__btn-danger-outline {
+    background: transparent;
+    border: 1px solid rgba($alert-error, 0.4);
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: $alert-error;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba($alert-error, 0.06);
+      border-color: $alert-error;
+    }
+  }
+
+  // ── Danger Modal Variant ──────────────────────────────────
+  &__modal--danger {
+    border-top: 4px solid $alert-error;
+  }
+
+  &__modal-header--danger {
+    background: rgba($alert-error, 0.04);
+    border-bottom-color: rgba($alert-error, 0.1);
+  }
+
+  &__modal-danger-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    i {
+      color: $alert-error;
+      font-size: 1.2rem;
+    }
+
+    h3 {
+      margin: 0;
+    }
+  }
+
+  &__modal-danger-warning {
+    margin: 0 1.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba($alert-error, 0.07);
+    border: 1px solid rgba($alert-error, 0.15);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: darken($alert-error, 10%);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    i {
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+  }
+
+  &__empty-state-icon--danger {
+    background: linear-gradient(135deg, rgba($alert-error, 0.05) 0%, rgba($alert-error, 0.1) 100%);
+    color: $alert-error;
+    box-shadow: 0 8px 24px rgba($alert-error, 0.1);
+  }
+
   // Transition
+
   .modal-enter-active,
   .modal-leave-active {
     transition: opacity 0.3s;
