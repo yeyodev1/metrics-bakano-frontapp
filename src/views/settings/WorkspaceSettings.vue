@@ -57,6 +57,32 @@ const isFetchingAdAccounts = ref(false)
 const showAdAccountModal = ref(false)
 const adAccountsList = ref<any[]>([])
 
+/**
+ * Scores each ad account by keyword match with the current page name,
+ * then sorts so the best match (suggested) appears first.
+ */
+const sortedAdAccounts = computed(() => {
+  const pageName = workspace.value?.metaAds?.pageName || ''
+  if (!pageName || adAccountsList.value.length === 0) return adAccountsList.value
+
+  const keywords = pageName
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w: string) => w.length > 2)
+
+  return [...adAccountsList.value]
+    .map((account) => {
+      const name = (account.name || '').toLowerCase()
+      const score = keywords.reduce((acc: number, kw: string) => acc + (name.includes(kw) ? 1 : 0), 0)
+      return { ...account, _score: score }
+    })
+    .sort((a, b) => b._score - a._score)
+})
+
+function isSuggestedAccount(account: any): boolean {
+  return account._score > 0
+}
+
 // ── Initial Fetch ─────────────────────────────────────────
 
 async function fetchWorkspace() {
@@ -443,7 +469,13 @@ onMounted(() => {
               class="workspace-settings__page-item"
               @click="handlePageSelection(page)"
             >
-              <i class="fa-solid fa-flag" />
+              <img
+                v-if="page.picture?.data?.url"
+                :src="page.picture.data.url"
+                :alt="page.name"
+                class="workspace-settings__page-avatar"
+              />
+              <i v-else class="fa-solid fa-flag" />
               <div>
                 <strong>{{ page.name }}</strong>
                 <span>ID: {{ page.id }}</span>
@@ -466,14 +498,20 @@ onMounted(() => {
           </div>
           <div class="workspace-settings__page-list">
             <div 
-              v-for="account in adAccountsList" 
+              v-for="account in sortedAdAccounts" 
               :key="account.account_id" 
               class="workspace-settings__page-item"
+              :class="{ 'workspace-settings__page-item--suggested': isSuggestedAccount(account) }"
               @click="handleAdAccountSelection(account)"
             >
               <i class="fa-solid fa-bullhorn" />
               <div>
-                <strong>{{ account.name }}</strong>
+                <div class="workspace-settings__page-item-header">
+                  <strong>{{ account.name }}</strong>
+                  <span v-if="isSuggestedAccount(account)" class="workspace-settings__suggested-badge">
+                    <i class="fa-solid fa-star" /> Recomendada
+                  </span>
+                </div>
                 <span>ID: {{ account.account_id }}</span>
               </div>
             </div>
@@ -1074,6 +1112,45 @@ onMounted(() => {
         font-size: 0.8rem;
         color: $text-secondary;
       }
+    }
+  }
+
+  &__page-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba($primary, 0.15);
+    flex-shrink: 0;
+  }
+
+  &__page-item--suggested {
+    border-color: rgba($primary, 0.35);
+    background: rgba($primary, 0.03);
+  }
+
+  &__page-item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__suggested-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.5rem;
+    background: rgba($primary, 0.1);
+    color: $primary;
+    border-radius: 100px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+
+    i {
+      font-size: 0.55rem;
     }
   }
 

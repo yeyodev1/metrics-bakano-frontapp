@@ -5,6 +5,7 @@ export interface MetaPage {
   name: string;
   access_token: string;
   category?: string;
+  picture?: { data: { url: string } };
 }
 
 export interface MetaAuthResponse {
