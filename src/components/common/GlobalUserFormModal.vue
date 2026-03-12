@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useUserFormModal } from '@/composables/useUserFormModal'
 import { workspaceService } from '@/services/workspace.service'
 import { useToast } from '@/composables/useToast'
+// @ts-ignore
 import { VueTelInput } from 'vue-tel-input'
 import 'vue-tel-input/vue-tel-input.css'
 import type { CreateUserPayload, UpdateUserPayload } from '@/types'
