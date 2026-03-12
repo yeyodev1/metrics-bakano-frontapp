@@ -78,6 +78,8 @@ export interface WorkspaceUser {
   role: 'admin' | 'colaborador'
   workspaceId: string
   isActive: boolean
+  phoneNumber?: string
+  phoneExtension?: string
   createdAt: string
 }
 
@@ -86,6 +88,8 @@ export interface CreateUserPayload {
   email: string
   password: string
   role: 'admin' | 'colaborador'
+  phoneNumber?: string
+  phoneExtension?: string
 }
 
 export interface UpdateUserPayload {
@@ -93,6 +97,8 @@ export interface UpdateUserPayload {
   email?: string
   password?: string
   role?: 'admin' | 'colaborador'
+  phoneNumber?: string
+  phoneExtension?: string
 }
 
 export interface UserResponse {
