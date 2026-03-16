@@ -318,17 +318,6 @@ onUnmounted(() => {
     </div>
 
     <main v-else class="workspace-dashboard__content">
-      <!-- Welcome Card -->
-      <section class="workspace-dashboard__welcome-card">
-        <div class="workspace-dashboard__welcome-text">
-          <h2>¡Bienvenido al entorno operativo!</h2>
-          <p>Desde aquí podrás gestionar tus campañas y conectar tus fuentes de datos.</p>
-        </div>
-        <div class="workspace-dashboard__illustrations">
-          <i class="fa-solid fa-chart-line" />
-        </div>
-      </section>
-
       <!-- DASHBOARD DE MÉTRICAS (SOLO SI TIENE C/P) -->
       <section v-if="workspace?.metaAds?.adAccountId" class="workspace-dashboard__metrics-section">
         <div class="workspace-dashboard__metrics-header">

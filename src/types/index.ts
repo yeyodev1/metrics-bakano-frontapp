@@ -15,6 +15,7 @@ export interface AuthUser {
   name?: string
   email: string
   role: 'superadmin' | 'user'
+  isInternal?: boolean
   workspaceId?: string
   workspaces?: Array<{
     workspaceId: string
@@ -75,8 +76,16 @@ export interface WorkspaceUser {
   _id: string
   name?: string
   email: string
-  role: 'admin' | 'colaborador'
-  workspaceId: string
+  role: 'admin' | 'colaborador' | 'user'
+  isInternal?: boolean
+  workspaceId?: string
+  workspaces?: {
+    workspaceId: {
+      _id: string
+      name: string
+    }
+    role: 'admin' | 'colaborador'
+  }[]
   isActive: boolean
   phoneNumber?: string
   phoneExtension?: string
@@ -88,6 +97,7 @@ export interface CreateUserPayload {
   email: string
   password: string
   role: 'admin' | 'colaborador'
+  isInternal?: boolean
   phoneNumber?: string
   phoneExtension?: string
 }
@@ -99,6 +109,33 @@ export interface UpdateUserPayload {
   role?: 'admin' | 'colaborador'
   phoneNumber?: string
   phoneExtension?: string
+  isInternal?: boolean
+}
+
+export interface CreateGlobalUserPayload {
+  name?: string
+  email: string
+  password?: string
+  isInternal?: boolean
+  workspaces: {
+    workspaceId: string
+    role: 'admin' | 'colaborador'
+  }[]
+  phoneNumber?: string
+  phoneExtension?: string
+}
+
+export interface UpdateGlobalUserPayload {
+  name?: string
+  email?: string
+  password?: string
+  workspaces?: {
+    workspaceId: string
+    role: 'admin' | 'colaborador'
+  }[]
+  phoneNumber?: string
+  phoneExtension?: string
+  isInternal?: boolean
 }
 
 export interface UserResponse {
@@ -112,3 +149,39 @@ export interface UserListResponse {
 }
 
 
+
+// ── Planning types ──────────────────────────────────────────
+export interface PlanningEntry {
+  _id: string
+  workspaceId: string
+  title: string
+  date: string
+  notes?: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PlanningEntryResponse {
+  message: string
+  entry: PlanningEntry
+}
+
+export interface PlanningEntryListResponse {
+  message: string
+  entries: PlanningEntry[]
+}
+
+export interface CreatePlanningEntryPayload {
+  title: string
+  date: string
+  time?: string
+  notes?: string
+}
+
+export interface UpdatePlanningEntryPayload {
+  title?: string
+  date?: string
+  time?: string
+  notes?: string
+}

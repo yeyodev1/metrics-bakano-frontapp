@@ -4,6 +4,8 @@ import type {
   WorkspaceResponse,
   CreateUserPayload,
   UpdateUserPayload,
+  CreateGlobalUserPayload,
+  UpdateGlobalUserPayload,
   UserResponse,
   UserListResponse,
 } from '@/types'
@@ -70,6 +72,20 @@ class WorkspaceService extends APIBase {
 
   async deleteSuperadmin(userId: string): Promise<void> {
     await this.delete(`admin/superadmins/${userId}`)
+  }
+  async listAllCollaborators(search?: string, workspaceId?: string): Promise<UserListResponse> {
+    const res = await this.get<UserListResponse>('workspaces/all-users', undefined, { params: { search, workspaceId } })
+    return res.data
+  }
+
+  async createGlobalUser(payload: CreateGlobalUserPayload): Promise<UserResponse> {
+    const res = await this.post<UserResponse>('workspaces/global-users', payload)
+    return res.data
+  }
+
+  async updateGlobalUser(userId: string, payload: UpdateGlobalUserPayload): Promise<UserResponse> {
+    const res = await this.put<UserResponse>(`workspaces/global-users/${userId}`, payload)
+    return res.data
   }
 }
 

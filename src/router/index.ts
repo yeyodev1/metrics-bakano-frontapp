@@ -46,6 +46,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Ads: Análisis Visual', requiresAuth: true },
       },
       {
+        path: 'workspaces/:workspaceId/planning',
+        name: 'AppPlanning',
+        component: () => import('../views/WorkspacePlanning.vue'),
+        meta: { title: 'Bakano Ads: Planificación', requiresAuth: true },
+      },
+      {
         path: 'workspaces/:workspaceId/settings',
         name: 'AppSettings',
         component: () => import('../views/settings/WorkspaceSettings.vue'),

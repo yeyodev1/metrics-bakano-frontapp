@@ -194,6 +194,11 @@ router.afterEach(() => {
           <span>Analítica Visual</span>
         </RouterLink>
 
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: activeWorkspace._id } }">
+          <i class="fa-solid fa-calendar-days" aria-hidden="true" />
+          <span>Planificación</span>
+        </RouterLink>
+
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-gear" aria-hidden="true" />
           <span>Configuración</span>
