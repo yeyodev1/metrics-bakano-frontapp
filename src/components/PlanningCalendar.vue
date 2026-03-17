@@ -57,10 +57,20 @@ const defaultModalDate = ref<Date | null>(null)
 
 // Permissions & Filters
 const showMineOnly = ref(userStore.role !== 'superadmin' && !userStore.isInternal)
-const canManage = computed(() => 
-  userStore.role === 'superadmin' || 
-  userStore.isInternal ||
-  workspaceUsers.value.some(u => u._id === userStore.id && (u.role === 'admin' || u.role === 'colaborador'))
+const canManage = computed(() => {
+  const isProductor = userStore.isInternal && userStore.internalRole === 'productor'
+  if (isProductor) return false // Productor can only view
+
+  return (
+    userStore.role === 'superadmin' ||
+    userStore.isInternal ||
+    workspaceUsers.value.some(u => u._id === userStore.id && (u.role === 'admin' || u.role === 'colaborador'))
+  )
+})
+
+const canCreate = computed(() =>
+  userStore.role === 'superadmin' ||
+  (userStore.isInternal && userStore.internalRole === 'community_manager')
 )
 
 const currentUserId = computed(() => userStore.id)
@@ -270,6 +280,7 @@ function getThisMonday(d: Date) {
       :workspace-name="workspaceMeta?.name || ''"
       :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
       :can-manage="canManage"
+      :can-create="canCreate"
       @prev="handlePrev"
       @next="handleNext"
       @today="handleToday"
@@ -325,14 +336,15 @@ function getThisMonday(d: Date) {
 
 <style lang="scss" scoped>
 .planning-calendar {
-  padding: 1.5rem 2rem;
+  padding: 1rem;
   background: $primary-light;
   min-height: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 
-  @media (max-width: 768px) {
-    padding: 1rem;
+  @media (min-width: 1200px) {
+    padding: 1.5rem 2rem;
   }
 
   &__loading {

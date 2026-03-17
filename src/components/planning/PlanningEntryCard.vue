@@ -54,6 +54,10 @@ function getInitials(person: any): string {
     @click.stop="canManage && emit('edit', entry)"
   >
     <div class="planning-entry-card__main">
+      <div v-if="'workspaceName' in entry" class="planning-entry-card__workspace">
+        <span class="planning-entry-card__workspace-dot" />
+        <span class="planning-entry-card__workspace-name">{{ entry.workspaceName }}</span>
+      </div>
       <span class="planning-entry-card__time">{{ formatTime(entry.date) }}</span>
       <span class="planning-entry-card__title">{{ entry.title }}</span>
     </div>
@@ -143,6 +147,34 @@ function getInitials(person: any): string {
     color: $primary-dark;
     line-height: 1.3;
     margin-top: 0.15rem;
+  }
+
+  &__workspace {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.15rem;
+    padding-bottom: 0.15rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.04);
+  }
+
+  &__workspace-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $primary;
+    flex-shrink: 0;
+  }
+
+  &__workspace-name {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__avatars {
