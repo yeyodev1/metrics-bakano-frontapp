@@ -6,7 +6,20 @@ import { useToast } from '@/composables/useToast'
 // @ts-ignore
 import { VueTelInput } from 'vue-tel-input'
 import 'vue-tel-input/vue-tel-input.css'
-import type { CreateGlobalUserPayload, UpdateGlobalUserPayload, Workspace } from '@/types'
+import type { CreateGlobalUserPayload, UpdateGlobalUserPayload, Workspace, InternalRole } from '@/types'
+
+// Internal role definitions for the picker
+const INTERNAL_ROLES: { value: InternalRole; label: string; icon: string }[] = [
+  { value: 'director', label: 'Director', icon: 'fa-star' },
+  { value: 'estratega', label: 'Estratega', icon: 'fa-chess' },
+  { value: 'account_manager', label: 'Account Manager', icon: 'fa-handshake' },
+  { value: 'community_manager', label: 'Community Manager', icon: 'fa-comments' },
+  { value: 'productor', label: 'Productor', icon: 'fa-clapperboard' },
+  { value: 'disenador', label: 'Diseñador', icon: 'fa-pen-ruler' },
+  { value: 'copywriter', label: 'Copywriter', icon: 'fa-feather' },
+  { value: 'analista', label: 'Analista', icon: 'fa-chart-bar' },
+  { value: 'desarrollador', label: 'Desarrollador', icon: 'fa-code' },
+]
 
 const { isVisible, modalOptions, close } = useGlobalUserModal()
 const toast = useToast()
@@ -18,7 +31,8 @@ const userForm = ref<any>({
   workspaces: [] as { workspaceId: string, role: 'admin' | 'colaborador' }[],
   phoneNumber: '',
   phoneExtension: '',
-  isInternal: false
+  isInternal: false,
+  internalRole: null as InternalRole | null
 })
 
 const allWorkspaces = ref<Workspace[]>([])
@@ -55,7 +69,8 @@ watch(isVisible, (newVal) => {
         })),
         phoneNumber: user.phoneNumber || '',
         phoneExtension: user.phoneExtension || '',
-        isInternal: user.isInternal || false
+        isInternal: user.isInternal || false,
+        internalRole: user.internalRole || null
       }
     } else {
       userForm.value = { 
@@ -65,7 +80,8 @@ watch(isVisible, (newVal) => {
         workspaces: [],
         phoneNumber: '',
         phoneExtension: '',
-        isInternal: false
+        isInternal: false,
+        internalRole: null
       }
     }
   }
@@ -137,7 +153,8 @@ async function handleSubmit() {
         workspaces: userForm.value.workspaces,
         phoneNumber: userForm.value.phoneNumber,
         phoneExtension: userForm.value.phoneExtension,
-        isInternal: userForm.value.isInternal
+        isInternal: userForm.value.isInternal,
+        internalRole: userForm.value.isInternal ? userForm.value.internalRole : null
       }
       if (userForm.value.password) payload.password = userForm.value.password
 
@@ -152,7 +169,8 @@ async function handleSubmit() {
         workspaces: userForm.value.workspaces,
         phoneNumber: userForm.value.phoneNumber,
         phoneExtension: userForm.value.phoneExtension,
-        isInternal: userForm.value.isInternal
+        isInternal: userForm.value.isInternal,
+        internalRole: userForm.value.isInternal ? userForm.value.internalRole : undefined
       }
       const { user } = await workspaceService.createGlobalUser(payload)
       toast.success('Colaborador creado con éxito.')
@@ -221,6 +239,29 @@ async function handleSubmit() {
                 <span>Colaborador Interno Bakano</span>
               </label>
             </div>
+
+            <!-- Internal Role Picker: only visible when isInternal is checked -->
+            <Transition name="role-picker-fade">
+              <div v-if="userForm.isInternal" class="global-user-modal__form-group global-user-modal__form-group--full-width">
+                <label>
+                  <i class="fa-solid fa-id-badge" />
+                  Rol del Colaborador
+                </label>
+                <div class="global-user-modal__role-grid">
+                  <button
+                    v-for="role in INTERNAL_ROLES"
+                    :key="role.value"
+                    type="button"
+                    class="global-user-modal__role-chip"
+                    :class="{ 'is-active': userForm.internalRole === role.value }"
+                    @click="userForm.internalRole = userForm.internalRole === role.value ? null : role.value"
+                  >
+                    <i :class="`fa-solid ${role.icon}`" />
+                    <span>{{ role.label }}</span>
+                  </button>
+                </div>
+              </div>
+            </Transition>
           </div>
 
           <div class="global-user-modal__ws-section">
@@ -528,6 +569,71 @@ async function handleSubmit() {
     color: #64748b;
   }
 
+  &__form-group--full-width {
+    grid-column: 1 / -1;
+
+    > label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: $primary-dark;
+      margin-bottom: 0.75rem;
+
+      i {
+        color: $primary;
+      }
+    }
+  }
+
+  &__role-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  &__role-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    border: 1.5px solid rgba($primary-dark, 0.1);
+    background: $white;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    i {
+      font-size: 0.85rem;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    &:hover {
+      border-color: rgba($primary, 0.3);
+      background: rgba($primary, 0.04);
+      color: $primary-dark;
+      transform: translateY(-1px);
+    }
+
+    &.is-active {
+      background: $primary;
+      border-color: $primary;
+      color: $white;
+      box-shadow: 0 4px 12px rgba($primary, 0.25);
+      transform: translateY(-2px);
+
+      i {
+        opacity: 1;
+      }
+    }
+  }
+
   &__section-label {
     font-weight: 700;
     font-size: 1rem;
@@ -787,6 +893,37 @@ async function handleSubmit() {
 .global-modal-leave-to {
   opacity: 0;
   .global-user-modal { transform: scale(0.9) translateY(30px); }
+}
+
+// Role picker reveal animation — slide down + fade + subtle scale
+.role-picker-fade-enter-active {
+  transition:
+    opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  max-height: 200px;
+}
+
+.role-picker-fade-leave-active {
+  transition:
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  max-height: 200px;
+}
+
+.role-picker-fade-enter-from {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.97);
+  max-height: 0;
+}
+
+.role-picker-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  max-height: 0;
 }
 
 :deep(.vue-tel-input) {

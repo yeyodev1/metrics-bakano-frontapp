@@ -10,12 +10,24 @@ export interface LoginPayload {
   password: string
 }
 
+export type InternalRole =
+  | 'director'
+  | 'estratega'
+  | 'community_manager'
+  | 'productor'
+  | 'disenador'
+  | 'copywriter'
+  | 'analista'
+  | 'desarrollador'
+  | 'account_manager'
+
 export interface AuthUser {
   _id: string
   name?: string
   email: string
   role: 'superadmin' | 'user'
   isInternal?: boolean
+  internalRole?: InternalRole
   workspaceId?: string
   workspaces?: Array<{
     workspaceId: string
@@ -78,6 +90,7 @@ export interface WorkspaceUser {
   email: string
   role: 'admin' | 'colaborador' | 'user'
   isInternal?: boolean
+  internalRole?: InternalRole
   workspaceId?: string
   workspaces?: {
     workspaceId: {
@@ -117,6 +130,7 @@ export interface CreateGlobalUserPayload {
   email: string
   password?: string
   isInternal?: boolean
+  internalRole?: InternalRole
   workspaces: {
     workspaceId: string
     role: 'admin' | 'colaborador'
@@ -136,6 +150,7 @@ export interface UpdateGlobalUserPayload {
   phoneNumber?: string
   phoneExtension?: string
   isInternal?: boolean
+  internalRole?: InternalRole | null
 }
 
 export interface UserResponse {
@@ -157,6 +172,12 @@ export interface PlanningEntry {
   title: string
   date: string
   notes?: string
+  assignedTo?: {
+    _id: string
+    name?: string
+    email: string
+    internalRole?: string
+  }[]
   createdBy: string
   createdAt: string
   updatedAt: string
@@ -177,6 +198,7 @@ export interface CreatePlanningEntryPayload {
   date: string
   time?: string
   notes?: string
+  assignedTo?: string[]
 }
 
 export interface UpdatePlanningEntryPayload {
@@ -184,4 +206,16 @@ export interface UpdatePlanningEntryPayload {
   date?: string
   time?: string
   notes?: string
+  assignedTo?: string[]
+}
+
+// Entry returned by the global /my-week endpoint (includes workspace name + optional Meta page id)
+export interface GlobalPlanningEntry extends PlanningEntry {
+  workspaceName: string
+  workspaceMetaPageId?: string
+}
+
+export interface GlobalPlanningWeekResponse {
+  message: string
+  entries: GlobalPlanningEntry[]
 }

@@ -4,6 +4,7 @@ import type {
   PlanningEntryListResponse,
   CreatePlanningEntryPayload,
   UpdatePlanningEntryPayload,
+  GlobalPlanningWeekResponse,
 } from '@/types'
 
 class PlanningService extends APIBase {
@@ -35,6 +36,19 @@ class PlanningService extends APIBase {
 
   async deleteEntry(entryId: string): Promise<void> {
     await this.delete(`planning/${entryId}`)
+  }
+  async listMyWeek(
+    params: { startDate: string; endDate: string },
+  ): Promise<GlobalPlanningWeekResponse> {
+    const res = await this.get<GlobalPlanningWeekResponse>('planning/my-week', undefined, { params })
+    return res.data
+  }
+
+  async listGlobal(
+    params: { startDate: string; endDate: string },
+  ): Promise<GlobalPlanningWeekResponse> {
+    const res = await this.get<GlobalPlanningWeekResponse>('planning/my-week', undefined, { params })
+    return res.data
   }
 }
 
