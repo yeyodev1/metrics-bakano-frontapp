@@ -6,6 +6,7 @@ import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
 import logoDark from '@/assets/logos/bakano-light.png'
+import SurveyPlanningNotification from '@/components/surveys/SurveyPlanningNotification.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -16,8 +17,12 @@ const workspaces = ref<Workspace[]>([])
 const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
 
-const isGlobalView = computed(() =>
-  route.name === 'AdminWorkspaces' || route.name === 'InternalPlanning'
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults']
+
+const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
+
+const isSurveyRoute = computed(() =>
+  ['SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults'].includes(route.name as string)
 )
 
 const currentWorkspaceId = computed(() => {
@@ -40,6 +45,7 @@ async function fetchWorkspaces() {
 
 onMounted(() => {
   fetchWorkspaces()
+  userStore.fetchPendingSurveys()
   document.addEventListener('click', closeDropdownOnClickOutside)
 })
 
@@ -145,6 +151,18 @@ router.afterEach(() => {
           <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
         </button>
 
+        <!-- Surveys: global tool — no workspace binding -->
+        <div v-else-if="isSurveyRoute" class="app-layout__ws-button app-layout__ws-button--global app-layout__ws-button--surveys">
+          <div class="app-layout__ws-avatar app-layout__ws-avatar--surveys">
+            <i class="fa-solid fa-clipboard-list" />
+          </div>
+          <div class="app-layout__ws-info">
+            <span class="app-layout__ws-label">Herramienta Global</span>
+            <span class="app-layout__ws-name">Encuestas</span>
+          </div>
+          <span class="app-layout__ws-global-tag">GLOBAL</span>
+        </div>
+
         <!-- InternalPlanning: interactive selector to navigate to any client -->
         <button
           v-else-if="route.name === 'InternalPlanning' && workspaces.length > 0"
@@ -214,8 +232,34 @@ router.afterEach(() => {
           <span>Planificador Global</span>
         </RouterLink>
 
+        <!-- Surveys — internal + superadmin (global tool) -->
+        <RouterLink
+          v-if="userStore.isInternal || userStore.role === 'superadmin'"
+          class="app-layout__nav-item app-layout__nav-item--global-tool"
+          :to="{ name: 'SurveyList' }"
+        >
+          <i class="fa-solid fa-clipboard-list" aria-hidden="true" />
+          <span>Encuestas</span>
+          <span class="app-layout__nav-global-tag">GLOBAL</span>
+        </RouterLink>
+
+        <!-- Surveys — clients (My Surveys) -->
+        <RouterLink
+          v-if="!userStore.isInternal && userStore.role !== 'superadmin' && activeWorkspace"
+          class="app-layout__nav-item app-layout__nav-item--surveys"
+          :to="{ name: 'MySurveys', params: { workspaceId: activeWorkspace._id } }"
+        >
+          <div class="app-layout__nav-icon-container">
+            <i class="fa-solid fa-clipboard-check" aria-hidden="true" />
+            <span v-if="userStore.pendingSurveysCount > 0" class="app-layout__nav-badge">
+              {{ userStore.pendingSurveysCount }}
+            </span>
+          </div>
+          <span>Mis Encuestas</span>
+        </RouterLink>
+
         <!-- Divider between global tools and workspace-specific nav -->
-        <div v-if="userStore.isInternal && activeWorkspace" class="app-layout__nav-divider" />
+        <div v-if="(userStore.isInternal || userStore.role === 'superadmin') && activeWorkspace" class="app-layout__nav-divider" />
 
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppDashboard', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-chart-line" aria-hidden="true" />
@@ -261,6 +305,10 @@ router.afterEach(() => {
     </aside>
 
     <main class="app-layout__main">
+      <!-- Calendar survey reminder — visible to internal + superadmin only -->
+      <SurveyPlanningNotification
+        v-if="userStore.isInternal || userStore.role === 'superadmin'"
+      />
       <RouterView :key="$route.fullPath" />
     </main>
   </div>
@@ -438,6 +486,11 @@ router.afterEach(() => {
       cursor: default;
     }
 
+    &--surveys {
+      background: linear-gradient(135deg, rgba($primary, 0.12) 0%, rgba($primary, 0.04) 100%);
+      border: 1px solid rgba($primary, 0.25);
+    }
+
     &--internal-nav {
       background: rgba($primary, 0.06);
       border: 1px dashed rgba($primary, 0.25);
@@ -474,6 +527,12 @@ router.afterEach(() => {
       color: lighten($primary, 20%);
       font-size: 1rem;
       border: 1px solid rgba($primary, 0.3);
+    }
+
+    &--surveys {
+      background: rgba($primary, 0.2);
+      color: $primary;
+      font-size: 1rem;
     }
 
     &--sm {
@@ -515,6 +574,18 @@ router.afterEach(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  &__ws-global-tag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: $primary;
+    background: rgba($primary, 0.15);
+    padding: 0.2rem 0.5rem;
+    border-radius: 100px;
+    border: 1px solid rgba($primary, 0.25);
+    flex-shrink: 0;
   }
 
   &__ws-chevron {
@@ -664,6 +735,66 @@ router.afterEach(() => {
         padding-left: calc(1rem - 3px);
       }
     }
+
+    // Global tool entries (surveys, etc.)
+    &--global-tool {
+      background: rgba($primary, 0.06);
+      border: 1px solid rgba($primary, 0.12);
+      color: rgba($white, 0.85);
+
+      i { color: $primary; }
+
+      &:hover,
+      &.router-link-active {
+        background: rgba($primary, 0.14);
+        color: $white;
+        border-color: rgba($primary, 0.25);
+      }
+
+      &.router-link-active {
+        border-left: 3px solid $primary;
+        padding-left: calc(1rem - 3px);
+      }
+    }
+  }
+
+  &__nav-global-tag {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: $primary;
+    background: rgba($primary, 0.15);
+    padding: 0.15rem 0.45rem;
+    border-radius: 100px;
+    border: 1px solid rgba($primary, 0.25);
+    flex-shrink: 0;
+  }
+
+  &__nav-icon-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__nav-badge {
+    position: absolute;
+    top: -5px;
+    right: -8px;
+    background: $primary;
+    color: $white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid $primary-dark;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
   // ── Footer / user info ─────────────────────────────────

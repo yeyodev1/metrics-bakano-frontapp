@@ -11,6 +11,8 @@ import { useUserStore } from '@/stores/user'
 import type { Workspace, WorkspaceUser, ApiError } from '@/types'
 import GlobalUserModal from '@/components/common/GlobalUserModal.vue'
 import PlanningCalendar from '@/components/PlanningCalendar.vue'
+import { surveyService } from '@/services/survey.service'
+import type { ISurvey } from '@/types/survey'
 
 // ── Directives ─────────────────────────────────────────────
 const vClickOutside = {
@@ -37,7 +39,7 @@ const superadminModal = useSuperadminModal()
 const globalUserModal = useGlobalUserModal()
 
 // ── State ──────────────────────────────────────────────────
-const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning'>('workspaces')
+const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'surveys'>('workspaces')
 
 // ── Planning tab state ──────────────────────────────────────
 const planningSelectedId = ref<string>('')
@@ -295,7 +297,7 @@ async function confirmDeleteSuperadmin(admin: any): Promise<void> {
   }
 }
 
-function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning'): void {
+function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'surveys'): void {
   activeTab.value = tab
   if (tab === 'superadmins' && superadmins.value.length === 0) {
     fetchSuperadmins()
@@ -303,6 +305,8 @@ function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'plann
     fetchAllUsers()
   } else if (tab === 'planning' && !planningSelectedId.value && workspaces.value.length > 0) {
     planningSelectedId.value = workspaces.value[0]!._id
+  } else if (tab === 'surveys' && dashboardSurveys.value.length === 0) {
+    fetchDashboardSurveys()
   }
 }
 
@@ -338,6 +342,39 @@ async function openEditGlobalUser(user: WorkspaceUser) {
   }
 }
 
+// ── Surveys tab ────────────────────────────────────────────
+const dashboardSurveys = ref<ISurvey[]>([])
+const isLoadingSurveys = ref(false)
+const surveyFilterStatus = ref<'all' | 'draft' | 'active' | 'closed'>('all')
+
+const filteredDashboardSurveys = computed(() => {
+  if (surveyFilterStatus.value === 'all') return dashboardSurveys.value
+  return dashboardSurveys.value.filter(s => s.status === surveyFilterStatus.value)
+})
+
+async function fetchDashboardSurveys(): Promise<void> {
+  isLoadingSurveys.value = true
+  try {
+    const { surveys } = await surveyService.listSurveys()
+    dashboardSurveys.value = surveys
+  } catch {
+    toast.error('Error al cargar encuestas')
+  } finally {
+    isLoadingSurveys.value = false
+  }
+}
+
+function surveyCreatorName(survey: ISurvey): string {
+  if (typeof survey.createdBy === 'object' && survey.createdBy !== null) {
+    return (survey.createdBy as any).name || (survey.createdBy as any).email
+  }
+  return '—'
+}
+
+function formatSurveyDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 onMounted(fetchWorkspaces)
 </script>
 
@@ -369,6 +406,15 @@ onMounted(fetchWorkspaces)
         >
           <i class="fa-solid fa-plus" aria-hidden="true" />
           Nuevo entorno
+        </button>
+        <button
+          v-else-if="activeTab === 'surveys'"
+          class="superadmin-dashboard__btn-primary"
+          type="button"
+          @click="router.push({ name: 'SurveyNew' })"
+        >
+          <i class="fa-solid fa-plus" />
+          Nueva encuesta
         </button>
         <button
           v-else
@@ -411,6 +457,14 @@ onMounted(fetchWorkspaces)
         @click="switchTab('planning')"
       >
         <i class="fa-solid fa-calendar-range" /> Planificación Global
+      </button>
+      <button
+        class="superadmin-dashboard__tab superadmin-dashboard__tab--surveys"
+        :class="{ 'superadmin-dashboard__tab--active superadmin-dashboard__tab--surveys-active': activeTab === 'surveys' }"
+        @click="switchTab('surveys')"
+      >
+        <i class="fa-solid fa-clipboard-list" /> Encuestas
+        <span class="superadmin-dashboard__tab-global-tag">GLOBAL</span>
       </button>
     </nav>
 
@@ -461,12 +515,23 @@ onMounted(fetchWorkspaces)
             @click="selectWorkspace(ws)"
           >
             <div class="superadmin-dashboard__ws-icon">
-              <i class="fa-solid fa-building" />
+              <img
+                v-if="ws.metaAds?.pageId"
+                :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=normal`"
+                :alt="ws.name"
+                class="superadmin-dashboard__ws-icon-img"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
+              <i v-else class="fa-solid fa-building" />
             </div>
             <div class="superadmin-dashboard__ws-info">
               <span class="superadmin-dashboard__ws-name">{{ ws.name }}</span>
-              <span v-if="ws.adminId" class="superadmin-dashboard__ws-meta">
-                {{ ws.adminId.email }}
+              <span class="superadmin-dashboard__ws-meta">
+                <span v-if="ws.metaAds?.pageId" class="superadmin-dashboard__ws-meta-badge">
+                  <i class="fa-brands fa-meta" /> Meta
+                </span>
+                <span v-if="ws.adminId">{{ ws.adminId.email }}</span>
+                <span v-else class="superadmin-dashboard__ws-meta-empty">Sin admin asignado</span>
               </span>
             </div>
           </li>
@@ -986,6 +1051,95 @@ onMounted(fetchWorkspaces)
       </div>
     </div>
 
+    <!-- Content: Surveys Tab -->
+    <div v-if="activeTab === 'surveys'" class="superadmin-dashboard__surveys">
+      <div class="superadmin-dashboard__surveys-header">
+        <div class="superadmin-dashboard__surveys-notice">
+          <i class="fa-solid fa-earth-americas" />
+          <span>Las encuestas son <strong>globales</strong> — no están vinculadas a ningún entorno ni cliente específico.</span>
+        </div>
+        <div class="superadmin-dashboard__surveys-filters">
+          <button
+            v-for="f in [{ key: 'all', label: 'Todas' }, { key: 'draft', label: 'Borrador' }, { key: 'active', label: 'Activas' }, { key: 'closed', label: 'Cerradas' }]"
+            :key="f.key"
+            class="superadmin-dashboard__surveys-filter-btn"
+            :class="{ 'superadmin-dashboard__surveys-filter-btn--active': surveyFilterStatus === f.key }"
+            @click="surveyFilterStatus = f.key as any"
+          >
+            {{ f.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading Skeleton -->
+      <div v-if="isLoadingSurveys" class="superadmin-dashboard__surveys-list">
+        <div v-for="n in 5" :key="n" class="superadmin-dashboard__survey-card superadmin-dashboard__survey-card--skeleton">
+          <div class="superadmin-dashboard__survey-card-left">
+            <div class="skeleton-block skeleton-block--status"></div>
+            <div class="superadmin-dashboard__survey-info">
+              <div class="skeleton-block skeleton-block--title"></div>
+              <div class="skeleton-block skeleton-block--meta"></div>
+            </div>
+          </div>
+          <div class="superadmin-dashboard__survey-actions">
+            <div class="skeleton-block skeleton-block--action"></div>
+            <div class="skeleton-block skeleton-block--action"></div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="filteredDashboardSurveys.length === 0" class="superadmin-dashboard__empty-state">
+        <div class="superadmin-dashboard__empty-state-icon">
+          <i class="fa-solid fa-clipboard-list" />
+        </div>
+        <h4 class="superadmin-dashboard__empty-state-title">No hay encuestas</h4>
+        <p class="superadmin-dashboard__empty-state-desc">Crea una nueva encuesta para comenzar.</p>
+        <button class="superadmin-dashboard__btn-primary" @click="router.push({ name: 'SurveyNew' })">
+          <i class="fa-solid fa-plus" /> Nueva encuesta
+        </button>
+      </div>
+
+      <div v-else class="superadmin-dashboard__surveys-list">
+        <div
+          v-for="survey in filteredDashboardSurveys"
+          :key="survey._id"
+          class="superadmin-dashboard__survey-card"
+        >
+          <div class="superadmin-dashboard__survey-card-left">
+            <span
+              class="superadmin-dashboard__survey-status"
+              :class="`superadmin-dashboard__survey-status--${survey.status}`"
+            >
+              {{ survey.status === 'draft' ? 'Borrador' : survey.status === 'active' ? 'Activa' : 'Cerrada' }}
+            </span>
+            <div class="superadmin-dashboard__survey-info">
+              <span class="superadmin-dashboard__survey-title">{{ survey.title }}</span>
+              <span class="superadmin-dashboard__survey-meta">
+                {{ survey.questions.length }} preguntas · Creada por {{ surveyCreatorName(survey) }} · {{ formatSurveyDate(survey.createdAt) }}
+              </span>
+            </div>
+          </div>
+          <div class="superadmin-dashboard__survey-actions">
+            <RouterLink
+              v-if="survey.status === 'draft'"
+              :to="{ name: 'SurveyEdit', params: { surveyId: survey._id } }"
+              class="superadmin-dashboard__action-btn"
+              title="Editar"
+            >
+              <i class="fa-solid fa-pen-to-square" />
+            </RouterLink>
+            <RouterLink
+              :to="{ name: 'SurveyResults', params: { surveyId: survey._id } }"
+              class="superadmin-dashboard__action-btn"
+              title="Ver resultados"
+            >
+              <i class="fa-solid fa-chart-bar" />
+            </RouterLink>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <GlobalUserModal />
 
   </div>
@@ -1039,14 +1193,7 @@ onMounted(fetchWorkspaces)
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 1rem;
-    width: 100%;
-
-    @media (min-width: 768px) {
-      width: auto;
-      flex-wrap: nowrap;
-      gap: 1.5rem;
-    }
+    gap: 0.75rem;
   }
 
   &__superadmin-badge {
@@ -1257,6 +1404,32 @@ onMounted(fetchWorkspaces)
     justify-content: center;
     border-radius: 8px;
     font-size: 1.2rem;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  &__ws-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+
+  &__ws-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #1877f2;
+    background: rgba(#1877f2, 0.08);
+    padding: 0.1rem 0.4rem;
+    border-radius: 100px;
+  }
+
+  &__ws-meta-empty {
+    color: rgba($text-secondary, 0.6);
+    font-style: italic;
   }
 
   &__ws-info {
@@ -1274,6 +1447,10 @@ onMounted(fetchWorkspaces)
   }
 
   &__ws-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
     font-size: 0.8rem;
     color: $text-secondary;
   }
@@ -1858,16 +2035,21 @@ onMounted(fetchWorkspaces)
     gap: 0;
     border-bottom: 2px solid rgba($primary-dark, 0.08);
     padding-bottom: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
   }
 
   &__tab {
-    flex: 1; // mobile: full width split equally
+    flex: none;
+    white-space: nowrap;
     background: transparent;
     border: none;
-    padding: 0.75rem 0.5rem;
+    padding: 0.75rem 1rem;
     border-radius: 8px 8px 0 0;
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     color: $text-secondary;
     cursor: pointer;
     transition: all 0.2s;
@@ -1878,14 +2060,11 @@ onMounted(fetchWorkspaces)
     position: relative;
     bottom: -2px;
     border-bottom: 2px solid transparent;
-    text-align: center;
 
     @media (min-width: 640px) {
-      flex: none;
       padding: 0.75rem 1.25rem;
       font-size: 0.9rem;
       gap: 0.5rem;
-      justify-content: flex-start;
     }
 
     &:hover {
@@ -1910,6 +2089,27 @@ onMounted(fetchWorkspaces)
       color: $alert-error !important;
       border-bottom-color: $alert-error !important;
     }
+
+    &--surveys {
+      i { color: $primary; }
+      &:hover { color: $primary; }
+    }
+
+    &--surveys-active {
+      color: $primary !important;
+      border-bottom-color: $primary !important;
+    }
+  }
+
+  &__tab-global-tag {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    color: $primary;
+    background: rgba($primary, 0.12);
+    padding: 0.1rem 0.4rem;
+    border-radius: 100px;
+    border: 1px solid rgba($primary, 0.2);
   }
 
   // ── Superadmins Panel ─────────────────────────────────────
@@ -3045,5 +3245,182 @@ onMounted(fetchWorkspaces)
     color: $text-secondary;
     font-size: 0.9rem;
   }
+
+  // ── Surveys Tab ───────────────────────────────────────────
+  &__surveys {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  &__surveys-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    @media (min-width: 640px) {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  &__surveys-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba($primary, 0.06);
+    border: 1px solid rgba($primary, 0.15);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: $primary-dark;
+
+    i { color: $primary; font-size: 1rem; flex-shrink: 0; }
+  }
+
+  &__surveys-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  &__surveys-filter-btn {
+    padding: 0.45rem 1rem;
+    border: 1.5px solid rgba($primary-dark, 0.12);
+    border-radius: 100px;
+    background: $white;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover { border-color: $primary; color: $primary; }
+
+    &--active {
+      background: $primary;
+      border-color: $primary;
+      color: $white;
+    }
+  }
+
+  &__surveys-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__survey-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: $white;
+    border: 1px solid rgba($primary-dark, 0.06);
+    border-radius: 12px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+
+    &:hover {
+      border-color: rgba($primary, 0.15);
+      box-shadow: 0 4px 16px rgba($primary-dark, 0.04);
+    }
+  }
+
+  &__survey-card-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  &__survey-status {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.7rem;
+    border-radius: 100px;
+
+    &--draft {
+      background: rgba($text-secondary, 0.1);
+      color: $text-secondary;
+    }
+    &--active {
+      background: rgba($alert-success, 0.1);
+      color: $alert-success;
+    }
+    &--closed {
+      background: rgba($alert-error, 0.08);
+      color: $alert-error;
+    }
+  }
+
+  &__survey-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  &__survey-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: $primary-dark;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__survey-meta {
+    font-size: 0.78rem;
+    color: $text-secondary;
+  }
+
+  &__survey-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  &__survey-card--skeleton {
+    cursor: default;
+    pointer-events: none;
+    border-color: rgba($primary-dark, 0.04);
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(
+        90deg,
+        rgba($white, 0) 0,
+        rgba($white, 0.3) 50%,
+        rgba($white, 0) 100%
+      );
+      animation: shimmer 2s infinite;
+    }
+  }
+
+  .skeleton-block {
+    background: rgba($primary-dark, 0.05);
+    border-radius: 4px;
+
+    &--status { width: 60px; height: 18px; border-radius: 100px; flex-shrink: 0; }
+    &--title { width: 220px; height: 16px; margin-bottom: 0.25rem; }
+    &--meta { width: 350px; height: 12px; }
+    &--action { width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0; }
+  }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
 }
 </style>

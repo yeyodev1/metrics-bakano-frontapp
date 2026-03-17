@@ -318,6 +318,23 @@ onUnmounted(() => {
     </div>
 
     <main v-else class="workspace-dashboard__content">
+      <!-- SURVEY BANNER FOR CLIENTS -->
+      <section v-if="!userStore.isInternal && userStore.pendingSurveysCount > 0" class="workspace-dashboard__survey-banner">
+        <div class="workspace-dashboard__survey-banner-content">
+          <div class="workspace-dashboard__survey-banner-icon">
+            <i class="fa-solid fa-clipboard-question" />
+          </div>
+          <div class="workspace-dashboard__survey-banner-text">
+            <h3>Tienes encuestas pendientes</h3>
+            <p>Tu opinión es fundamental para mejorar nuestra estrategia. Por favor, tómate un momento para responderlas.</p>
+          </div>
+        </div>
+        <button class="workspace-dashboard__survey-banner-btn" @click="router.push({ name: 'MySurveys', params: { workspaceId } })">
+          <span>Ver encuestas</span>
+          <i class="fa-solid fa-arrow-right" />
+        </button>
+      </section>
+
       <!-- DASHBOARD DE MÉTRICAS (SOLO SI TIENE C/P) -->
       <section v-if="workspace?.metaAds?.adAccountId" class="workspace-dashboard__metrics-section">
         <div class="workspace-dashboard__metrics-header">
@@ -787,6 +804,93 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     gap: 2rem;
+  }
+
+  &__survey-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(135deg, $primary 0%, darken($primary, 10%) 100%);
+    border-radius: 20px;
+    color: $white;
+    box-shadow: 0 12px 24px rgba($primary, 0.25);
+    animation: slideInDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      text-align: center;
+      gap: 1.5rem;
+      padding: 1.5rem;
+    }
+  }
+
+  &__survey-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: 1rem;
+    }
+  }
+
+  &__survey-banner-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba($white, 0.2);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    backdrop-filter: blur(4px);
+  }
+
+  &__survey-banner-text {
+    h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+    p {
+      margin: 0.25rem 0 0;
+      font-size: 0.95rem;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+  }
+
+  &__survey-banner-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.75rem;
+    background: $white;
+    color: $primary;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      background: $primary-light;
+    }
+
+    i {
+      transition: transform 0.3s ease;
+    }
+
+    &:hover i {
+      transform: translateX(4px);
+    }
   }
 
   &__empty-setup {

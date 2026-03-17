@@ -63,6 +63,43 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/settings/WorkspaceSettings.vue'),
         meta: { title: 'Bakano Ads: Configuración del Entorno', requiresAuth: true },
       },
+      // ── Surveys ───────────────────────────────────────────
+      {
+        path: 'surveys',
+        name: 'SurveyList',
+        component: () => import('../views/surveys/SurveyListView.vue'),
+        meta: { title: 'Bakano Ads: Encuestas', requiresAuth: true },
+      },
+      {
+        path: 'surveys/new',
+        name: 'SurveyNew',
+        component: () => import('../views/surveys/SurveyBuilderView.vue'),
+        meta: { title: 'Bakano Ads: Nueva Encuesta', requiresAuth: true },
+      },
+      {
+        path: 'surveys/:surveyId/edit',
+        name: 'SurveyEdit',
+        component: () => import('../views/surveys/SurveyBuilderView.vue'),
+        meta: { title: 'Bakano Ads: Editar Encuesta', requiresAuth: true },
+      },
+      {
+        path: 'surveys/:surveyId/results',
+        name: 'SurveyResults',
+        component: () => import('../views/surveys/SurveyResultsView.vue'),
+        meta: { title: 'Bakano Ads: Resultados de Encuesta', requiresAuth: true },
+      },
+      {
+        path: 'survey/:token',
+        name: 'SurveyFill',
+        component: () => import('../views/surveys/SurveyFillView.vue'),
+        meta: { title: 'Bakano Ads: Responder Encuesta', requiresAuth: true },
+      },
+      {
+        path: 'workspaces/:workspaceId/surveys',
+        name: 'MySurveys',
+        component: () => import('../views/surveys/MySurveysView.vue'),
+        meta: { title: 'Bakano Ads: Mis Encuestas', requiresAuth: true },
+      },
     ],
   },
 
@@ -88,7 +125,13 @@ router.beforeEach((to, _from, next) => {
 
   // Unauthenticated trying to access protected route
   if (requiresAuth && !hasToken) {
-    return next({ name: 'AuthLogin', replace: true })
+    return next({ name: 'AuthLogin', query: { redirect: to.fullPath }, replace: true })
+  }
+
+  // Handle ?redirect= after login
+  if (hasToken && to.query.redirect) {
+    const redirectPath = to.query.redirect as string
+    return next(redirectPath)
   }
 
   // Already authenticated trying to access public routes
