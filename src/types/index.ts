@@ -10,11 +10,24 @@ export interface LoginPayload {
   password: string
 }
 
+export type InternalRole =
+  | 'director'
+  | 'estratega'
+  | 'community_manager'
+  | 'productor'
+  | 'disenador'
+  | 'copywriter'
+  | 'analista'
+  | 'desarrollador'
+  | 'account_manager'
+
 export interface AuthUser {
   _id: string
   name?: string
   email: string
   role: 'superadmin' | 'user'
+  isInternal?: boolean
+  internalRole?: InternalRole
   workspaceId?: string
   workspaces?: Array<{
     workspaceId: string
@@ -75,8 +88,17 @@ export interface WorkspaceUser {
   _id: string
   name?: string
   email: string
-  role: 'admin' | 'colaborador'
-  workspaceId: string
+  role: 'admin' | 'colaborador' | 'user'
+  isInternal?: boolean
+  internalRole?: InternalRole
+  workspaceId?: string
+  workspaces?: {
+    workspaceId: {
+      _id: string
+      name: string
+    }
+    role: 'admin' | 'colaborador'
+  }[]
   isActive: boolean
   phoneNumber?: string
   phoneExtension?: string
@@ -88,6 +110,7 @@ export interface CreateUserPayload {
   email: string
   password: string
   role: 'admin' | 'colaborador'
+  isInternal?: boolean
   phoneNumber?: string
   phoneExtension?: string
 }
@@ -99,6 +122,35 @@ export interface UpdateUserPayload {
   role?: 'admin' | 'colaborador'
   phoneNumber?: string
   phoneExtension?: string
+  isInternal?: boolean
+}
+
+export interface CreateGlobalUserPayload {
+  name?: string
+  email: string
+  password?: string
+  isInternal?: boolean
+  internalRole?: InternalRole
+  workspaces: {
+    workspaceId: string
+    role: 'admin' | 'colaborador'
+  }[]
+  phoneNumber?: string
+  phoneExtension?: string
+}
+
+export interface UpdateGlobalUserPayload {
+  name?: string
+  email?: string
+  password?: string
+  workspaces?: {
+    workspaceId: string
+    role: 'admin' | 'colaborador'
+  }[]
+  phoneNumber?: string
+  phoneExtension?: string
+  isInternal?: boolean
+  internalRole?: InternalRole | null
 }
 
 export interface UserResponse {
@@ -112,3 +164,58 @@ export interface UserListResponse {
 }
 
 
+
+// ── Planning types ──────────────────────────────────────────
+export interface PlanningEntry {
+  _id: string
+  workspaceId: string
+  title: string
+  date: string
+  notes?: string
+  assignedTo?: {
+    _id: string
+    name?: string
+    email: string
+    internalRole?: string
+  }[]
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PlanningEntryResponse {
+  message: string
+  entry: PlanningEntry
+}
+
+export interface PlanningEntryListResponse {
+  message: string
+  entries: PlanningEntry[]
+}
+
+export interface CreatePlanningEntryPayload {
+  title: string
+  date: string
+  time?: string
+  notes?: string
+  assignedTo?: string[]
+}
+
+export interface UpdatePlanningEntryPayload {
+  title?: string
+  date?: string
+  time?: string
+  notes?: string
+  assignedTo?: string[]
+}
+
+// Entry returned by the global /my-week endpoint (includes workspace name + optional Meta page id)
+export interface GlobalPlanningEntry extends PlanningEntry {
+  workspaceName: string
+  workspaceMetaPageId?: string
+}
+
+export interface GlobalPlanningWeekResponse {
+  message: string
+  entries: GlobalPlanningEntry[]
+}

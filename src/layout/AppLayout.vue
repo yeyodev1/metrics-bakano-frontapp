@@ -16,8 +16,12 @@ const workspaces = ref<Workspace[]>([])
 const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
 
+const isGlobalView = computed(() =>
+  route.name === 'AdminWorkspaces' || route.name === 'InternalPlanning'
+)
+
 const currentWorkspaceId = computed(() => {
-  if (route.name === 'AdminWorkspaces') return null
+  if (isGlobalView.value) return null
   return route.params.workspaceId as string || userStore.workspaceId || workspaces.value[0]?._id
 })
 
@@ -141,7 +145,23 @@ router.afterEach(() => {
           <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
         </button>
 
-        <!-- GLOBAL VIEW PLACEHOLDER (Deselected state) -->
+        <!-- InternalPlanning: interactive selector to navigate to any client -->
+        <button
+          v-else-if="route.name === 'InternalPlanning' && workspaces.length > 0"
+          class="app-layout__ws-button app-layout__ws-button--interactive app-layout__ws-button--internal-nav"
+          @click="toggleDropdown"
+        >
+          <div class="app-layout__ws-avatar app-layout__ws-avatar--internal">
+            <i class="fa-solid fa-calendar-range" />
+          </div>
+          <div class="app-layout__ws-info">
+            <span class="app-layout__ws-label">Equipo Interno</span>
+            <span class="app-layout__ws-name">Ir a un cliente…</span>
+          </div>
+          <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
+        </button>
+
+        <!-- Static placeholder (AdminWorkspaces or no workspaces loaded) -->
         <div v-else class="app-layout__ws-button app-layout__ws-button--global">
           <div class="app-layout__ws-avatar app-layout__ws-avatar--global">
             <i class="fa-solid fa-earth-americas" />
@@ -153,7 +173,7 @@ router.afterEach(() => {
         </div>
 
         <Transition name="dropdown-fade">
-          <div v-if="isDropdownOpen && activeWorkspace" class="app-layout__ws-dropdown">
+          <div v-if="isDropdownOpen" class="app-layout__ws-dropdown">
             <button 
               v-for="ws in workspaces" 
               :key="ws._id" 
@@ -183,7 +203,20 @@ router.afterEach(() => {
           <i class="fa-solid fa-grid-2" aria-hidden="true" />
           <span>Vista Global (Superadmin)</span>
         </RouterLink>
-        
+
+        <!-- Global planner — internal team only -->
+        <RouterLink
+          v-if="userStore.isInternal"
+          class="app-layout__nav-item app-layout__nav-item--global-planning"
+          :to="{ name: 'InternalPlanning' }"
+        >
+          <i class="fa-solid fa-calendar-range" aria-hidden="true" />
+          <span>Planificador Global</span>
+        </RouterLink>
+
+        <!-- Divider between global tools and workspace-specific nav -->
+        <div v-if="userStore.isInternal && activeWorkspace" class="app-layout__nav-divider" />
+
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppDashboard', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-chart-line" aria-hidden="true" />
           <span>Dashboard Detallado</span>
@@ -192,6 +225,11 @@ router.afterEach(() => {
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppVisual', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-chart-pie" aria-hidden="true" />
           <span>Analítica Visual</span>
+        </RouterLink>
+
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: activeWorkspace._id } }">
+          <i class="fa-solid fa-calendar-days" aria-hidden="true" />
+          <span>Planificación</span>
         </RouterLink>
 
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: activeWorkspace._id } }">
@@ -399,6 +437,11 @@ router.afterEach(() => {
       border: 1px solid rgba($primary, 0.2);
       cursor: default;
     }
+
+    &--internal-nav {
+      background: rgba($primary, 0.06);
+      border: 1px dashed rgba($primary, 0.25);
+    }
   }
 
   &__ws-avatar {
@@ -424,6 +467,13 @@ router.afterEach(() => {
       background: rgba($primary, 0.2);
       color: $primary;
       font-size: 1.1rem;
+    }
+
+    &--internal {
+      background: linear-gradient(135deg, rgba($primary, 0.25) 0%, rgba($primary, 0.15) 100%);
+      color: lighten($primary, 20%);
+      font-size: 1rem;
+      border: 1px solid rgba($primary, 0.3);
     }
 
     &--sm {
@@ -538,6 +588,13 @@ router.afterEach(() => {
     flex: 1;
   }
 
+  &__nav-divider {
+    height: 1px;
+    background: rgba($white, 0.07);
+    margin: 0.25rem 0.5rem;
+    border-radius: 1px;
+  }
+
   // ── Nav ────────────────────────────────────────────────
   &__nav {
     display: flex;
@@ -584,6 +641,28 @@ router.afterEach(() => {
 
     &--bottom {
       margin-top: auto;
+    }
+
+    // Global planner entry — subtle highlight for internal team
+    &--global-planning {
+      background: rgba($primary, 0.06);
+      border: 1px solid rgba($primary, 0.12);
+      color: rgba($white, 0.85);
+      margin-bottom: 0.5rem;
+
+      i { color: $primary; }
+
+      &:hover,
+      &.router-link-active {
+        background: rgba($primary, 0.14);
+        color: $white;
+        border-color: rgba($primary, 0.25);
+      }
+
+      &.router-link-active {
+        border-left: 3px solid $primary;
+        padding-left: calc(1rem - 3px);
+      }
     }
   }
 

@@ -1,13 +1,31 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { useUserFormModal } from '@/composables/useUserFormModal'
 import { useSuperadminModal } from '@/composables/useSuperadminModal'
+import { useGlobalUserModal } from '@/composables/useGlobalUserModal'
 import { workspaceService } from '@/services/workspace.service'
 import { useUserStore } from '@/stores/user'
 import type { Workspace, WorkspaceUser, ApiError } from '@/types'
+import GlobalUserModal from '@/components/common/GlobalUserModal.vue'
+import PlanningCalendar from '@/components/PlanningCalendar.vue'
+
+// ── Directives ─────────────────────────────────────────────
+const vClickOutside = {
+  mounted(el: any, binding: any) {
+    el.clickOutsideEvent = (event: Event) => {
+      if (!(el === event.target || el.contains(event.target))) {
+        binding.value(event)
+      }
+    }
+    document.addEventListener('click', el.clickOutsideEvent)
+  },
+  unmounted(el: any) {
+    document.removeEventListener('click', el.clickOutsideEvent)
+  }
+}
 
 const userStore = useUserStore()
 
@@ -16,9 +34,36 @@ const confirm = useConfirm()
 const toast = useToast()
 const userModal = useUserFormModal()
 const superadminModal = useSuperadminModal()
+const globalUserModal = useGlobalUserModal()
 
 // ── State ──────────────────────────────────────────────────
-const activeTab = ref<'workspaces' | 'superadmins'>('workspaces')
+const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning'>('workspaces')
+
+// ── Planning tab state ──────────────────────────────────────
+const planningSelectedId = ref<string>('')
+const planningSearch = ref<string>('')
+const planningFilteredWorkspaces = computed(() => {
+  const q = planningSearch.value.trim().toLowerCase()
+  if (!q) return workspaces.value
+  return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
+})
+const planningSelectedWorkspace = computed(() =>
+  workspaces.value.find(w => w._id === planningSelectedId.value)
+)
+const PLANNING_COLORS = [
+  '#7c3aed', '#0891b2', '#059669', '#d97706', '#dc2626',
+  '#db2777', '#2563eb', '#ea580c', '#65a30d', '#0d9488',
+]
+function planningColor(wsId: string): string {
+  const idx = workspaces.value.findIndex(w => w._id === wsId)
+  return PLANNING_COLORS[idx % PLANNING_COLORS.length] as string
+}
+function planningInitials(name: string): string {
+  return name.trim().split(/\s+/).map(w => w[0]).join('').substring(0, 2).toUpperCase()
+}
+function planningMetaUrl(pageId: string): string {
+  return `https://graph.facebook.com/${pageId}/picture?type=square`
+}
 
 const workspaces = ref<Workspace[]>([])
 const isLoadingWorkspaces = ref(false)
@@ -40,6 +85,27 @@ const workspaceError = ref('')
 // ── Superadmin Management State ────────────────────────────
 const superadmins = ref<any[]>([])
 const isLoadingSuperadmins = ref(false)
+
+const allUsers = ref<WorkspaceUser[]>([])
+const isLoadingAllUsers = ref(false)
+const searchAllUsersQuery = ref('')
+const filterWorkspaceId = ref('')
+const isFilterDrawerOpen = ref(false)
+
+// Searchable Dropdown state
+const workspaceSearchText = ref('')
+const isWorkspaceDropdownOpen = ref(false)
+
+const filteredWorkspaces = computed(() => {
+  if (!workspaceSearchText.value.trim()) return workspaces.value
+  const query = workspaceSearchText.value.toLowerCase()
+  return workspaces.value.filter(ws => ws.name.toLowerCase().includes(query))
+})
+
+const currentFilterWorkspaceName = computed(() => {
+  const ws = workspaces.value.find(w => w._id === filterWorkspaceId.value)
+  return ws ? ws.name : 'Todos los Entornos'
+})
 
 // ── Workspace Management ──────────────────────────────────
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
@@ -81,6 +147,17 @@ watch(searchQuery, () => {
   searchTimeout = setTimeout(() => {
     fetchWorkspaces()
   }, 400)
+})
+
+watch(searchAllUsersQuery, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    fetchAllUsers()
+  }, 400)
+})
+
+watch(filterWorkspaceId, () => {
+  fetchAllUsers()
 })
 
 async function selectWorkspace(workspace: Workspace): Promise<void> {
@@ -218,10 +295,46 @@ async function confirmDeleteSuperadmin(admin: any): Promise<void> {
   }
 }
 
-function switchTab(tab: 'workspaces' | 'superadmins'): void {
+function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning'): void {
   activeTab.value = tab
   if (tab === 'superadmins' && superadmins.value.length === 0) {
     fetchSuperadmins()
+  } else if (tab === 'account-admins' && allUsers.value.length === 0) {
+    fetchAllUsers()
+  } else if (tab === 'planning' && !planningSelectedId.value && workspaces.value.length > 0) {
+    planningSelectedId.value = workspaces.value[0]!._id
+  }
+}
+
+async function fetchAllUsers(): Promise<void> {
+  isLoadingAllUsers.value = true
+  try {
+    const { users } = await workspaceService.listAllCollaborators(
+      searchAllUsersQuery.value.trim() || undefined,
+      filterWorkspaceId.value || undefined
+    )
+    allUsers.value = users
+  } catch {
+    toast.error('Error al cargar usuarios')
+  } finally {
+    isLoadingAllUsers.value = false
+  }
+}
+
+async function openCreateGlobalUser() {
+  const newUser = await globalUserModal.open({ mode: 'create' })
+  if (newUser) {
+    allUsers.value.unshift(newUser)
+  }
+}
+
+async function openEditGlobalUser(user: WorkspaceUser) {
+  const updatedUser = await globalUserModal.open({ mode: 'edit', user })
+  if (updatedUser) {
+    const index = allUsers.value.findIndex(u => u._id === updatedUser._id)
+    if (index !== -1) {
+      allUsers.value[index] = updatedUser
+    }
   }
 }
 
@@ -279,11 +392,25 @@ onMounted(fetchWorkspaces)
         <i class="fa-solid fa-layer-group" /> Entornos & Clientes
       </button>
       <button
+        class="superadmin-dashboard__tab"
+        :class="{ 'superadmin-dashboard__tab--active': activeTab === 'account-admins' }"
+        @click="switchTab('account-admins')"
+      >
+        <i class="fa-solid fa-users-gear" /> Admins de Cuenta
+      </button>
+      <button
         class="superadmin-dashboard__tab superadmin-dashboard__tab--danger"
         :class="{ 'superadmin-dashboard__tab--active superadmin-dashboard__tab--danger-active': activeTab === 'superadmins' }"
         @click="switchTab('superadmins')"
       >
         <i class="fa-solid fa-user-shield" /> Superadmins del Sistema
+      </button>
+      <button
+        class="superadmin-dashboard__tab superadmin-dashboard__tab--planning"
+        :class="{ 'superadmin-dashboard__tab--active superadmin-dashboard__tab--planning-active': activeTab === 'planning' }"
+        @click="switchTab('planning')"
+      >
+        <i class="fa-solid fa-calendar-range" /> Planificación Global
       </button>
     </nav>
 
@@ -449,6 +576,210 @@ onMounted(fetchWorkspaces)
       </section>
     </div>
 
+    <!-- Content: Account Admins Tab -->
+    <div v-if="activeTab === 'account-admins'" class="superadmin-dashboard__account-admins">
+      <div class="superadmin-dashboard__section-header superadmin-dashboard__section-header--row">
+        <div class="superadmin-dashboard__section-title">
+          <h3>Gestión Global de Usuarios</h3>
+          <p>Administradores y colaboradores de todos los entornos</p>
+        </div>
+        <div class="superadmin-dashboard__header-actions">
+          <div class="superadmin-dashboard__search-wrap superadmin-dashboard__search-wrap--all-users">
+            <i class="fa-solid fa-magnifying-glass" />
+            <input 
+              v-model="searchAllUsersQuery" 
+              type="text" 
+              placeholder="Buscar colaboradores..." 
+              class="superadmin-dashboard__search-input"
+            />
+          </div>
+
+          <button 
+            class="superadmin-dashboard__btn-secondary" 
+            :class="{ 'superadmin-dashboard__btn-secondary--active': filterWorkspaceId }"
+            @click="isFilterDrawerOpen = !isFilterDrawerOpen"
+          >
+            <i class="fa-solid fa-filter" />
+            Filtros
+            <span v-if="filterWorkspaceId" class="superadmin-dashboard__filter-badge" />
+          </button>
+
+          <button class="superadmin-dashboard__btn-primary" @click="openCreateGlobalUser">
+            <i class="fa-solid fa-user-plus" />
+            Crear Colaborador
+          </button>
+        </div>
+
+        <!-- Filter Sidebar/Drawer placeholder-logic -->
+        <Transition name="slide-fade">
+          <div v-if="isFilterDrawerOpen" class="superadmin-dashboard__filter-drawer">
+            <div class="superadmin-dashboard__filter-drawer-header">
+              <h3>Filtros Avanzados</h3>
+              <button @click="isFilterDrawerOpen = false; workspaceSearchText = ''; isWorkspaceDropdownOpen = false">
+                <i class="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <div class="superadmin-dashboard__filter-drawer-body">
+              <div class="superadmin-dashboard__filter-item">
+                <label>Filtrar por Entorno</label>
+                <div class="superadmin-dashboard__searchable-select" v-click-outside="() => isWorkspaceDropdownOpen = false">
+                  <div 
+                    class="superadmin-dashboard__searchable-select-trigger" 
+                    @click="isWorkspaceDropdownOpen = !isWorkspaceDropdownOpen"
+                  >
+                    <span>{{ currentFilterWorkspaceName }}</span>
+                    <i class="fa-solid fa-chevron-down" :class="{ 'fa-rotate-180': isWorkspaceDropdownOpen }" />
+                  </div>
+                  
+                  <Transition name="fade-scale">
+                    <div v-if="isWorkspaceDropdownOpen" class="superadmin-dashboard__searchable-select-dropdown">
+                      <div class="superadmin-dashboard__dropdown-search" @click.stop>
+                        <i class="fa-solid fa-magnifying-glass" />
+                        <input 
+                          v-model="workspaceSearchText" 
+                          type="text" 
+                          placeholder="Buscar entorno..." 
+                        />
+                      </div>
+                      <ul class="superadmin-dashboard__dropdown-list">
+                        <li 
+                          :class="{ 'superadmin-dashboard__dropdown-item--active': filterWorkspaceId === '' }"
+                          @click="filterWorkspaceId = ''; isWorkspaceDropdownOpen = false"
+                        >
+                          <i class="fa-solid fa-globe" />
+                          Todos los Entornos
+                        </li>
+                        <li 
+                          v-for="ws in filteredWorkspaces" 
+                          :key="ws._id"
+                          :class="{ 'superadmin-dashboard__dropdown-item--active': filterWorkspaceId === ws._id }"
+                          @click="filterWorkspaceId = ws._id; isWorkspaceDropdownOpen = false"
+                        >
+                          <i class="fa-solid fa-building" />
+                          {{ ws.name }}
+                        </li>
+                        <li v-if="filteredWorkspaces.length === 0" class="superadmin-dashboard__dropdown-item--empty">
+                          No se encontraron entornos
+                        </li>
+                      </ul>
+                    </div>
+                  </Transition>
+                </div>
+              </div>
+            </div>
+            <div class="superadmin-dashboard__filter-drawer-footer">
+              <button class="superadmin-dashboard__btn-text" @click="filterWorkspaceId = ''; workspaceSearchText = ''; isWorkspaceDropdownOpen = false">
+                <i class="fa-solid fa-trash-can" />
+                Limpiar
+              </button>
+              <button class="superadmin-dashboard__btn-primary" @click="isFilterDrawerOpen = false; workspaceSearchText = ''; isWorkspaceDropdownOpen = false">
+                <i class="fa-solid fa-check" />
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+
+      <div v-if="isLoadingAllUsers" class="superadmin-dashboard__loading">
+        <div class="superadmin-dashboard__spinner" />
+        <p>Cargando colaboradores...</p>
+      </div>
+
+      <div v-else-if="allUsers.length === 0" class="superadmin-dashboard__empty-state">
+        <div class="superadmin-dashboard__empty-icon">
+          <i class="fa-solid fa-user-gear" />
+        </div>
+        <h3>No se encontraron colaboradores</h3>
+        <p v-if="searchAllUsersQuery || filterWorkspaceId">
+          No hay resultados que coincidan con tus filtros actuales.
+          <button class="superadmin-dashboard__link" @click="searchAllUsersQuery = ''; filterWorkspaceId = ''">
+            Limpiar filtros
+          </button>
+        </p>
+        <p v-else>
+          Actualmente no hay administradores de cuenta registrados en el sistema.
+          Empieza creando uno para vincularlo a sus entornos.
+        </p>
+        <button v-if="!searchAllUsersQuery && !filterWorkspaceId" class="superadmin-dashboard__btn-primary" @click="openCreateGlobalUser">
+          <i class="fa-solid fa-plus" />
+          Crear Mi Primer Colaborador
+        </button>
+      </div>
+
+      <div v-else class="superadmin-dashboard__user-table-container">
+        <table class="superadmin-dashboard__user-table">
+          <thead>
+            <tr>
+              <th>Colaborador</th>
+              <th>Rol Interno</th>
+              <th>Entornos Asignados</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="user in allUsers" :key="user._id">
+              <td>
+                <div class="superadmin-dashboard__user-identity">
+                  <div class="superadmin-dashboard__user-name-wrapper">
+                    <strong>{{ user.name || 'Sin nombre' }}</strong>
+                    <span v-if="user.isInternal" class="superadmin-dashboard__internal-badge">
+                      <i class="fa-solid fa-shield-halved" />
+                      Bakano Team
+                    </span>
+                  </div>
+                  <span>{{ user.email }}</span>
+                </div>
+              </td>
+              <td>
+                <span
+                  v-if="user.isInternal && user.internalRole"
+                  class="superadmin-dashboard__internal-role-chip"
+                >
+                  {{ {
+                    director: 'Director',
+                    estratega: 'Estratega',
+                    account_manager: 'Account Manager',
+                    community_manager: 'Community Manager',
+                    productor: 'Productor',
+                    disenador: 'Diseñador',
+                    copywriter: 'Copywriter',
+                    analista: 'Analista',
+                    desarrollador: 'Desarrollador'
+                  }[user.internalRole] || user.internalRole }}
+                </span>
+                <span v-else class="superadmin-dashboard__no-role">—</span>
+              </td>
+              <td>
+                <div class="superadmin-dashboard__user-workspaces">
+                  <div v-for="ws in user.workspaces" :key="ws.workspaceId?._id" class="superadmin-dashboard__ws-tag">
+                    {{ ws.workspaceId?.name || '---' }} 
+                    <small>({{ ws.role === 'admin' ? 'Admin' : 'Colaborador' }})</small>
+                  </div>
+                  <span v-if="!user.workspaces?.length" class="superadmin-dashboard__ws-tag superadmin-dashboard__ws-tag--none">
+                    Sin entornos
+                  </span>
+                </div>
+              </td>
+              <td>
+                <span class="superadmin-dashboard__status-chip" :class="{ 'superadmin-dashboard__status-chip--active': user.isActive }">
+                  {{ user.isActive ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td>
+                <div class="superadmin-dashboard__actions">
+                  <button class="superadmin-dashboard__action-btn" @click="openEditGlobalUser(user)" title="Editar">
+                    <i class="fa-solid fa-pen" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Content: Superadmins Tab -->
     <div v-if="activeTab === 'superadmins'" class="superadmin-dashboard__superadmins-panel">
 
@@ -547,6 +878,115 @@ onMounted(fetchWorkspaces)
         </div>
       </div>
     </Transition>
+
+    <!-- Content: Planning Tab -->
+    <div v-if="activeTab === 'planning'" class="superadmin-dashboard__planning">
+      <div class="superadmin-dashboard__planning-body">
+
+        <!-- Sidebar -->
+        <aside class="superadmin-dashboard__planning-sidebar">
+          <div class="superadmin-dashboard__planning-sidebar-header">
+            <span class="superadmin-dashboard__planning-sidebar-title">
+              <i class="fa-solid fa-building" /> Clientes
+            </span>
+            <span class="superadmin-dashboard__planning-sidebar-count">{{ planningFilteredWorkspaces.length }}</span>
+          </div>
+
+          <div class="superadmin-dashboard__planning-search">
+            <i class="fa-solid fa-magnifying-glass" />
+            <input v-model="planningSearch" type="text" placeholder="Buscar cliente…" autocomplete="off" />
+            <button v-if="planningSearch" class="superadmin-dashboard__planning-search-clear" @click="planningSearch = ''">
+              <i class="fa-solid fa-xmark" />
+            </button>
+          </div>
+
+          <div class="superadmin-dashboard__planning-list">
+            <div v-if="isLoadingWorkspaces" v-for="n in 5" :key="n" class="superadmin-dashboard__planning-skeleton" />
+            <div v-else-if="planningFilteredWorkspaces.length === 0" class="superadmin-dashboard__planning-empty">
+              <i class="fa-solid fa-magnifying-glass" />
+              <span>Sin resultados</span>
+            </div>
+            <template v-else>
+              <div
+                v-for="ws in planningFilteredWorkspaces"
+                :key="ws._id"
+                class="superadmin-dashboard__planning-item"
+                :class="{ 'is-active': ws._id === planningSelectedId }"
+                :style="{ '--item-color': planningColor(ws._id) }"
+              >
+                <button
+                  class="superadmin-dashboard__planning-item-main"
+                  @click="planningSelectedId = ws._id"
+                >
+                  <div
+                    class="superadmin-dashboard__planning-item-avatar"
+                    :style="{ background: planningColor(ws._id) }"
+                  >
+                    <img
+                      v-if="ws.metaAds?.pageId"
+                      :src="planningMetaUrl(ws.metaAds.pageId)"
+                      :alt="ws.name"
+                      @error="($event.target as HTMLImageElement).style.display = 'none'"
+                    />
+                    <span v-else>{{ planningInitials(ws.name) }}</span>
+                  </div>
+                  <div class="superadmin-dashboard__planning-item-info">
+                    <span class="superadmin-dashboard__planning-item-name">{{ ws.name }}</span>
+                    <span v-if="ws.metaAds?.pageId" class="superadmin-dashboard__planning-item-badge">
+                      <i class="fa-brands fa-meta" /> Meta
+                    </span>
+                  </div>
+                  <i v-if="ws._id === planningSelectedId" class="fa-solid fa-circle-check superadmin-dashboard__planning-item-check" />
+                </button>
+                <RouterLink
+                  :to="{ name: 'AppDashboard', params: { workspaceId: ws._id } }"
+                  class="superadmin-dashboard__planning-item-goto"
+                  :title="`Ir al entorno de ${ws.name}`"
+                >
+                  <i class="fa-solid fa-arrow-up-right-from-square" />
+                </RouterLink>
+              </div>
+            </template>
+          </div>
+
+          <div v-if="planningSelectedWorkspace" class="superadmin-dashboard__planning-active-hint">
+            <div
+              class="superadmin-dashboard__planning-active-avatar"
+              :style="{ background: planningColor(planningSelectedWorkspace._id) }"
+            >
+              <img
+                v-if="planningSelectedWorkspace.metaAds?.pageId"
+                :src="planningMetaUrl(planningSelectedWorkspace.metaAds.pageId)"
+                :alt="planningSelectedWorkspace.name"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
+              <span v-else>{{ planningInitials(planningSelectedWorkspace.name) }}</span>
+            </div>
+            <div>
+              <span class="superadmin-dashboard__planning-active-label">Creando en</span>
+              <span class="superadmin-dashboard__planning-active-name">{{ planningSelectedWorkspace.name }}</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Calendar -->
+        <div class="superadmin-dashboard__planning-calendar">
+          <div v-if="isLoadingWorkspaces || !planningSelectedId" class="superadmin-dashboard__planning-placeholder">
+            <span class="superadmin-dashboard__spinner" />
+            <p>Cargando clientes…</p>
+          </div>
+          <PlanningCalendar
+            v-else
+            :key="planningSelectedId"
+            :workspaceId="planningSelectedId"
+            default-view="global-month"
+          />
+        </div>
+
+      </div>
+    </div>
+
+    <GlobalUserModal />
 
   </div>
 </template>
@@ -665,7 +1105,19 @@ onMounted(fetchWorkspaces)
     border-bottom: 1px solid rgba($primary-dark, 0.05);
     display: flex;
     flex-direction: column;
-    gap: 1rem; // Spacing between header and search
+    gap: 1rem;
+
+    &--row {
+      flex-direction: column; // Force column on small mobile
+      align-items: stretch;
+      gap: 1.5rem;
+
+      @media (min-width: 1024px) {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
 
     h3 {
       margin: 0;
@@ -1694,6 +2146,904 @@ onMounted(fetchWorkspaces)
     .superadmin-dashboard__modal {
       transform: scale(0.95);
     }
+  }
+
+  &__account-admins {
+    width: 100%;
+    background: $white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba($primary-dark, 0.05);
+    border: 1px solid rgba($primary-dark, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  &__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap; // Fix responsiveness
+    width: 100%;
+
+    @media (min-width: 1200px) {
+      width: auto;
+      flex-wrap: nowrap;
+      gap: 1.5rem;
+    }
+  }
+
+  &__search-wrap--all-users {
+    flex: 1;
+    min-width: 250px;
+
+    @media (min-width: 640px) {
+      min-width: 300px;
+    }
+  }
+
+  &__user-table-container {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 1.5rem;
+  }
+
+  &__user-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+
+    th {
+      text-align: left;
+      padding: 1rem;
+      background: rgba($primary-dark, 0.02);
+      color: $text-secondary;
+      font-weight: 600;
+      border-bottom: 1px solid rgba($primary-dark, 0.05);
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid rgba($primary-dark, 0.03);
+    }
+  }
+
+  &__user-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+
+    span {
+      color: $text-secondary;
+      font-size: 0.85rem;
+    }
+  }
+
+  &__user-name-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+
+    strong {
+      color: $primary-dark;
+      font-size: 0.95rem;
+    }
+  }
+
+  &__internal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.05) 100%);
+    color: $primary;
+    border: 1px solid rgba($primary, 0.2);
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+
+    i {
+      font-size: 0.75rem;
+    }
+  }
+
+  &__internal-role-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.7rem;
+    background: linear-gradient(135deg, rgba($secondary, 0.1) 0%, rgba($secondary, 0.06) 100%);
+    color: darken($secondary, 10%);
+    border: 1px solid rgba($secondary, 0.25);
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  &__no-role {
+    color: rgba($primary-dark, 0.25);
+    font-size: 0.9rem;
+  }
+
+  &__user-workspaces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  &__ws-tag {
+    padding: 0.25rem 0.6rem;
+    background: rgba($primary, 0.08);
+    color: $primary;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    small {
+      opacity: 0.7;
+      font-weight: 400;
+      margin-left: 0.2rem;
+    }
+
+    &--none {
+      background: rgba($text-secondary, 0.1);
+      color: $text-secondary;
+    }
+  }
+
+  // ── Filter Drawer ──────────────────────────────────────────
+  &__filter-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 350px;
+    height: 100vh;
+    background: $white;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    gap: 1.5rem;
+  }
+
+  &__filter-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+    padding-bottom: 1rem;
+
+    h3 {
+      font-size: 1.25rem;
+      color: $primary-dark;
+    }
+
+    button {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      color: $text-secondary;
+      cursor: pointer;
+      transition: color 0.2s;
+
+      &:hover {
+        color: $primary;
+      }
+    }
+  }
+
+  &__filter-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  &__filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: $text-secondary;
+    }
+  }
+
+  &__btn-secondary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1.25rem;
+    background: $white;
+    border: 1.5px solid rgba($primary-dark, 0.1);
+    border-radius: 12px;
+    color: $primary-dark;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+
+    &:hover {
+      background: rgba($primary, 0.03);
+      border-color: rgba($primary, 0.3);
+      transform: translateY(-1px);
+    }
+
+    &--active {
+      background: rgba($primary, 0.08);
+      border-color: $primary;
+      color: $primary;
+    }
+  }
+
+  &__btn-text {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: 1px solid transparent;
+    color: $text-secondary;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba($alert-error, 0.05);
+      color: $alert-error;
+    }
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+
+  // Searchable Select Styles
+  &__searchable-select {
+    position: relative;
+    width: 100%;
+  }
+
+  &__searchable-select-trigger {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.875rem 1.25rem;
+    background: $white;
+    border: 1.5px solid rgba($primary-dark, 0.08);
+    border-radius: 14px;
+    font-size: 0.95rem;
+    color: $primary-dark;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      border-color: rgba($primary, 0.4);
+      background: rgba($primary, 0.01);
+    }
+
+    i {
+      font-size: 0.8rem;
+      color: $text-secondary;
+      transition: transform 0.3s;
+    }
+  }
+
+  &__searchable-select-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: $white;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba($primary-dark, 0.06);
+    z-index: 1100;
+    overflow: hidden;
+    animation: slideDown 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+
+  &__dropdown-search {
+    position: relative;
+    padding: 0.75rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+    background: rgba($primary-dark, 0.02);
+
+    i {
+      position: absolute;
+      left: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: $text-secondary;
+      font-size: 0.85rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.65rem 1rem 0.65rem 2.25rem;
+      border: 1.5px solid rgba($primary-dark, 0.08);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+
+      &:focus {
+        border-color: $primary;
+        background: $white;
+        box-shadow: 0 0 0 3px rgba($primary, 0.08);
+      }
+    }
+  }
+
+  &__dropdown-list {
+    list-style: none;
+    padding: 0.5rem;
+    margin: 0;
+    max-height: 220px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba($primary-dark, 0.1);
+      border-radius: 10px;
+    }
+
+    li {
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      color: $text-secondary;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: all 0.2s;
+
+      i {
+        font-size: 0.9rem;
+        opacity: 0.5;
+      }
+
+      &:hover {
+        background: rgba($primary, 0.05);
+        color: $primary;
+
+        i {
+          opacity: 1;
+        }
+      }
+
+      &.superadmin-dashboard__dropdown-item--active {
+        background: $primary;
+        color: $white;
+        font-weight: 600;
+
+        i {
+          color: $white;
+          opacity: 1;
+        }
+      }
+
+      &.superadmin-dashboard__dropdown-item--empty {
+        justify-content: center;
+        padding: 2rem 1rem;
+        color: $text-secondary;
+        font-style: italic;
+        cursor: default;
+
+        &:hover {
+          background: none;
+        }
+      }
+    }
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  // Transitions
+  .fade-scale-enter-active,
+  .fade-scale-leave-active {
+    transition: opacity 0.2s, transform 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+
+  .fade-scale-enter-from,
+  .fade-scale-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  &__filter-drawer-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba($primary-dark, 0.05);
+  }
+
+  &__filter-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 8px;
+    height: 8px;
+    background: $alert-error;
+    border-radius: 50%;
+    border: 2px solid $white;
+  }
+
+  // ── Empty State ──────────────────────────────────────────
+  &__empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 2rem;
+    text-align: center;
+    background: rgba($primary, 0.02);
+    border-radius: 20px;
+    border: 2px dashed rgba($primary, 0.1);
+    margin-top: 2rem;
+    animation: fadeIn 0.5s ease-out;
+
+    h3 {
+      font-size: 1.5rem;
+      color: $primary-dark;
+      margin: 1rem 0 0.5rem;
+    }
+
+    p {
+      color: $text-secondary;
+      max-width: 400px;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+  }
+
+  &__empty-icon {
+    width: 80px;
+    height: 80px;
+    background: $white;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: $primary;
+    box-shadow: 0 10px 25px rgba($primary, 0.1);
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -10px;
+      border-radius: 30px;
+      border: 2px dashed rgba($primary, 0.1);
+      animation: rotate 20s linear infinite;
+    }
+  }
+
+  &__link {
+    background: none;
+    border: none;
+    color: $primary;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.25rem;
+  }
+
+  // Transition
+  .slide-fade-enter-active,
+  .slide-fade-leave-active {
+    transition: all 0.3s ease-out;
+  }
+
+  .slide-fade-enter-from,
+  .slide-fade-leave-to {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+
+  // ── Planning tab ──────────────────────────────────────────
+  &__tab--planning {
+    &:hover {
+      color: #7c3aed;
+      background: rgba(124, 58, 237, 0.04);
+    }
+  }
+
+  &__tab--planning-active {
+    color: #7c3aed !important;
+    border-bottom-color: #7c3aed !important;
+  }
+
+  &__planning {
+    padding: 1.5rem 0 0;
+  }
+
+  &__planning-body {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+
+    @media (max-width: 900px) {
+      flex-direction: column;
+    }
+  }
+
+  &__planning-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: $white;
+    border-radius: 16px;
+    border: 1px solid rgba($primary-dark, 0.06);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: sticky;
+    top: 1rem;
+
+    @media (max-width: 900px) {
+      width: 100%;
+      position: static;
+    }
+  }
+
+  &__planning-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.1rem 0.75rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+  }
+
+  &__planning-sidebar-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: $text-secondary;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+
+    i {
+      color: $primary;
+      font-size: 0.8rem;
+    }
+  }
+
+  &__planning-sidebar-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: $white;
+    background: $primary;
+    padding: 0.15rem 0.55rem;
+    border-radius: 20px;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  &__planning-search {
+    position: relative;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+
+    i:first-child {
+      position: absolute;
+      left: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.75rem;
+      color: $text-secondary;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.5rem 2rem 0.5rem 1.9rem;
+      border-radius: 10px;
+      border: 1.5px solid rgba($primary-dark, 0.08);
+      background: rgba($primary-dark, 0.025);
+      font-size: 0.83rem;
+      color: $primary-dark;
+      font-family: inherit;
+      transition: all 0.2s;
+
+      &::placeholder {
+        color: rgba($text-secondary, 0.5);
+      }
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        background: $white;
+        box-shadow: 0 0 0 3px rgba($primary, 0.08);
+      }
+    }
+  }
+
+  &__planning-search-clear {
+    position: absolute;
+    right: 1.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: $text-secondary;
+    opacity: 0.5;
+    font-size: 0.75rem;
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__planning-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 380px;
+    padding: 0.4rem 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba($primary, 0.18) transparent;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba($primary, 0.18);
+      border-radius: 4px;
+    }
+
+    @media (max-width: 900px) {
+      max-height: 200px;
+    }
+  }
+
+  &__planning-skeleton {
+    height: 44px;
+    margin: 0.25rem 0.6rem;
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba($primary-dark, 0.06) 25%, rgba($primary-dark, 0.03) 50%, rgba($primary-dark, 0.06) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  &__planning-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    color: $text-secondary;
+    font-size: 0.8rem;
+    opacity: 0.6;
+    text-align: center;
+
+    i {
+      font-size: 1.1rem;
+    }
+  }
+
+  &__planning-item {
+    display: flex;
+    align-items: center;
+    margin: 0.2rem 0.5rem;
+    border-radius: 10px;
+    border: 1.5px solid transparent;
+    transition: all 0.18s;
+    overflow: hidden;
+
+    &:hover {
+      background: rgba($primary-dark, 0.025);
+      border-color: rgba($primary-dark, 0.07);
+    }
+
+    &.is-active {
+      background: color-mix(in srgb, var(--item-color, #{$primary}) 7%, transparent);
+      border-color: color-mix(in srgb, var(--item-color, #{$primary}) 35%, transparent);
+    }
+  }
+
+  &__planning-item-main {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.6rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+  }
+
+  &__planning-item-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: $white;
+    flex-shrink: 0;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+  }
+
+  &__planning-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__planning-item-name {
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: $primary-dark;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    .is-active & {
+      color: var(--item-color, #{$primary});
+      font-weight: 700;
+    }
+  }
+
+  &__planning-item-badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #0866ff;
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    opacity: 0.8;
+
+    i {
+      font-size: 0.6rem;
+    }
+  }
+
+  &__planning-item-check {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    color: var(--item-color, #{$primary});
+  }
+
+  &__planning-item-goto {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-right: 0.35rem;
+    border-radius: 7px;
+    color: $text-secondary;
+    font-size: 0.7rem;
+    text-decoration: none;
+    transition: all 0.18s;
+    flex-shrink: 0;
+    opacity: 0.4;
+
+    &:hover {
+      background: rgba($primary, 0.1);
+      color: $primary;
+      opacity: 1;
+    }
+  }
+
+  &__planning-active-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgba($primary-dark, 0.06);
+    background: rgba($primary-dark, 0.015);
+  }
+
+  &__planning-active-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: $white;
+    flex-shrink: 0;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 7px;
+    }
+  }
+
+  &__planning-active-label {
+    display: block;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: $text-secondary;
+    font-weight: 700;
+  }
+
+  &__planning-active-name {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: $primary-dark;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__planning-calendar {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__planning-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 6rem 0;
+    color: $text-secondary;
+    font-size: 0.9rem;
   }
 }
 </style>

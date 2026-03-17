@@ -28,6 +28,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true },
     children: [
       {
+        path: 'planning',
+        name: 'InternalPlanning',
+        component: () => import('../views/InternalPlanningView.vue'),
+        meta: { title: 'Bakano Ads: Planificador Global', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'workspaces',
         name: 'AdminWorkspaces',
         component: () => import('../views/SuperadminDashboard.vue'),
@@ -44,6 +50,12 @@ const routes: Array<RouteRecordRaw> = [
         name: 'AppVisual',
         component: () => import('../views/WorkspaceVisualDashboard.vue'),
         meta: { title: 'Bakano Ads: Análisis Visual', requiresAuth: true },
+      },
+      {
+        path: 'workspaces/:workspaceId/planning',
+        name: 'AppPlanning',
+        component: () => import('../views/WorkspacePlanning.vue'),
+        meta: { title: 'Bakano Ads: Planificación', requiresAuth: true },
       },
       {
         path: 'workspaces/:workspaceId/settings',
@@ -110,6 +122,14 @@ router.beforeEach((to, _from, next) => {
         return next({ name: 'AuthLogin', replace: true })
       }
     } catch {
+      return next({ name: 'AuthLogin', replace: true })
+    }
+  }
+
+  // Internal-only guard
+  if (to.meta?.requiresInternal) {
+    const isInternal = localStorage.getItem('user_isInternal') === 'true'
+    if (!isInternal) {
       return next({ name: 'AuthLogin', replace: true })
     }
   }
