@@ -26,11 +26,13 @@ const filtered = computed(() => {
 
   // 1. Assignment Filter (Internal Users)
   if (userStore.isInternal && !isSuperadmin.value && filterAssignment.value === 'mine') {
-    list = list.filter(s => 
-      s.authorizedSenders?.some(sender => 
+    list = list.filter(s => {
+      const isCreator = (typeof s.createdBy === 'string' ? s.createdBy : s.createdBy?._id) === userStore.id
+      const isAuthorized = s.authorizedSenders?.some(sender => 
         (typeof sender === 'string' ? sender : sender._id) === userStore.id
       )
-    )
+      return isCreator || isAuthorized
+    })
   }
 
   // 2. Status Filter
@@ -198,9 +200,9 @@ function onSent(result: { sent: number; skipped: number }) {
               {{ survey.status === 'draft' ? 'Borrador' : survey.status === 'active' ? 'Activa' : 'Cerrada' }}
             </span>
             <span 
-              v-if="survey.authorizedSenders?.some(s => (typeof s === 'string' ? s : s._id) === userStore.id)"
+              v-if="(typeof survey.createdBy === 'string' ? survey.createdBy : survey.createdBy?._id) === userStore.id || survey.authorizedSenders?.some(s => (typeof s === 'string' ? s : s._id) === userStore.id)"
               class="survey-card__badge survey-card__badge--assigned"
-              title="Eres responsable de esta encuesta"
+              title="Eres responsable o creador de esta encuesta"
             >
               <i class="fa-solid fa-user-check" /> Tu asignación
             </span>
