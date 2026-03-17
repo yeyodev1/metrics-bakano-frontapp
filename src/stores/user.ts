@@ -10,6 +10,7 @@ export interface UserState {
   internalRole: string | null
   isInternal: boolean
   isAuthenticated: boolean
+  pendingSurveysCount: number
 }
 
 export const useUserStore = defineStore('user', {
@@ -23,6 +24,7 @@ export const useUserStore = defineStore('user', {
     internalRole: null,
     isInternal: false,
     isAuthenticated: false,
+    pendingSurveysCount: 0,
   }),
 
   actions: {
@@ -84,6 +86,17 @@ export const useUserStore = defineStore('user', {
       this.isAuthenticated = true
     },
 
+    async fetchPendingSurveys() {
+      if (!this.isAuthenticated || this.isInternal) return
+      try {
+        const { surveyService } = await import('@/services/survey.service')
+        const res = await surveyService.getMySurveys()
+        this.pendingSurveysCount = res.pending.length
+      } catch (err) {
+        console.error('Error fetching pending surveys count', err)
+      }
+    },
+
     clear() {
       this.id = null
       this.name = null
@@ -92,6 +105,7 @@ export const useUserStore = defineStore('user', {
       this.internalRole = null
       this.isInternal = false
       this.isAuthenticated = false
+      this.pendingSurveysCount = 0
       try {
         localStorage.removeItem('access_token')
         localStorage.removeItem('user_id')
