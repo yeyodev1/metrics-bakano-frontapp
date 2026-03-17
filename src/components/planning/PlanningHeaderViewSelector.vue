@@ -120,11 +120,10 @@ function getMetaPictureUrl(pageId: string): string {
   gap: 0.875rem;
   width: 100%;
   min-width: 0;
-  background: rgba($white, 0.7);
+  background: $primary-light;
   padding: 0.75rem 0.875rem;
   border-radius: 14px;
   border: 1px solid rgba($primary-dark, 0.06);
-  backdrop-filter: blur(4px);
 
   // Only go horizontal when there's truly enough space (large screens with no sidebar,
   // or when container is wide enough — e.g., non-internal single-column layout)

@@ -8,6 +8,7 @@ import InternalPlanningSidebar from '@/components/planning/internal/InternalPlan
 
 const workspaces = ref<Workspace[]>([])
 const selectedWorkspaceId = ref<string>('')
+const calendarDefaultView = ref<'month' | 'week' | 'global-week' | 'global-month'>('global-month')
 const isLoading = ref(true)
 
 async function fetchWorkspaces() {
@@ -15,7 +16,7 @@ async function fetchWorkspaces() {
     const res = await workspaceService.listWorkspaces({ limit: 100 })
     // Defensive check: ensure res.workspaces is an array
     workspaces.value = Array.isArray(res.workspaces) ? res.workspaces : []
-    
+
     if (workspaces.value.length > 0) {
       selectedWorkspaceId.value = workspaces.value[0]._id
     }
@@ -24,6 +25,11 @@ async function fetchWorkspaces() {
   } finally {
     isLoading.value = false
   }
+}
+
+function handleSelectWorkspace(id: string) {
+  selectedWorkspaceId.value = id
+  calendarDefaultView.value = 'week'
 }
 
 onMounted(fetchWorkspaces)
@@ -38,9 +44,10 @@ onMounted(fetchWorkspaces)
     <main class="internal-planning__content">
       <!-- Left Sidebar -->
       <InternalPlanningSidebar
-        v-model:selected-workspace-id="selectedWorkspaceId"
+        :selected-workspace-id="selectedWorkspaceId"
         :workspaces="workspaces"
         :is-loading="isLoading"
+        @update:selected-workspace-id="handleSelectWorkspace"
       />
 
       <!-- Right Calendar Area -->
@@ -54,7 +61,7 @@ onMounted(fetchWorkspaces)
           v-else
           :key="selectedWorkspaceId"
           :workspace-id="selectedWorkspaceId"
-          default-view="global-month"
+          :default-view="calendarDefaultView"
         />
       </section>
     </main>

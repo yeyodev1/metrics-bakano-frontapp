@@ -107,9 +107,10 @@ const activeLabel = computed(() => {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  background: $primary-light;
+  background: $white;
   border-radius: 16px;
-  border: 1px solid rgba($primary-dark, 0.06);
+  border: 1px solid rgba($primary-dark, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 
   @media (min-width: 1200px) {
     gap: 1.25rem;

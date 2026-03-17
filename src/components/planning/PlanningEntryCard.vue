@@ -18,6 +18,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  workspaceName: {
+    type: String,
+    default: '',
+  },
+  workspaceMetaPageId: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['edit'])
@@ -41,6 +49,14 @@ function getInitials(person: any): string {
     .substring(0, 2)
     .toUpperCase()
 }
+
+function getWorkspaceInitials(name: string): string {
+  return name.trim().split(/\s+/).map(w => w[0]).join('').substring(0, 2).toUpperCase()
+}
+
+function getMetaPictureUrl(pageId: string): string {
+  return `https://graph.facebook.com/${pageId}/picture?type=square`
+}
 </script>
 
 <template>
@@ -54,9 +70,18 @@ function getInitials(person: any): string {
     @click.stop="canManage && emit('edit', entry)"
   >
     <div class="planning-entry-card__main">
-      <div v-if="'workspaceName' in entry" class="planning-entry-card__workspace">
-        <span class="planning-entry-card__workspace-dot" />
-        <span class="planning-entry-card__workspace-name">{{ entry.workspaceName }}</span>
+      <!-- Workspace logo header -->
+      <div v-if="workspaceName" class="planning-entry-card__ws-header">
+        <div class="planning-entry-card__ws-avatar">
+          <img
+            v-if="workspaceMetaPageId"
+            :src="getMetaPictureUrl(workspaceMetaPageId)"
+            :alt="workspaceName"
+            @error="($event.target as HTMLImageElement).style.display = 'none'"
+          />
+          <span v-else>{{ getWorkspaceInitials(workspaceName) }}</span>
+        </div>
+        <span class="planning-entry-card__ws-name">{{ workspaceName }}</span>
       </div>
       <span class="planning-entry-card__time">{{ formatTime(entry.date) }}</span>
       <span class="planning-entry-card__title">{{ entry.title }}</span>
@@ -149,25 +174,39 @@ function getInitials(person: any): string {
     margin-top: 0.15rem;
   }
 
-  &__workspace {
+  &__ws-header {
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    margin-bottom: 0.15rem;
-    padding-bottom: 0.15rem;
-    border-bottom: 1px solid rgba($primary-dark, 0.04);
+    margin-bottom: 0.2rem;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+    min-width: 0;
   }
 
-  &__workspace-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: $primary;
+  &__ws-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: linear-gradient(135deg, $primary 0%, darken($primary, 12%) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.48rem;
+    font-weight: 800;
+    color: $white;
     flex-shrink: 0;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
   }
 
-  &__workspace-name {
-    font-size: 0.65rem;
+  &__ws-name {
+    font-size: 0.62rem;
     font-weight: 800;
     color: $text-secondary;
     text-transform: uppercase;
@@ -175,6 +214,7 @@ function getInitials(person: any): string {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
   }
 
   &__avatars {
