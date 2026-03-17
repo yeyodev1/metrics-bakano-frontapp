@@ -300,6 +300,8 @@ function getThisMonday(d: Date) {
           :entries="activeViewEntries"
           :is-global="viewMode === 'global-month'"
           :can-manage="canManage"
+          :workspace-name="workspaceMeta?.name || ''"
+          :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
           @click-day="openCreate"
           @edit-entry="openEdit"
         />
@@ -311,6 +313,8 @@ function getThisMonday(d: Date) {
           :entries="activeViewEntries"
           :is-global="viewMode === 'global-week'"
           :can-manage="canManage"
+          :workspace-name="workspaceMeta?.name || ''"
+          :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
           @edit-entry="openEdit"
         />
       </div>
@@ -336,15 +340,15 @@ function getThisMonday(d: Date) {
 
 <style lang="scss" scoped>
 .planning-calendar {
-  padding: 1rem;
-  background: $primary-light;
+  padding: 0;
   min-height: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 1rem;
 
   @media (min-width: 1200px) {
-    padding: 1.5rem 2rem;
+    gap: 1.5rem;
   }
 
   &__loading {

@@ -46,7 +46,8 @@ async function handleSubmit(): Promise<void> {
       role: user.role,
       workspaces: user.workspaces as any,
       workspaceId: targetWorkspaceId || undefined,
-      isInternal: user.isInternal
+      isInternal: user.isInternal,
+      internalRole: user.internalRole,
     })
 
     // Role-based redirect

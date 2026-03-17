@@ -20,6 +20,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  workspaceName: {
+    type: String,
+    default: '',
+  },
+  workspaceMetaPageId: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['click-day', 'edit-entry'])
@@ -105,6 +113,8 @@ function isPast(day: Date | null) {
                 :entry="entry"
                 :is-past="isPast(day)"
                 :can-manage="canManage"
+                :workspace-name="isGlobal ? (entry as GlobalPlanningEntry).workspaceName : workspaceName"
+                :workspace-meta-page-id="isGlobal ? ((entry as GlobalPlanningEntry).workspaceMetaPageId || '') : workspaceMetaPageId"
                 compact
                 @edit="emit('edit-entry', $event)"
               />

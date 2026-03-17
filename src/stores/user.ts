@@ -39,6 +39,17 @@ export const useUserStore = defineStore('user', {
       this.workspaceId = localStorage.getItem('user_workspaceId')
       this.isInternal = localStorage.getItem('user_isInternal') === 'true'
       this.internalRole = localStorage.getItem('user_internalRole')
+
+      // Fallback: decode internalRole from JWT if localStorage is missing it
+      if (!this.internalRole) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1])) as { internalRole?: string }
+          if (payload.internalRole) {
+            this.internalRole = payload.internalRole
+            localStorage.setItem('user_internalRole', payload.internalRole)
+          }
+        } catch { /* silent */ }
+      }
       
       const ws = localStorage.getItem('user_workspaces')
       if (ws) {
