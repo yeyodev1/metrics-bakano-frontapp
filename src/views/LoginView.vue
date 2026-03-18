@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import logoDark from '@/assets/logos/bakano-dark.png'
 import { authService } from '@/services/auth.service'
 import { useUserStore } from '@/stores/user'
 import type { ApiError } from '@/types'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+
+// --- Contextual banner ---
+const isVideoReview = computed(() =>
+  typeof route.query.redirect === 'string' && route.query.redirect.includes('video-planning')
+)
 
 // --- State ---
 const email = ref('')
@@ -49,6 +55,12 @@ async function handleSubmit(): Promise<void> {
       isInternal: user.isInternal,
       internalRole: user.internalRole,
     })
+
+    // Honor redirect param (e.g. from shared video-planning link)
+    if (route.query.redirect && typeof route.query.redirect === 'string') {
+      router.push(route.query.redirect)
+      return
+    }
 
     // Role-based redirect
     if (user.role === 'superadmin') {
@@ -94,6 +106,17 @@ function togglePassword(): void {
     <!-- Right form panel -->
     <main class="login-view__form-area">
       <div class="login-view__card">
+        <!-- Video review context banner -->
+        <div v-if="isVideoReview" class="login-view__context-banner">
+          <div class="login-view__context-icon">
+            <i class="fa-solid fa-film" />
+          </div>
+          <div>
+            <strong>Tienes videos para revisar</strong>
+            <p>Inicia sesión para ver y aprobar la planificación de videos de tu marca.</p>
+          </div>
+        </div>
+
         <!-- Header -->
         <div class="login-view__card-header">
           <img :src="logoDark" alt="Bakano" class="login-view__logo" width="120" height="30" />
@@ -554,6 +577,26 @@ function togglePassword(): void {
     &:hover {
       opacity: 0.75;
     }
+  }
+
+  &__context-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    background: rgba($primary, 0.06);
+    border: 1.5px solid rgba($primary, 0.2);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+
+    strong { display: block; font-size: 0.88rem; color: $primary-dark; margin-bottom: 0.2rem; }
+    p { margin: 0; font-size: 0.8rem; color: $text-secondary; line-height: 1.4; }
+  }
+
+  &__context-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: rgba($primary, 0.12); color: $primary;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
   }
 }
 

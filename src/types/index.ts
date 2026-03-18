@@ -14,6 +14,7 @@ export type InternalRole =
   | 'director'
   | 'estratega'
   | 'community_manager'
+  | 'editor'
   | 'productor'
   | 'disenador'
   | 'copywriter'

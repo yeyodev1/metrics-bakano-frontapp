@@ -26,6 +26,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  videoCount: {
+    type: Number,
+    default: 0,
+  },
 })
 
 const emit = defineEmits(['edit'])
@@ -84,7 +88,13 @@ function getMetaPictureUrl(pageId: string): string {
         <span class="planning-entry-card__ws-name">{{ workspaceName }}</span>
       </div>
       <span class="planning-entry-card__time">{{ formatTime(entry.date) }}</span>
-      <span class="planning-entry-card__title">{{ entry.title }}</span>
+      <div class="planning-entry-card__title-row">
+        <span class="planning-entry-card__title">{{ entry.title }}</span>
+        <span v-if="videoCount > 0" class="planning-entry-card__video-badge" title="Videos planificados">
+          <i class="fa-solid fa-film" />
+          {{ videoCount }}
+        </span>
+      </div>
     </div>
 
     <!-- Avatars: only in non-compact mode (week view) -->
@@ -166,12 +176,32 @@ function getMetaPictureUrl(pageId: string): string {
     letter-spacing: 0.02em;
   }
 
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.15rem;
+    flex-wrap: wrap;
+  }
+
   &__title {
     font-size: 0.82rem;
     font-weight: 600;
     color: $primary-dark;
     line-height: 1.3;
-    margin-top: 0.15rem;
+  }
+
+  &__video-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    background: rgba($primary, 0.1);
+    color: $primary;
+    border-radius: 6px;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.6rem;
+    font-weight: 800;
+    white-space: nowrap;
   }
 
   &__ws-header {

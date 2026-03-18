@@ -100,6 +100,19 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/surveys/MySurveysView.vue'),
         meta: { title: 'Bakano Ads: Mis Encuestas', requiresAuth: true },
       },
+      // ── Video Planning ────────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/planning/:entryId/video-planning',
+        name: 'VideoPlanning',
+        component: () => import('../views/videoPlanning/VideoPlanningView.vue'),
+        meta: { title: 'Bakano Ads: Planificación de Videos', requiresAuth: true },
+      },
+      {
+        path: 'workspaces/:workspaceId/planning/:entryId/video-planning/client',
+        name: 'VideoPlanningClient',
+        component: () => import('../views/videoPlanning/ClientVideoPlanningView.vue'),
+        meta: { title: 'Bakano Ads: Aprobación de Videos', requiresAuth: true },
+      },
     ],
   },
 
