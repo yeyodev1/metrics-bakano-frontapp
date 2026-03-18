@@ -68,7 +68,7 @@ function getMetaPictureUrl(pageId: string): string {
       background: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.dark} 100%)`,
       boxShadow: `0 3px 8px ${colors.shadow}`
     } : undefined"
-    @click.stop="canManage && emit('edit', entry)"
+    @click.stop="emit('edit', entry)"
   >
     <div class="planning-global-card__ws-header">
       <img

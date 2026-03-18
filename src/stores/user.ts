@@ -74,10 +74,9 @@ export const useUserStore = defineStore('user', {
           this.workspaces = payload.workspaces as any
           localStorage.setItem('user_workspaces', JSON.stringify(payload.workspaces))
         }
-        if (payload.isInternal !== undefined) {
-          this.isInternal = payload.isInternal
-          localStorage.setItem('user_isInternal', String(payload.isInternal))
-        }
+        // Always overwrite isInternal to prevent stale localStorage from prior sessions
+        this.isInternal = payload.isInternal ?? false
+        localStorage.setItem('user_isInternal', String(payload.isInternal ?? false))
         if (payload.internalRole !== undefined) {
           this.internalRole = payload.internalRole
           localStorage.setItem('user_internalRole', String(payload.internalRole))

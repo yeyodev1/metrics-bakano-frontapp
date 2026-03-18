@@ -6,6 +6,8 @@ import type {
   UpdateVideoItemPayload,
   ClientApprovalPayload,
   VideoItem,
+  VideoCalendarItem,
+  VideoCalendarResponse,
 } from '@/types/videoPlanning'
 
 class VideoPlanningService extends APIBase {
@@ -65,6 +67,17 @@ class VideoPlanningService extends APIBase {
       payload,
     )
     return res.data.planning
+  }
+
+  async getCalendarItems(
+    workspaceId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<VideoCalendarItem[]> {
+    const res = await this.get<VideoCalendarResponse>(
+      `video-planning/calendar?workspaceId=${workspaceId}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+    )
+    return res.data.items
   }
 }
 

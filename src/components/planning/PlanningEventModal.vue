@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import type { PlanningEntry, WorkspaceUser } from '@/types'
 import BaseTimePicker from '../common/BaseTimePicker.vue'
 
 const router = useRouter()
+const userStore = useUserStore()
+
+// Real clients are those who are not internal. Internal staff (even with role='user') can edit depending on permissions.
+const isClientUser = computed(() => !userStore.isInternal)
+
+// Effective read-only: either prop says no-manage OR user is a client
+const isReadOnly = computed(() => isClientUser.value || !props.canManage)
+
+const assignableUsers = computed(() => {
+  return props.workspaceUsers
+})
 
 const props = defineProps({
   show: {
@@ -59,6 +71,12 @@ watch(
   () => props.show,
   (isShown) => {
     if (isShown) {
+      console.log('--- PlanningEventModal ABIERTO ---')
+      console.log('isClientUser:', isClientUser.value)
+      console.log('userStore.isInternal:', userStore.isInternal)
+      console.log('isReadOnly:', isReadOnly.value)
+      console.log('props.canManage:', props.canManage)
+
       if (props.entry) {
         const dateObj = new Date(props.entry.date)
         form.value = {
@@ -89,7 +107,7 @@ watch(
 )
 
 function toggleAssignee(userId: string) {
-  if (!props.canManage) return
+  if (isReadOnly.value) return
   const current = form.value.assignedTo || []
   if (current.includes(userId)) {
     form.value.assignedTo = current.filter(id => id !== userId)
@@ -148,8 +166,8 @@ function goToVideoPlanning() {
         <!-- Header -->
         <div class="planning-modal__header">
           <div class="planning-modal__header-title">
-            <i class="fa-solid" :class="entry ? 'fa-pen-to-square' : 'fa-calendar-plus'" />
-            <h3>{{ entry ? 'Editar Evento' : 'Nueva Producción' }}</h3>
+            <i class="fa-solid" :class="entry && isReadOnly ? 'fa-calendar-day' : entry ? 'fa-pen-to-square' : 'fa-calendar-plus'" />
+            <h3>{{ entry && isReadOnly ? 'Plan del Día' : entry ? 'Editar Evento' : 'Nueva Producción' }}</h3>
           </div>
           <button class="planning-modal__close-btn" @click="emit('close')">
             <i class="fa-solid fa-xmark" />
@@ -184,25 +202,83 @@ function goToVideoPlanning() {
           <span v-if="!entry">
             Este evento se registrará en <strong>{{ workspaceName || 'este cliente' }}</strong>.
           </span>
-          <span v-else>
+          <span v-else-if="!isReadOnly">
             Editando un evento de <strong>{{ workspaceName || 'este cliente' }}</strong>.
+          </span>
+          <span v-else>
+            Actividades programadas por la agencia para <strong>{{ workspaceName || 'tu cuenta' }}</strong>.
           </span>
         </div>
 
-        <!-- Form -->
-        <form @submit.prevent="handleSubmit" class="planning-modal__form">
+        <!-- Read-only view (client / no-manage) -->
+        <div v-if="entry && isReadOnly" class="planning-modal__readonly">
+          <div class="planning-modal__readonly-field">
+            <span class="planning-modal__readonly-label"><i class="fa-solid fa-heading" /> Título</span>
+            <span class="planning-modal__readonly-value">{{ form.title || '—' }}</span>
+          </div>
+          <div class="planning-modal__readonly-row">
+            <div class="planning-modal__readonly-field">
+              <span class="planning-modal__readonly-label"><i class="fa-solid fa-calendar" /> Fecha</span>
+              <span class="planning-modal__readonly-value">{{ form.date || '—' }}</span>
+            </div>
+            <div class="planning-modal__readonly-field">
+              <span class="planning-modal__readonly-label"><i class="fa-solid fa-clock" /> Hora <span class="planning-modal__tz-tag">Ecuador (UTC-5)</span></span>
+              <span class="planning-modal__readonly-value">{{ form.time || '—' }}</span>
+            </div>
+          </div>
+          <div v-if="form.notes" class="planning-modal__readonly-field">
+            <span class="planning-modal__readonly-label"><i class="fa-solid fa-align-left" /> Notas</span>
+            <span class="planning-modal__readonly-value planning-modal__readonly-value--notes">{{ form.notes }}</span>
+          </div>
+          <div v-if="(form.assignedTo || []).length > 0" class="planning-modal__readonly-field">
+            <span class="planning-modal__readonly-label"><i class="fa-solid fa-users" /> Responsables</span>
+            <div class="planning-modal__readonly-assignees">
+              <div
+                v-for="user in workspaceUsers.filter(u => (form.assignedTo || []).includes(u._id))"
+                :key="user._id"
+                class="planning-modal__readonly-chip"
+              >
+                <span class="planning-modal__assignee-avatar">{{ getInitials(user) }}</span>
+                <span class="planning-modal__assignee-name">{{ user.name || user.email }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Video planning CTA -->
+          <div v-if="entry" class="planning-modal__video-cta" @click="goToVideoPlanning">
+            <div class="planning-modal__video-cta-icon">
+              <i class="fa-solid fa-clapperboard" />
+            </div>
+            <div class="planning-modal__video-cta-text">
+              <span class="planning-modal__video-cta-label">{{ isClientUser ? 'Planificación' : 'Plan de Videos REELs' }}</span>
+              <span class="planning-modal__video-cta-sublabel">{{ isClientUser ? 'Aprueba y visualiza la planificación para ti' : 'Ver guiones, estados de producción y aprobaciones' }}</span>
+            </div>
+            <i class="fa-solid fa-chevron-right planning-modal__video-cta-arrow" />
+          </div>
+
+          <!-- Footer read-only -->
+          <div class="planning-modal__footer">
+            <div class="planning-modal__footer-spacer" />
+            <button type="button" class="planning-modal__btn-ghost" @click="emit('close')">
+              Cerrar
+            </button>
+          </div>
+        </div>
+
+        <!-- Editable form (managers / superadmin) -->
+        <form v-else-if="!isReadOnly" @submit.prevent="handleSubmit" class="planning-modal__form">
           <div class="planning-modal__form-content">
             <!-- Title -->
             <div class="planning-modal__form-group">
               <label>Título / Actividad</label>
               <div class="planning-modal__input-wrapper">
                 <i class="fa-solid fa-heading" />
-                <input 
-                  v-model="form.title" 
-                  type="text" 
-                  placeholder="Ej: Ingreso Backup" 
-                  required 
-                  :disabled="!canManage" 
+                <input
+                  v-model="form.title"
+                  type="text"
+                  placeholder="Ej: Ingreso Backup"
+                  required
+                  :disabled="isReadOnly"
                 />
               </div>
             </div>
@@ -213,11 +289,11 @@ function goToVideoPlanning() {
                 <label>Fecha</label>
                 <div class="planning-modal__input-wrapper">
                   <i class="fa-solid fa-calendar" />
-                  <input 
-                    v-model="form.date" 
-                    type="date" 
-                    required 
-                    :disabled="!canManage" 
+                  <input
+                    v-model="form.date"
+                    type="date"
+                    required
+                    :disabled="isReadOnly"
                   />
                 </div>
               </div>
@@ -229,9 +305,9 @@ function goToVideoPlanning() {
                 </label>
                 <div class="planning-modal__input-wrapper">
                   <i class="fa-solid fa-clock" />
-                  <BaseTimePicker 
-                    v-model="form.time" 
-                    :disabled="!canManage" 
+                  <BaseTimePicker
+                    v-model="form.time"
+                    :disabled="isReadOnly"
                   />
                 </div>
               </div>
@@ -242,10 +318,10 @@ function goToVideoPlanning() {
               <label>Notas / Descripción</label>
               <div class="planning-modal__input-wrapper planning-modal__input-wrapper--textarea">
                 <i class="fa-solid fa-align-left" />
-                <textarea 
-                  v-model="form.notes" 
-                  placeholder="Instrucciones adicionales..." 
-                  :disabled="!canManage"
+                <textarea
+                  v-model="form.notes"
+                  placeholder="Instrucciones adicionales..."
+                  :disabled="isReadOnly"
                 ></textarea>
               </div>
             </div>
@@ -256,12 +332,12 @@ function goToVideoPlanning() {
               <p class="planning-modal__assignee-hint">Toca a una persona para incluirla</p>
               <div class="planning-modal__assignee-grid">
                 <button
-                  v-for="user in workspaceUsers"
+                  v-for="user in assignableUsers"
                   :key="user._id"
                   type="button"
                   class="planning-modal__assignee-chip"
                   :class="{ 'is-selected': (form.assignedTo || []).includes(user._id) }"
-                  :disabled="!canManage"
+                  :disabled="isReadOnly"
                   @click="toggleAssignee(user._id)"
                 >
                   <span class="planning-modal__assignee-avatar">
@@ -273,7 +349,7 @@ function goToVideoPlanning() {
                       {{ {
                         director: 'Director', estratega: 'Estratega', account_manager: 'Account Manager',
                         community_manager: 'CM', productor: 'Productor', disenador: 'Diseñador',
-                        copywriter: 'Copywriter', analista: 'Analista', desarrollador: 'Dev'
+                        editor: 'Editor', copywriter: 'Copywriter', analista: 'Analista', desarrollador: 'Dev'
                       }[user.internalRole] || user.internalRole }}
                     </span>
                     <span v-else class="planning-modal__assignee-role is-client">
@@ -292,7 +368,7 @@ function goToVideoPlanning() {
           <!-- Footer -->
           <div class="planning-modal__footer">
             <button
-              v-if="entry && canManage"
+              v-if="entry && !isReadOnly"
               type="button"
               class="planning-modal__btn-danger"
               @click="emit('delete')"
@@ -306,21 +382,21 @@ function goToVideoPlanning() {
               class="planning-modal__btn-video"
               @click="goToVideoPlanning"
             >
-              <i class="fa-solid fa-film" />
-              <span>Videos</span>
+              <i class="fa-solid fa-clapperboard" />
+              <span>{{ isClientUser ? 'Planificación' : 'Planificación de Videos REELs' }}</span>
             </button>
             <div class="planning-modal__footer-spacer" />
-            <button 
-              type="button" 
-              class="planning-modal__btn-ghost" 
+            <button
+              type="button"
+              class="planning-modal__btn-ghost"
               @click="emit('close')"
             >
               Cancelar
             </button>
-            <button 
-              v-if="canManage"
-              type="submit" 
-              class="planning-modal__btn-primary" 
+            <button
+              v-if="!isReadOnly"
+              type="submit"
+              class="planning-modal__btn-primary"
               :disabled="isSaving"
             >
               <span v-if="isSaving" class="planning-modal__spinner" />
@@ -549,6 +625,91 @@ function goToVideoPlanning() {
     padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 700; cursor: pointer;
     display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
     &:hover { background: rgba($primary, 0.15); }
+  }
+
+  &__readonly {
+    flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+    scrollbar-width: thin; scrollbar-color: rgba($primary, 0.15) transparent;
+  }
+
+  &__readonly-field {
+    display: flex; flex-direction: column; gap: 0.4rem;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.04);
+    &:last-of-type { border-bottom: none; }
+    @media (max-width: 480px) { padding: 0.9rem 1.25rem; }
+  }
+
+  &__readonly-row {
+    display: flex; gap: 0;
+    .planning-modal__readonly-field { flex: 1; border-right: 1px solid rgba($primary-dark, 0.04); &:last-child { border-right: none; } }
+    @media (max-width: 480px) { flex-direction: column; }
+  }
+
+  &__readonly-label {
+    font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    color: $text-secondary; opacity: 0.65; display: flex; align-items: center; gap: 0.4rem;
+    i { font-size: 0.7rem; }
+  }
+
+  &__readonly-value {
+    font-size: 1rem; font-weight: 600; color: $primary-dark;
+    &--notes { font-size: 0.88rem; font-weight: 400; white-space: pre-wrap; line-height: 1.6; color: $text-secondary; }
+  }
+
+  &__readonly-assignees {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem;
+  }
+
+  &__readonly-chip {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.4rem 0.8rem 0.4rem 0.4rem;
+    background: rgba($primary, 0.06); border-radius: 30px;
+    .planning-modal__assignee-avatar { width: 26px; height: 26px; border-radius: 50%; font-size: 0.6rem; background: $primary; color: $white; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .planning-modal__assignee-name { font-size: 0.8rem; font-weight: 700; color: $primary-dark; }
+  }
+
+  &__video-cta {
+    margin: 0.75rem 2rem 0;
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, rgba($primary, 0.06) 0%, rgba($primary, 0.1) 100%);
+    border: 1.5px solid rgba($primary, 0.15);
+    border-radius: 16px; cursor: pointer; transition: all 0.2s;
+
+    &:hover {
+      background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.16) 100%);
+      border-color: rgba($primary, 0.3);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba($primary, 0.12);
+    }
+
+    @media (max-width: 480px) { margin: 0.75rem 1.25rem 0; }
+  }
+
+  &__video-cta-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(135deg, $primary 0%, darken($primary, 10%) 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba($primary, 0.3);
+    i { font-size: 1.1rem; color: $white; }
+  }
+
+  &__video-cta-text {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem;
+  }
+
+  &__video-cta-label {
+    font-size: 0.95rem; font-weight: 800; color: $primary-dark;
+  }
+
+  &__video-cta-sublabel {
+    font-size: 0.72rem; color: $text-secondary; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  &__video-cta-arrow {
+    font-size: 0.75rem; color: $primary; opacity: 0.6; flex-shrink: 0;
   }
 
   &__spinner {

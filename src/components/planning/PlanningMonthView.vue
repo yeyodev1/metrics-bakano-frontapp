@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { PlanningEntry, GlobalPlanningEntry } from '@/types'
+import type { VideoCalendarItem } from '@/types/videoPlanning'
 import PlanningEntryCard from './PlanningEntryCard.vue'
 
 const props = defineProps({
@@ -11,6 +12,10 @@ const props = defineProps({
   entries: {
     type: Array as () => (PlanningEntry | GlobalPlanningEntry)[],
     required: true,
+  },
+  videoItems: {
+    type: Array as () => VideoCalendarItem[],
+    default: () => [],
   },
   isGlobal: {
     type: Boolean,
@@ -30,7 +35,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['click-day', 'edit-entry'])
+const emit = defineEmits(['click-day', 'edit-entry', 'click-video'])
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
@@ -79,6 +84,26 @@ function isPast(day: Date | null) {
   const ectNow = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
   return targetDate < ectNow
 }
+
+function getVideoItemsForDay(day: Date): VideoCalendarItem[] {
+  const targetDate = day.toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
+  return props.videoItems.filter(v => {
+    const d = new Date(v.fechaPublicacion).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
+    return d === targetDate
+  })
+}
+
+const PUB_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
+  PUBLICADO:   { bg: '#dcfce7', text: '#15803d', dot: '#16a34a' },
+  PROGRAMADO:  { bg: '#eef2ff', text: '#4338ca', dot: '#4f46e5' },
+  POR_PUBLICAR:{ bg: '#fef3c7', text: '#b45309', dot: '#d97706' },
+  '-':         { bg: '#f3f4f6', text: '#6b7280', dot: '#9ca3af' },
+}
+
+function pubColor(status: string): { bg: string; text: string; dot: string } {
+  const color = PUB_COLOR[status] || PUB_COLOR['-']
+  return color as { bg: string; text: string; dot: string }
+}
 </script>
 
 <template>
@@ -118,6 +143,28 @@ function isPast(day: Date | null) {
                 compact
                 @edit="emit('edit-entry', $event)"
               />
+
+              <!-- Video publication chips -->
+              <div
+                v-for="video in getVideoItemsForDay(day)"
+                :key="video._id"
+                class="planning-month__video-chip"
+                :style="{
+                  background: pubColor(video.estadoPublicacion).bg,
+                  color: pubColor(video.estadoPublicacion).text,
+                  borderColor: pubColor(video.estadoPublicacion).dot,
+                }"
+                :title="`${video.tema}${video.tipo ? ' · ' + video.tipo : ''} — ${video.estadoPublicacion.replace(/_/g, ' ')}`"
+                @click="emit('click-video', video)"
+              >
+                <span
+                  class="planning-month__video-dot"
+                  :style="{ background: pubColor(video.estadoPublicacion).dot }"
+                />
+                <i class="fa-solid fa-clapperboard planning-month__video-icon" />
+                <span class="planning-month__video-name">{{ video.tema }}</span>
+                <span v-if="video.estadoPublicacion === 'PUBLICADO'" class="planning-month__video-badge">✓</span>
+              </div>
             </div>
           </div>
         </template>
@@ -239,6 +286,40 @@ function isPast(day: Date | null) {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+  }
+
+  &__video-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 0.68rem;
+    font-weight: 700;
+    cursor: default;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100%;
+    transition: opacity 0.15s;
+
+    &:hover { opacity: 0.8; }
+  }
+
+  &__video-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  &__video-icon {
+    font-size: 0.6rem; flex-shrink: 0; opacity: 0.7;
+  }
+
+  &__video-name {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  &__video-badge {
+    font-size: 0.65rem; font-weight: 900; flex-shrink: 0;
   }
 }
 </style>

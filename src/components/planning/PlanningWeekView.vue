@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { PlanningEntry, GlobalPlanningEntry } from '@/types'
 import PlanningEntryCard from './PlanningEntryCard.vue'
 import PlanningGlobalEntryCard from './PlanningGlobalEntryCard.vue'
+import type { VideoCalendarItem } from '@/types/videoPlanning'
 
 const props = defineProps({
   monday: {
@@ -12,6 +13,10 @@ const props = defineProps({
   entries: {
     type: Array as () => (PlanningEntry | GlobalPlanningEntry)[],
     required: true,
+  },
+  videoItems: {
+    type: Array as () => VideoCalendarItem[],
+    default: () => [],
   },
   isGlobal: {
     type: Boolean,
@@ -31,7 +36,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['edit-entry'])
+const emit = defineEmits(['edit-entry', 'click-video'])
 
 const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
@@ -80,6 +85,26 @@ function getEntriesForDay(day: Date) {
     const entryDate = new Date(e.date).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
     return entryDate === targetDate
   }).sort((a, b) => a.date.localeCompare(b.date))
+}
+
+function getVideoItemsForDay(day: Date): VideoCalendarItem[] {
+  const targetDate = day.toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
+  return props.videoItems.filter(v => {
+    const d = new Date(v.fechaPublicacion).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
+    return d === targetDate
+  })
+}
+
+const PUB_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
+  PUBLICADO:   { bg: '#dcfce7', text: '#15803d', dot: '#16a34a' },
+  PROGRAMADO:  { bg: '#eef2ff', text: '#4338ca', dot: '#4f46e5' },
+  POR_PUBLICAR:{ bg: '#fef3c7', text: '#b45309', dot: '#d97706' },
+  '-':         { bg: '#f3f4f6', text: '#6b7280', dot: '#9ca3af' },
+}
+
+function pubColor(status: string): { bg: string; text: string; dot: string } {
+  const color = PUB_COLOR[status] || PUB_COLOR['-']
+  return color as { bg: string; text: string; dot: string }
 }
 
 function isToday(day: Date) {
@@ -134,6 +159,28 @@ function isPast(day: Date) {
             @edit="emit('edit-entry', $event)"
           />
         </template>
+
+        <!-- Video publication chips -->
+        <div
+          v-for="video in getVideoItemsForDay(day)"
+          :key="video._id"
+          class="planning-week__video-chip"
+          :style="{
+            background: pubColor(video.estadoPublicacion).bg,
+            color: pubColor(video.estadoPublicacion).text,
+            borderColor: pubColor(video.estadoPublicacion).dot,
+          }"
+          :title="`${video.tema}${video.tipo ? ' · ' + video.tipo : ''} — ${video.estadoPublicacion.replace(/_/g, ' ')}`"
+          @click="emit('click-video', video)"
+        >
+          <span
+            class="planning-week__video-dot"
+            :style="{ background: pubColor(video.estadoPublicacion).dot }"
+          />
+          <i class="fa-solid fa-clapperboard planning-week__video-icon" />
+          <span class="planning-week__video-name">{{ video.tema }}</span>
+          <span v-if="video.estadoPublicacion === 'PUBLICADO'" class="planning-week__video-badge">✓</span>
+        </div>
       </div>
     </div>
   </div>
@@ -263,6 +310,41 @@ function isPast(day: Date) {
     @media (max-width: 768px) {
       padding: 1.25rem;
     }
+  }
+
+  &__video-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: default;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100%;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+
+    &:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06); }
+  }
+
+  &__video-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  &__video-icon {
+    font-size: 0.65rem; flex-shrink: 0; opacity: 0.8;
+  }
+
+  &__video-name {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  &__video-badge {
+    font-size: 0.7rem; font-weight: 900; flex-shrink: 0;
   }
 }
 </style>

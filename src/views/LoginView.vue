@@ -41,6 +41,18 @@ async function handleSubmit(): Promise<void> {
     // Persist token for the request interceptor
     localStorage.setItem('access_token', token)
 
+    // Decode JWT payload to get fields not present in the user object (e.g. isInternal)
+    let jwtIsInternal: boolean = false
+    let jwtInternalRole: string | undefined = undefined
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1])) as {
+        isInternal?: boolean
+        internalRole?: string
+      }
+      jwtIsInternal = payload.isInternal === true
+      jwtInternalRole = payload.internalRole
+    } catch { /* use defaults */ }
+
     // Select a workspace ID to redirect to
     const targetWorkspaceId = user.workspaceId || (user.workspaces?.[0]?.workspaceId ?? null)
 
@@ -52,8 +64,8 @@ async function handleSubmit(): Promise<void> {
       role: user.role,
       workspaces: user.workspaces as any,
       workspaceId: targetWorkspaceId || undefined,
-      isInternal: user.isInternal,
-      internalRole: user.internalRole,
+      isInternal: user.isInternal ?? jwtIsInternal,
+      internalRole: user.internalRole ?? jwtInternalRole,
     })
 
     // Honor redirect param (e.g. from shared video-planning link)
