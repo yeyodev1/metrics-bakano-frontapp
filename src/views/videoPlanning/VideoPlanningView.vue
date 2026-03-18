@@ -140,11 +140,11 @@ async function handleFieldUpdate(itemId: string, field: string, value: string) {
   }
 }
 
-async function handleSaveLinkVideo(itemId: string, linkVideo: string) {
+async function handleSaveLinkVideo(itemId: string, payload: { linkVideo: string; fechaPublicacion: string }) {
   if (!planning.value) return
   savingLink.value = true
   try {
-    planning.value = await videoPlanningService.updateItem(planning.value._id, itemId, { linkVideo })
+    planning.value = await videoPlanningService.updateItem(planning.value._id, itemId, payload)
     // Update completedItem with fresh data
     const updated = planning.value.items.find(i => i._id === itemId) ?? null
     if (updated) completedItem.value = updated

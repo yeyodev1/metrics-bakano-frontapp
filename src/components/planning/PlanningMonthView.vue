@@ -35,7 +35,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['click-day', 'edit-entry'])
+const emit = defineEmits(['click-day', 'edit-entry', 'click-video'])
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
@@ -100,8 +100,9 @@ const PUB_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
   '-':         { bg: '#f3f4f6', text: '#6b7280', dot: '#9ca3af' },
 }
 
-function pubColor(status: string) {
-  return PUB_COLOR[status] ?? PUB_COLOR['-']
+function pubColor(status: string): { bg: string; text: string; dot: string } {
+  const color = PUB_COLOR[status] || PUB_COLOR['-']
+  return color as { bg: string; text: string; dot: string }
 }
 </script>
 
@@ -154,6 +155,7 @@ function pubColor(status: string) {
                   borderColor: pubColor(video.estadoPublicacion).dot,
                 }"
                 :title="`${video.tema}${video.tipo ? ' · ' + video.tipo : ''} — ${video.estadoPublicacion.replace(/_/g, ' ')}`"
+                @click="emit('click-video', video)"
               >
                 <span
                   class="planning-month__video-dot"

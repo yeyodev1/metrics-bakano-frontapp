@@ -20,6 +20,9 @@ import PlanningMonthView from './planning/PlanningMonthView.vue'
 import PlanningWeekView from './planning/PlanningWeekView.vue'
 import PlanningEventModal from './planning/PlanningEventModal.vue'
 import ClientPlanningEventModal from './planning/ClientPlanningEventModal.vue'
+import PlanningTypeFilters from './planning/PlanningTypeFilters.vue'
+import VideoPlanningItemModal from './videoPlanning/VideoPlanningItemModal.vue'
+import type { VideoItem } from '@/types/videoPlanning'
 
 const props = defineProps({
   workspaceId: {
@@ -58,6 +61,10 @@ const isSaving = ref(false)
 const showModal = ref(false)
 const selectedEntry = ref<PlanningEntry | null>(null)
 const defaultModalDate = ref<Date | null>(null)
+const calendarFilter = ref<'all' | 'production' | 'publication'>('all')
+
+const showVideoItemModal = ref(false)
+const selectedVideoItem = ref<VideoItem | null>(null)
 
 // Permissions & Filters
 const showMineOnly = ref(userStore.role !== 'superadmin' && !userStore.isInternal)
@@ -89,10 +96,17 @@ const filteredGlobalEntries = computed(() => globalEntries.value.filter(isMyEntr
 const filteredGlobalMonthEntries = computed(() => globalMonthEntries.value.filter(isMyEntry))
 
 const activeViewEntries = computed(() => {
+  if (calendarFilter.value === 'publication') return []
+  
   if (viewMode.value === 'global-month') return filteredGlobalMonthEntries.value
   if (viewMode.value === 'global-week') return filteredGlobalEntries.value
   if (viewMode.value === 'week') return filteredWeekEntries.value
   return filteredEntries.value
+})
+
+const activeVideoItems = computed(() => {
+  if (calendarFilter.value === 'production') return []
+  return videoCalendarItems.value
 })
 
 // ── Data Fetching ───────────────────────────────────────────
@@ -204,10 +218,26 @@ function handleToday() {
   currentWeekStart.value = getThisMonday(new Date())
 }
 
-function openCreate(day?: Date) {
+function openCreate(date?: Date) {
+  defaultModalDate.value = date || null
   selectedEntry.value = null
-  defaultModalDate.value = day || new Date()
   showModal.value = true
+}
+
+async function handleVideoClick(videoChip: any) {
+  isLoading.value = true
+  try {
+    const planning = await videoPlanningService.getByEntry(videoChip.entryId)
+    if (planning) {
+      const item = planning.items.find((i: VideoItem) => i._id === videoChip._id)
+      if (item) {
+        selectedVideoItem.value = item
+        showVideoItemModal.value = true
+      }
+    }
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function openEdit(entry: PlanningEntry | GlobalPlanningEntry) {
@@ -308,6 +338,8 @@ function getThisMonday(d: Date) {
       @create="openCreate()"
     />
 
+    <PlanningTypeFilters v-model="calendarFilter" />
+
     <Transition name="view-fade" mode="out-in">
       <div v-if="isLoading || isWeekLoading" class="planning-calendar__loading">
         <div class="planning-calendar__spinner" />
@@ -319,13 +351,14 @@ function getThisMonday(d: Date) {
           v-if="viewMode.includes('month')"
           :current-month="currentMonth"
           :entries="activeViewEntries"
-          :video-items="videoCalendarItems"
+          :video-items="activeVideoItems"
           :is-global="viewMode === 'global-month'"
           :can-manage="canManage"
           :workspace-name="workspaceMeta?.name || ''"
           :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
           @click-day="openCreate"
           @edit-entry="openEdit"
+          @click-video="handleVideoClick"
         />
 
         <!-- Week Views -->
@@ -333,15 +366,24 @@ function getThisMonday(d: Date) {
           v-else
           :monday="currentWeekStart"
           :entries="activeViewEntries"
+          :video-items="activeVideoItems"
           :is-global="viewMode === 'global-week'"
           :can-manage="canManage"
           :workspace-name="workspaceMeta?.name || ''"
           :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
           @edit-entry="openEdit"
+          @click-video="handleVideoClick"
         />
       </div>
     </Transition>
 
+    <!-- Modals -->
+    <VideoPlanningItemModal
+      :show="showVideoItemModal"
+      :item="selectedVideoItem"
+      :is-saving="false"
+      @close="showVideoItemModal = false"
+    />
     <!-- Internal/Superadmin Modal Overlay -->
     <PlanningEventModal
       v-if="userStore.isInternal || userStore.role === 'superadmin'"

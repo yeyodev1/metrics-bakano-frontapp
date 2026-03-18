@@ -71,7 +71,7 @@ function getMetaPictureUrl(pageId: string): string {
       'is-compact': compact,
       'is-editable': canManage 
     }"
-    @click.stop="canManage && emit('edit', entry)"
+    @click.stop="emit('edit', entry)"
   >
     <div class="planning-entry-card__main">
       <!-- Workspace logo header -->

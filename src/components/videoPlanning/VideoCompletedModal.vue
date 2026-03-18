@@ -10,20 +10,25 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'save-link', itemId: string, linkVideo: string): void
+  (e: 'save-link', itemId: string, payload: { linkVideo: string; fechaPublicacion: string }): void
 }>()
 
 const localLink = ref('')
+const localFecha = ref('')
 
 watch(() => props.show, (isShown) => {
   if (isShown && props.item) {
     localLink.value = props.item.linkVideo || ''
+    localFecha.value = props.item.fechaPublicacion ? (props.item.fechaPublicacion.split('T')[0] || '') : ''
   }
 })
 
 function handleSave() {
   if (!props.item) return
-  emit('save-link', props.item._id, localLink.value)
+  emit('save-link', props.item._id, { 
+    linkVideo: localLink.value, 
+    fechaPublicacion: localFecha.value 
+  })
 }
 </script>
 
@@ -63,31 +68,47 @@ function handleSave() {
           </div>
         </div>
 
-        <!-- Link input -->
-        <div class="vcm__link-section">
-          <label class="vcm__link-label">
-            <i class="fa-solid fa-link" />
-            Link del video final
-            <span class="vcm__link-hint">(Drive, Dropbox, YouTube, etc.)</span>
-          </label>
-          <div class="vcm__link-input-row">
+        <!-- Form inputs -->
+        <div class="vcm__form-section">
+          <!-- Link -->
+          <div class="vcm__form-group">
+            <label class="vcm__form-label">
+              <i class="fa-solid fa-link" /> Link del video final
+            </label>
+            <div class="vcm__input-row">
+              <input
+                v-model="localLink"
+                type="url"
+                class="vcm__input"
+                placeholder="https://drive.google.com/..."
+                @keydown.enter.prevent="handleSave"
+              />
+              <a
+                v-if="localLink"
+                :href="localLink"
+                target="_blank"
+                rel="noopener"
+                class="vcm__link-preview"
+                title="Abrir link"
+              >
+                <i class="fa-solid fa-arrow-up-right-from-square" />
+              </a>
+            </div>
+            <span class="vcm__form-hint">Proporciona el enlace de Drive, Dropbox, etc.</span>
+          </div>
+
+          <!-- Date -->
+          <div class="vcm__form-group">
+            <label class="vcm__form-label">
+              <i class="fa-regular fa-calendar" /> Fecha de publicación
+            </label>
             <input
-              v-model="localLink"
-              type="url"
-              class="vcm__link-input"
-              placeholder="https://drive.google.com/..."
+              v-model="localFecha"
+              type="date"
+              class="vcm__input"
               @keydown.enter.prevent="handleSave"
             />
-            <a
-              v-if="localLink"
-              :href="localLink"
-              target="_blank"
-              rel="noopener"
-              class="vcm__link-preview"
-              title="Abrir link"
-            >
-              <i class="fa-solid fa-arrow-up-right-from-square" />
-            </a>
+            <span class="vcm__form-hint">Día en el que está planificado que el video salga en redes.</span>
           </div>
         </div>
 
@@ -103,7 +124,7 @@ function handleSave() {
           >
             <span v-if="isSaving" class="vcm__spinner" />
             <i v-else class="fa-solid fa-floppy-disk" />
-            <span>{{ localLink ? 'Guardar link' : 'Marcar sin link' }}</span>
+            <span>{{ localLink || localFecha ? 'Guardar datos' : 'Marcar sin detalles' }}</span>
           </button>
         </div>
       </div>
@@ -196,22 +217,26 @@ function handleSave() {
     &--done { background: #dcfce7; color: #166534; }
   }
 
-  &__link-section {
-    padding: 0 1.5rem 1.5rem;
-    display: flex; flex-direction: column; gap: 0.6rem;
+  &__form-section {
+    padding: 0 1.5rem 1.25rem;
+    display: flex; flex-direction: column; gap: 1rem;
   }
 
-  &__link-label {
+  &__form-group {
+    display: flex; flex-direction: column; gap: 0.4rem;
+  }
+
+  &__form-label {
     font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
     color: $primary-dark; opacity: 0.8; display: flex; align-items: center; gap: 0.45rem;
     i { color: $primary; }
   }
 
-  &__link-hint { font-weight: 400; font-size: 0.72rem; color: $text-secondary; text-transform: none; letter-spacing: 0; }
+  &__form-hint { font-weight: 400; font-size: 0.72rem; color: $text-secondary; }
 
-  &__link-input-row { display: flex; gap: 0.5rem; }
+  &__input-row { display: flex; gap: 0.5rem; }
 
-  &__link-input {
+  &__input {
     flex: 1; padding: 0.75rem 1rem; border-radius: 12px;
     border: 1.5px solid rgba($primary-dark, 0.12); background: rgba($primary-dark, 0.02);
     font-family: inherit; font-size: 0.9rem; transition: all 0.2s;
