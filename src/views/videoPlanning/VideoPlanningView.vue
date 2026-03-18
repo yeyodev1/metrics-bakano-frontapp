@@ -8,6 +8,7 @@ import VideoPlanningStats from '@/components/videoPlanning/VideoPlanningStats.vu
 import VideoPlanningTable from '@/components/videoPlanning/VideoPlanningTable.vue'
 import VideoPlanningItemModal from '@/components/videoPlanning/VideoPlanningItemModal.vue'
 import VideoScriptModal from '@/components/videoPlanning/VideoScriptModal.vue'
+import VideoCompletedModal from '@/components/videoPlanning/VideoCompletedModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,6 +27,9 @@ const showItemModal = ref(false)
 const editingItem = ref<VideoItem | null>(null)
 const showScriptModal = ref(false)
 const scriptItem = ref<VideoItem | null>(null)
+const showCompletedModal = ref(false)
+const completedItem = ref<VideoItem | null>(null)
+const savingLink = ref(false)
 
 const isEditor = computed(() =>
   userStore.isInternal && userStore.internalRole === 'editor'
@@ -123,8 +127,32 @@ async function handleFieldUpdate(itemId: string, field: string, value: string) {
     planning.value = await videoPlanningService.updateItem(planning.value._id, itemId, {
       [field]: value,
     })
+    // Show "video completed" modal when edicion → EDITADO
+    if (field === 'edicion' && value === 'EDITADO') {
+      const updated = planning.value.items.find(i => i._id === itemId) ?? null
+      if (updated) {
+        completedItem.value = updated
+        showCompletedModal.value = true
+      }
+    }
   } catch (err) {
     handleApiError(err, 'No se pudo actualizar el campo')
+  }
+}
+
+async function handleSaveLinkVideo(itemId: string, linkVideo: string) {
+  if (!planning.value) return
+  savingLink.value = true
+  try {
+    planning.value = await videoPlanningService.updateItem(planning.value._id, itemId, { linkVideo })
+    // Update completedItem with fresh data
+    const updated = planning.value.items.find(i => i._id === itemId) ?? null
+    if (updated) completedItem.value = updated
+    showCompletedModal.value = false
+  } catch (err) {
+    handleApiError(err, 'No se pudo guardar el link')
+  } finally {
+    savingLink.value = false
   }
 }
 
@@ -406,6 +434,14 @@ onMounted(() => {
       :show="showScriptModal"
       :item="scriptItem"
       @close="showScriptModal = false"
+    />
+
+    <VideoCompletedModal
+      :show="showCompletedModal"
+      :item="completedItem"
+      :isSaving="savingLink"
+      @close="showCompletedModal = false"
+      @save-link="handleSaveLinkVideo"
     />
   </div>
 </template>

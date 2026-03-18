@@ -5,18 +5,21 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useUserStore } from '@/stores/user'
 import { planningService } from '@/services/planning.service'
 import { workspaceService } from '@/services/workspace.service'
-import type { 
-  PlanningEntry, 
-  GlobalPlanningEntry, 
+import { videoPlanningService } from '@/services/videoPlanning.service'
+import type {
+  PlanningEntry,
+  GlobalPlanningEntry,
   WorkspaceUser,
   Workspace
 } from '@/types'
+import type { VideoCalendarItem } from '@/types/videoPlanning'
 
 // Sub-components
 import PlanningHeader from './planning/PlanningHeader.vue'
 import PlanningMonthView from './planning/PlanningMonthView.vue'
 import PlanningWeekView from './planning/PlanningWeekView.vue'
 import PlanningEventModal from './planning/PlanningEventModal.vue'
+import ClientPlanningEventModal from './planning/ClientPlanningEventModal.vue'
 
 const props = defineProps({
   workspaceId: {
@@ -46,6 +49,7 @@ const globalEntries = ref<GlobalPlanningEntry[]>([])
 const globalMonthEntries = ref<GlobalPlanningEntry[]>([])
 const workspaceUsers = ref<WorkspaceUser[]>([])
 const workspaceMeta = ref<Workspace | null>(null)
+const videoCalendarItems = ref<VideoCalendarItem[]>([])
 
 // State: UI
 const isLoading = ref(false)
@@ -58,14 +62,13 @@ const defaultModalDate = ref<Date | null>(null)
 // Permissions & Filters
 const showMineOnly = ref(userStore.role !== 'superadmin' && !userStore.isInternal)
 const canManage = computed(() => {
+  // Clients (non-internal, non-superadmin) can never manage planning entries
+  if (!userStore.isInternal && userStore.role !== 'superadmin') return false
+
   const isProductor = userStore.isInternal && userStore.internalRole === 'productor'
   if (isProductor) return false // Productor can only view
 
-  return (
-    userStore.role === 'superadmin' ||
-    userStore.isInternal ||
-    workspaceUsers.value.some(u => u._id === userStore.id && (u.role === 'admin' || u.role === 'colaborador'))
-  )
+  return userStore.role === 'superadmin' || userStore.isInternal
 })
 
 const canCreate = computed(() =>
@@ -98,9 +101,12 @@ async function fetchEntries() {
   isLoading.value = true
   try {
     const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1).toISOString()
-    const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0).toISOString()
-    const res = await planningService.listEntries(props.workspaceId, { startDate: start, endDate: end })
-    entries.value = res.entries
+    const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59).toISOString()
+    const [entriesRes] = await Promise.all([
+      planningService.listEntries(props.workspaceId, { startDate: start, endDate: end }),
+      fetchVideoCalendarItems(start, end),
+    ])
+    entries.value = entriesRes.entries
   } catch {
     toast.error('Error al cargar planificación')
   } finally { isLoading.value = false }
@@ -113,7 +119,10 @@ async function fetchWeekEntries() {
     const end = new Date(currentWeekStart.value)
     end.setDate(end.getDate() + 6)
     end.setHours(23, 59, 59, 999)
-    const res = await planningService.listEntries(props.workspaceId, { startDate: start.toISOString(), endDate: end.toISOString() })
+    const [res] = await Promise.all([
+      planningService.listEntries(props.workspaceId, { startDate: start.toISOString(), endDate: end.toISOString() }),
+      fetchVideoCalendarItems(start.toISOString(), end.toISOString()),
+    ])
     weekEntries.value = res.entries
   } catch {
     toast.error('Error al cargar semana')
@@ -158,6 +167,18 @@ async function fetchWorkspaceMeta() {
     const res = await workspaceService.getWorkspace(props.workspaceId)
     workspaceMeta.value = res.workspace
   } catch {}
+}
+
+async function fetchVideoCalendarItems(startDate: string, endDate: string) {
+  try {
+    videoCalendarItems.value = await videoPlanningService.getCalendarItems(
+      props.workspaceId,
+      startDate,
+      endDate,
+    )
+  } catch {
+    // Non-critical: calendar video items are supplementary
+  }
 }
 
 // ── Handlers ────────────────────────────────────────────────
@@ -298,6 +319,7 @@ function getThisMonday(d: Date) {
           v-if="viewMode.includes('month')"
           :current-month="currentMonth"
           :entries="activeViewEntries"
+          :video-items="videoCalendarItems"
           :is-global="viewMode === 'global-month'"
           :can-manage="canManage"
           :workspace-name="workspaceMeta?.name || ''"
@@ -320,8 +342,9 @@ function getThisMonday(d: Date) {
       </div>
     </Transition>
 
-    <!-- Global Modal Overlay -->
+    <!-- Internal/Superadmin Modal Overlay -->
     <PlanningEventModal
+      v-if="userStore.isInternal || userStore.role === 'superadmin'"
       :show="showModal"
       :entry="selectedEntry"
       :workspace-id="workspaceId"
@@ -334,6 +357,18 @@ function getThisMonday(d: Date) {
       @close="showModal = false"
       @save="handleSave"
       @delete="handleDelete"
+    />
+    
+    <!-- Strict Read-Only Client Modal Overlay -->
+    <ClientPlanningEventModal
+      v-else
+      :show="showModal"
+      :entry="selectedEntry"
+      :workspace-id="workspaceId"
+      :workspace-name="workspaceMeta?.name || ''"
+      :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
+      :workspace-users="workspaceUsers"
+      @close="showModal = false"
     />
   </div>
 </template>

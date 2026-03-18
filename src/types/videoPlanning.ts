@@ -46,6 +46,8 @@ export interface VideoItem {
   comentario?: string
   clienteAprobacion: ClienteAprobacion
   motivoRechazo?: string
+  linkVideo?: string
+  fechaPublicacion?: string
   order: number
 }
 
@@ -79,6 +81,8 @@ export interface CreateVideoItemPayload {
   edicion?: EstadoEdicion
   estadoPublicacion?: EstadoPublicacion
   comentario?: string
+  linkVideo?: string
+  fechaPublicacion?: string
 }
 
 export interface UpdateVideoItemPayload {
@@ -94,8 +98,30 @@ export interface UpdateVideoItemPayload {
   edicion?: EstadoEdicion
   estadoPublicacion?: EstadoPublicacion
   comentario?: string
+  linkVideo?: string
+  fechaPublicacion?: string
 }
 
 export interface ClientApprovalPayload {
   approvals: { itemId: string; clienteAprobacion: ClienteAprobacion; motivoRechazo?: string }[]
+}
+
+export interface VideoCalendarItem {
+  _id: string
+  planningId: string
+  entryId: string
+  workspaceId: string
+  numero: number
+  tema: string
+  tipo?: string
+  estadoPublicacion: EstadoPublicacion
+  edicion: EstadoEdicion
+  estadoProduccion: EstadoProduccion
+  clienteAprobacion: ClienteAprobacion
+  linkVideo?: string
+  fechaPublicacion: string
+}
+
+export interface VideoCalendarResponse {
+  items: VideoCalendarItem[]
 }

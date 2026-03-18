@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useUserStore } from '@/stores/user'
 import type { VideoItem, CreateVideoItemPayload } from '@/types/videoPlanning'
 import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion } from '@/types/videoPlanning'
+
+const userStore = useUserStore()
+const isReadOnly = computed(() => !userStore.isInternal)
 
 const props = defineProps<{
   show: boolean
@@ -27,6 +31,8 @@ const form = ref<CreateVideoItemPayload>({
   edicion: EstadoEdicion.POR_EDITAR,
   estadoPublicacion: EstadoPublicacion.POR_PUBLICAR,
   comentario: '',
+  linkVideo: '',
+  fechaPublicacion: '',
 })
 
 watch(() => props.show, (isShown) => {
@@ -45,11 +51,17 @@ watch(() => props.show, (isShown) => {
       edicion: props.item.edicion,
       estadoPublicacion: props.item.estadoPublicacion,
       comentario: props.item.comentario || '',
+      linkVideo: props.item.linkVideo || '',
+      fechaPublicacion: props.item.fechaPublicacion
+        ? props.item.fechaPublicacion.split('T')[0]
+        : '',
     }
   } else {
     form.value = {
       tema: '', descripcion: '', tipo: '', linkEjemplo: '',
       recursos: '', lugarGrabacion: '', guion: '', comentario: '',
+      linkVideo: '',
+      fechaPublicacion: '',
       estadoIdea: EstadoIdea.POR_REVISAR,
       estadoProduccion: EstadoProduccion.POR_GRABAR,
       edicion: EstadoEdicion.POR_EDITAR,
@@ -78,68 +90,79 @@ watch(() => props.show, (isShown) => {
           <div class="vp-item-modal__body">
             <div class="vp-item-modal__field">
               <label>Tema <span class="req">*</span></label>
-              <input v-model="form.tema" type="text" placeholder="Ej: Receta de verano" required />
+              <input v-model="form.tema" type="text" placeholder="Ej: Receta de verano" required :disabled="isReadOnly" />
             </div>
 
             <div class="vp-item-modal__row">
               <div class="vp-item-modal__field">
                 <label>Tipo</label>
-                <input v-model="form.tipo" type="text" placeholder="Ej: Reel educativo" />
+                <input v-model="form.tipo" type="text" placeholder="Ej: Reel educativo" :disabled="isReadOnly" />
               </div>
               <div class="vp-item-modal__field">
                 <label>Lugar de grabación</label>
-                <input v-model="form.lugarGrabacion" type="text" placeholder="Ej: Estudio A" />
+                <input v-model="form.lugarGrabacion" type="text" placeholder="Ej: Estudio A" :disabled="isReadOnly" />
               </div>
             </div>
 
             <div class="vp-item-modal__field">
               <label>Descripción</label>
-              <textarea v-model="form.descripcion" placeholder="Descripción general del video..." rows="2" />
+              <textarea v-model="form.descripcion" placeholder="Descripción general del video..." rows="2" :disabled="isReadOnly" />
             </div>
 
             <div class="vp-item-modal__row">
               <div class="vp-item-modal__field">
                 <label>Link de ejemplo</label>
-                <input v-model="form.linkEjemplo" type="url" placeholder="https://..." />
+                <input v-model="form.linkEjemplo" type="url" placeholder="https://..." :disabled="isReadOnly" />
               </div>
               <div class="vp-item-modal__field">
                 <label>Recursos</label>
-                <input v-model="form.recursos" type="text" placeholder="Ej: Cámara, trípode" />
+                <input v-model="form.recursos" type="text" placeholder="Ej: Cámara, trípode" :disabled="isReadOnly" />
               </div>
             </div>
 
             <div class="vp-item-modal__field">
               <label>Guión</label>
-              <textarea v-model="form.guion" placeholder="Escribe el guión aquí..." rows="5" />
+              <textarea v-model="form.guion" placeholder="Escribe el guión aquí..." rows="5" :disabled="isReadOnly" />
             </div>
 
             <div class="vp-item-modal__field">
               <label>Comentario</label>
-              <textarea v-model="form.comentario" placeholder="Notas internas..." rows="2" />
+              <textarea v-model="form.comentario" placeholder="Notas internas..." rows="2" :disabled="isReadOnly" />
+            </div>
+
+            <div class="vp-item-modal__row">
+              <div class="vp-item-modal__field">
+                <label>Link del video final</label>
+                <input v-model="form.linkVideo" type="url" placeholder="https://..." :disabled="isReadOnly" />
+              </div>
+              <div class="vp-item-modal__field">
+                <label>Fecha de publicación</label>
+                <input v-model="form.fechaPublicacion" type="date" :disabled="isReadOnly" />
+              </div>
             </div>
 
             <div class="vp-item-modal__row">
               <div class="vp-item-modal__field">
                 <label>Estado Idea</label>
-                <select v-model="form.estadoIdea">
+                <select v-model="form.estadoIdea" :disabled="isReadOnly">
                   <option v-for="v in EstadoIdea" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
                 </select>
               </div>
               <div class="vp-item-modal__field">
                 <label>Estado Producción</label>
-                <select v-model="form.estadoProduccion">
+                <select v-model="form.estadoProduccion" :disabled="isReadOnly">
                   <option v-for="v in EstadoProduccion" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
                 </select>
               </div>
               <div class="vp-item-modal__field">
                 <label>Edición</label>
-                <select v-model="form.edicion">
+                <select v-model="form.edicion" :disabled="isReadOnly">
                   <option v-for="v in EstadoEdicion" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
                 </select>
               </div>
               <div class="vp-item-modal__field">
                 <label>Publicación</label>
-                <select v-model="form.estadoPublicacion">
+                <select v-model="form.estadoPublicacion" :disabled="isReadOnly">
                   <option v-for="v in EstadoPublicacion" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
                 </select>
               </div>
@@ -147,8 +170,8 @@ watch(() => props.show, (isShown) => {
           </div>
 
           <div class="vp-item-modal__footer">
-            <button type="button" class="vp-item-modal__btn-ghost" @click="emit('close')">Cancelar</button>
-            <button type="submit" class="vp-item-modal__btn-primary" :disabled="isSaving">
+            <button type="button" class="vp-item-modal__btn-ghost" @click="emit('close')">{{ isReadOnly ? 'Cerrar' : 'Cancelar' }}</button>
+            <button v-if="!isReadOnly" type="submit" class="vp-item-modal__btn-primary" :disabled="isSaving">
               <span v-if="isSaving" class="spinner" />
               <span v-else>{{ item ? 'Guardar cambios' : 'Agregar video' }}</span>
             </button>
