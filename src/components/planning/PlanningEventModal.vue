@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { PlanningEntry, WorkspaceUser } from '@/types'
 import BaseTimePicker from '../common/BaseTimePicker.vue'
+
+const router = useRouter()
 
 const props = defineProps({
   show: {
@@ -123,6 +126,16 @@ function getMetaPictureUrl(pageId: string): string {
 
 function handleSubmit() {
   emit('save', { ...form.value })
+}
+
+function goToVideoPlanning() {
+  if (!props.entry) return
+  router.push({
+    name: 'VideoPlanning',
+    params: { workspaceId: props.workspaceId, entryId: props.entry._id },
+    query: { title: props.entry.title },
+  })
+  emit('close')
 }
 </script>
 
@@ -278,14 +291,23 @@ function handleSubmit() {
 
           <!-- Footer -->
           <div class="planning-modal__footer">
-            <button 
-              v-if="entry && canManage" 
-              type="button" 
-              class="planning-modal__btn-danger" 
+            <button
+              v-if="entry && canManage"
+              type="button"
+              class="planning-modal__btn-danger"
               @click="emit('delete')"
             >
               <i class="fa-solid fa-trash-can" />
               <span>Eliminar</span>
+            </button>
+            <button
+              v-if="entry"
+              type="button"
+              class="planning-modal__btn-video"
+              @click="goToVideoPlanning"
+            >
+              <i class="fa-solid fa-film" />
+              <span>Videos</span>
             </button>
             <div class="planning-modal__footer-spacer" />
             <button 
@@ -520,6 +542,13 @@ function handleSubmit() {
     padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 700; cursor: pointer;
     display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
     &:hover { background: $alert-error; color: $white; }
+  }
+
+  &__btn-video {
+    background: rgba($primary, 0.06); color: $primary; border: none;
+    padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+    &:hover { background: rgba($primary, 0.15); }
   }
 
   &__spinner {
