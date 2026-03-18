@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { VideoItem, CreateVideoItemPayload } from '@/types/videoPlanning'
-import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion } from '@/types/videoPlanning'
+import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion, ClienteAprobacion } from '@/types/videoPlanning'
 
 const userStore = useUserStore()
 const isReadOnly = computed(() => !userStore.isInternal)
@@ -36,6 +36,14 @@ const form = ref<CreateVideoItemPayload>({
 })
 
 // Helpers for status colors
+const isRejected = computed(() => {
+  return props.item?.estadoIdea === EstadoIdea.RECHAZADO || 
+         props.item?.estadoProduccion === EstadoProduccion.RECHAZADO ||
+         props.item?.clienteAprobacion === ClienteAprobacion.RECHAZADO;
+});
+
+const ideaRejection = computed(() => props.item?.motivoRechazo || props.item?.comentario || '');
+
 const getIdeaColor = (status: string) => {
   const map: Record<string, string> = {
     [EstadoIdea.APROBADO]: 'is-success',
@@ -125,6 +133,15 @@ watch(() => props.show, (isShown) => {
 
         <form @submit.prevent="emit('save', { ...form })" class="vp-item-modal__form">
           <div class="vp-item-modal__body">
+            <!-- Rejection Alert -->
+            <div v-if="isRejected" class="vp-item-modal__rejection">
+              <div class="rejection-header">
+                <i class="fa-solid fa-circle-exclamation" />
+                <span>MOTIVO DE RECHAZO</span>
+              </div>
+              <p>{{ ideaRejection || 'Sin comentario de rechazo' }}</p>
+            </div>
+
             <!-- Information View (Client) -->
             <template v-if="isReadOnly">
               <div class="vp-item-view">
@@ -341,6 +358,19 @@ watch(() => props.show, (isShown) => {
     padding: 1.75rem 2rem; display: flex; flex-direction: column; gap: 1.25rem; 
     @media (max-width: 600px) { padding: 1rem; gap: 1rem; }
   }
+
+  &__rejection {
+    background: #fef2f2; border: 1.5px solid #ef4444; border-radius: 16px;
+    padding: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem;
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    .rejection-header {
+      display: flex; align-items: center; gap: 0.6rem; color: #b91c1c;
+      i { font-size: 1.1rem; }
+      span { font-size: 0.75rem; font-weight: 900; letter-spacing: 0.1em; }
+    }
+    p { margin: 0; font-size: 0.95rem; font-weight: 600; color: #991b1b; line-height: 1.5; }
+  }
+
   &__row { 
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; 
     &.is-statuses { 
@@ -475,6 +505,12 @@ watch(() => props.show, (isShown) => {
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
