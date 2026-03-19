@@ -82,7 +82,8 @@ const canCreate = computed(() =>
   userStore.role === 'superadmin' ||
   (userStore.isInternal && (
     userStore.internalRole === 'community_manager' ||
-    userStore.internalRole === 'content_manager'
+    userStore.internalRole === 'content_manager' ||
+    userStore.internalRole === 'project_manager'
   ))
 )
 

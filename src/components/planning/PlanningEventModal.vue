@@ -347,7 +347,7 @@ function goToVideoPlanning() {
                     <span class="planning-modal__assignee-name">{{ user.name || user.email }}</span>
                     <span v-if="user.internalRole" class="planning-modal__assignee-role">
                       {{ {
-                        director: 'Director', estratega: 'Estratega', content_manager: 'Content Mgr', account_manager: 'Account Mgr',
+                        director: 'Director', estratega: 'Estratega', project_manager: 'Project Mgr', content_manager: 'Content Mgr', account_manager: 'Account Mgr',
                         community_manager: 'CM', productor: 'Productor', disenador: 'Diseñador',
                         editor: 'Editor', copywriter: 'Copywriter', analista: 'Analista', desarrollador: 'Dev'
                       }[user.internalRole] || user.internalRole }}
