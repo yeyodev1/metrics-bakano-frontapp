@@ -139,6 +139,7 @@ export interface CreateGlobalUserPayload {
   }[]
   phoneNumber?: string
   phoneExtension?: string
+  sendWelcomeEmail?: boolean
 }
 
 export interface UpdateGlobalUserPayload {
