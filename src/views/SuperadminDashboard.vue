@@ -342,6 +342,31 @@ async function openEditGlobalUser(user: WorkspaceUser) {
   }
 }
 
+// ── Resend invite ────────────────────────────────────────
+const resendTarget = ref<WorkspaceUser | null>(null)
+const resendPwd = ref('')
+const isResendingInvite = ref(false)
+
+function openResendInvite(user: WorkspaceUser) {
+  resendTarget.value = user
+  resendPwd.value = ''
+}
+
+async function submitResendInvite() {
+  if (!resendTarget.value || resendPwd.value.length < 8) return
+  isResendingInvite.value = true
+  try {
+    await workspaceService.resendInvite(resendTarget.value._id, resendPwd.value)
+    toast.success(`Invitación enviada a ${resendTarget.value.email}`)
+    resendTarget.value = null
+    resendPwd.value = ''
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || 'Error al reenviar invitación')
+  } finally {
+    isResendingInvite.value = false
+  }
+}
+
 // ── Surveys tab ────────────────────────────────────────────
 const dashboardSurveys = ref<ISurvey[]>([])
 const isLoadingSurveys = ref(false)
@@ -839,6 +864,9 @@ onMounted(fetchWorkspaces)
                   <button class="superadmin-dashboard__action-btn" @click="openEditGlobalUser(user)" title="Editar">
                     <i class="fa-solid fa-pen" />
                   </button>
+                  <button class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--invite" @click="openResendInvite(user)" title="Reenviar invitación">
+                    <i class="fa-solid fa-paper-plane" />
+                  </button>
                 </div>
               </td>
             </tr>
@@ -846,6 +874,52 @@ onMounted(fetchWorkspaces)
         </table>
       </div>
     </div>
+
+    <!-- Resend invite mini modal -->
+    <Transition name="fade">
+      <div v-if="resendTarget" class="superadmin-dashboard__resend-overlay" @click.self="resendTarget = null">
+        <div class="superadmin-dashboard__resend-modal">
+          <div class="superadmin-dashboard__resend-header">
+            <div class="superadmin-dashboard__resend-icon">
+              <i class="fa-solid fa-paper-plane" />
+            </div>
+            <div>
+              <h4>Reenviar invitación</h4>
+              <p>{{ resendTarget.name || resendTarget.email }}</p>
+            </div>
+            <button class="superadmin-dashboard__resend-close" @click="resendTarget = null">
+              <i class="fa-solid fa-xmark" />
+            </button>
+          </div>
+          <p class="superadmin-dashboard__resend-desc">
+            Se actualizará la contraseña y se enviará el email de bienvenida con las nuevas credenciales a <strong>{{ resendTarget.email }}</strong>.
+          </p>
+          <div class="superadmin-dashboard__resend-row">
+            <input
+              v-model="resendPwd"
+              type="password"
+              minlength="8"
+              placeholder="Nueva contraseña (mín. 8 caracteres)"
+              class="superadmin-dashboard__resend-input"
+              @keydown.enter.prevent="submitResendInvite"
+              autofocus
+            />
+          </div>
+          <div class="superadmin-dashboard__resend-footer">
+            <button class="superadmin-dashboard__btn-ghost" @click="resendTarget = null">Cancelar</button>
+            <button
+              class="superadmin-dashboard__btn-primary"
+              :disabled="isResendingInvite || resendPwd.length < 8"
+              @click="submitResendInvite"
+            >
+              <span v-if="isResendingInvite" class="superadmin-dashboard__spinner" />
+              <i v-else class="fa-solid fa-paper-plane" />
+              {{ isResendingInvite ? 'Enviando...' : 'Enviar invitación' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Content: Superadmins Tab -->
     <div v-if="activeTab === 'superadmins'" class="superadmin-dashboard__superadmins-panel">
@@ -1668,6 +1742,61 @@ onMounted(fetchWorkspaces)
       background: $alert-error-bg;
       color: $alert-error;
     }
+
+    &--invite:hover {
+      background: rgba(#6d28d9, 0.1);
+      color: #6d28d9;
+    }
+  }
+
+  // ── Resend invite modal ──────────────────────────────────
+  &__resend-overlay {
+    position: fixed; inset: 0; z-index: 1300;
+    background: rgba(#0a192f, 0.55); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+  }
+
+  &__resend-modal {
+    background: $white; border-radius: 16px; width: 100%; max-width: 440px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2); padding: 1.75rem;
+    display: flex; flex-direction: column; gap: 1rem;
+    animation: popIn 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  &__resend-header {
+    display: flex; align-items: center; gap: 1rem;
+    h4 { margin: 0; font-size: 1rem; font-weight: 800; color: $primary-dark; }
+    p  { margin: 0; font-size: 0.8rem; color: $text-secondary; }
+  }
+
+  &__resend-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    background: rgba(#6d28d9, 0.1); color: #6d28d9;
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+
+  &__resend-close {
+    margin-left: auto; width: 30px; height: 30px; border-radius: 50%; border: none;
+    background: rgba($primary-dark, 0.06); color: $text-secondary;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    &:hover { background: rgba($primary-dark, 0.12); }
+  }
+
+  &__resend-desc {
+    margin: 0; font-size: 0.83rem; color: $text-secondary; line-height: 1.6;
+  }
+
+  &__resend-row { display: flex; gap: 0.5rem; }
+
+  &__resend-input {
+    flex: 1; padding: 0.75rem 1rem; border-radius: 10px;
+    border: 1.5px solid rgba($primary-dark, 0.12); font-family: inherit;
+    font-size: 0.9rem; transition: all 0.2s;
+    &:focus { outline: none; border-color: $primary; box-shadow: 0 0 0 3px rgba($primary, 0.1); }
+  }
+
+  &__resend-footer {
+    display: flex; justify-content: flex-end; gap: 0.75rem;
   }
 
   // ── Utility ──────────────────────────────────────────────
@@ -3425,4 +3554,12 @@ onMounted(fetchWorkspaces)
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
+
+@keyframes popIn {
+  from { transform: scale(0.9) translateY(10px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
