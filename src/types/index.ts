@@ -13,6 +13,7 @@ export interface LoginPayload {
 export type InternalRole =
   | 'director'
   | 'estratega'
+  | 'project_manager'
   | 'content_manager'
   | 'account_manager'
   | 'community_manager'
