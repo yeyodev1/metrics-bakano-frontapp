@@ -12,6 +12,7 @@ import type { CreateGlobalUserPayload, UpdateGlobalUserPayload, Workspace, Inter
 const INTERNAL_ROLES: { value: InternalRole; label: string; icon: string }[] = [
   { value: 'director', label: 'Director', icon: 'fa-star' },
   { value: 'estratega', label: 'Estratega', icon: 'fa-chess' },
+  { value: 'content_manager', label: 'Content Manager', icon: 'fa-layer-group' },
   { value: 'account_manager', label: 'Account Manager', icon: 'fa-handshake' },
   { value: 'community_manager', label: 'Community Manager', icon: 'fa-comments' },
   { value: 'productor', label: 'Productor', icon: 'fa-clapperboard' },

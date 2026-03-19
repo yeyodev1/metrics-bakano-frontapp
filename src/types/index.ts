@@ -13,6 +13,8 @@ export interface LoginPayload {
 export type InternalRole =
   | 'director'
   | 'estratega'
+  | 'content_manager'
+  | 'account_manager'
   | 'community_manager'
   | 'editor'
   | 'productor'
@@ -20,7 +22,6 @@ export type InternalRole =
   | 'copywriter'
   | 'analista'
   | 'desarrollador'
-  | 'account_manager'
 
 export interface AuthUser {
   _id: string

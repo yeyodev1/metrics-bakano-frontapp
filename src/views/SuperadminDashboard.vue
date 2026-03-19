@@ -805,6 +805,7 @@ onMounted(fetchWorkspaces)
                   {{ {
                     director: 'Director',
                     estratega: 'Estratega',
+                    content_manager: 'Content Manager',
                     account_manager: 'Account Manager',
                     community_manager: 'Community Manager',
                     productor: 'Productor',
