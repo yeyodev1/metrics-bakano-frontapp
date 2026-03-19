@@ -2,10 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { surveyService } from '@/services/survey.service'
+import { useUserStore } from '@/stores/user'
 import type { ISurvey, ISurveyAssignment, ISurveyResponse, IQuestion } from '@/types/survey'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const surveyId = route.params.surveyId as string
 
 const survey = ref<ISurvey | null>(null)
@@ -13,6 +15,52 @@ const assignments = ref<ISurveyAssignment[]>([])
 const responses = ref<ISurveyResponse[]>([])
 const isLoading = ref(true)
 const error = ref('')
+
+// Individual response drawer
+const selectedAssignment = ref<ISurveyAssignment | null>(null)
+const selectedResponse = computed<ISurveyResponse | null>(() => {
+  if (!selectedAssignment.value) return null
+  return responses.value.find(r => r.assignmentId === selectedAssignment.value!._id) ?? null
+})
+
+function openResponse(a: ISurveyAssignment) {
+  if (a.status !== 'completed') return
+  selectedAssignment.value = a
+}
+
+function recipientName(a: ISurveyAssignment): string {
+  if (typeof a.recipientId === 'object' && a.recipientId !== null) {
+    return (a.recipientId as any).name || (a.recipientId as any).email || '—'
+  }
+  return String(a.recipientId)
+}
+
+function recipientEmail(a: ISurveyAssignment): string {
+  if (typeof a.recipientId === 'object' && a.recipientId !== null) {
+    return (a.recipientId as any).email || ''
+  }
+  return ''
+}
+
+function senderName(a: ISurveyAssignment): string {
+  if (typeof a.sentBy === 'object' && a.sentBy !== null) {
+    return (a.sentBy as any).name || (a.sentBy as any).email || '—'
+  }
+  return String(a.sentBy || '—')
+}
+
+function getAnswerValue(questionId: string): any {
+  if (!selectedResponse.value) return null
+  return selectedResponse.value.answers.find(a => a.questionId === questionId)?.value ?? null
+}
+
+function formatAnswerDisplay(q: IQuestion): string {
+  const val = getAnswerValue(q.id)
+  if (val === null || val === undefined || val === '') return 'Sin respuesta'
+  if (typeof val === 'boolean') return val ? 'Sí' : 'No'
+  if (Array.isArray(val)) return val.join(', ')
+  return String(val)
+}
 
 onMounted(async () => {
   try {
@@ -283,14 +331,32 @@ function formatDate(dateStr: string): string {
             <thead>
               <tr>
                 <th>Destinatario</th>
+                <th>Enviada por</th>
                 <th>Estado</th>
                 <th>Enviada</th>
                 <th>Completada</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="a in assignments" :key="a._id">
-                <td>{{ a.recipientId }}</td>
+              <tr
+                v-for="a in assignments"
+                :key="a._id"
+                :class="{ 'survey-results__row--clickable': a.status === 'completed' }"
+                @click="openResponse(a)"
+              >
+                <td>
+                  <div class="survey-results__recipient">
+                    <div class="survey-results__recipient-avatar">
+                      {{ recipientName(a).charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="survey-results__recipient-info">
+                      <span class="survey-results__recipient-name">{{ recipientName(a) }}</span>
+                      <span v-if="recipientEmail(a)" class="survey-results__recipient-email">{{ recipientEmail(a) }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="survey-results__sender-cell">{{ senderName(a) }}</td>
                 <td>
                   <span
                     class="survey-results__status-badge survey-results__status-badge--sm"
@@ -301,12 +367,84 @@ function formatDate(dateStr: string): string {
                 </td>
                 <td>{{ formatDate(a.sentAt) }}</td>
                 <td>{{ a.completedAt ? formatDate(a.completedAt) : '—' }}</td>
+                <td>
+                  <span v-if="a.status === 'completed'" class="survey-results__read-hint">
+                    <i class="fa-solid fa-eye" /> Ver
+                  </span>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </template>
+
+    <!-- Individual response drawer -->
+    <Transition name="drawer">
+      <div v-if="selectedAssignment" class="survey-results__drawer-overlay" @click.self="selectedAssignment = null">
+        <div class="survey-results__drawer">
+          <div class="survey-results__drawer-header">
+            <div class="survey-results__drawer-who">
+              <div class="survey-results__drawer-avatar">
+                {{ recipientName(selectedAssignment).charAt(0).toUpperCase() }}
+              </div>
+              <div>
+                <h3>{{ recipientName(selectedAssignment) }}</h3>
+                <p>{{ recipientEmail(selectedAssignment) }} · Completada {{ formatDate(selectedAssignment.completedAt!) }}</p>
+              </div>
+            </div>
+            <button class="survey-results__drawer-close" @click="selectedAssignment = null">
+              <i class="fa-solid fa-xmark" />
+            </button>
+          </div>
+
+          <div class="survey-results__drawer-body">
+            <div v-if="!selectedResponse" class="survey-results__drawer-empty">
+              <i class="fa-solid fa-circle-exclamation" /> No se encontró la respuesta.
+            </div>
+            <template v-else>
+              <div
+                v-for="(q, idx) in survey!.questions"
+                :key="q.id"
+                class="survey-results__drawer-qa"
+              >
+                <div class="survey-results__drawer-q">
+                  <span class="survey-results__drawer-qnum">P{{ idx + 1 }}</span>
+                  <span>{{ q.label }}</span>
+                </div>
+                <div class="survey-results__drawer-a">
+                  <template v-if="getAnswerValue(q.id) === null || getAnswerValue(q.id) === undefined || getAnswerValue(q.id) === ''">
+                    <span class="survey-results__drawer-a--empty">Sin respuesta</span>
+                  </template>
+                  <template v-else-if="q.type === 'yes_no'">
+                    <span :class="getAnswerValue(q.id) ? 'survey-results__drawer-a--yes' : 'survey-results__drawer-a--no'">
+                      <i :class="getAnswerValue(q.id) ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'" />
+                      {{ getAnswerValue(q.id) ? 'Sí' : 'No' }}
+                    </span>
+                  </template>
+                  <template v-else-if="q.type === 'rating' || q.type === 'nps'">
+                    <span class="survey-results__drawer-a--score">
+                      <i class="fa-solid fa-star" />
+                      {{ getAnswerValue(q.id) }}
+                      <span v-if="q.type === 'nps'" class="survey-results__drawer-a--range">/ 10</span>
+                      <span v-else class="survey-results__drawer-a--range">/ {{ q.max ?? 5 }}</span>
+                    </span>
+                  </template>
+                  <template v-else-if="Array.isArray(getAnswerValue(q.id))">
+                    <div class="survey-results__drawer-a--chips">
+                      <span v-for="v in getAnswerValue(q.id)" :key="v" class="survey-results__drawer-chip">{{ v }}</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    {{ formatAnswerDisplay(q) }}
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -472,6 +610,137 @@ function formatDate(dateStr: string): string {
     }
 
     tr:hover td { background: rgba($primary, 0.02); }
+  }
+
+  &__row--clickable {
+    cursor: pointer;
+    &:hover td { background: rgba($primary, 0.04) !important; }
+  }
+
+  &__recipient {
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+
+  &__recipient-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba($primary, 0.12); color: $primary;
+    font-size: 0.8rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__recipient-info {
+    display: flex; flex-direction: column; gap: 0.1rem;
+  }
+
+  &__recipient-name {
+    font-weight: 700; font-size: 0.88rem; color: $primary-dark;
+  }
+
+  &__recipient-email {
+    font-size: 0.75rem; color: $text-secondary;
+  }
+
+  &__sender-cell {
+    font-size: 0.82rem; color: $text-secondary;
+  }
+
+  &__read-hint {
+    font-size: 0.75rem; font-weight: 700; color: $primary;
+    display: flex; align-items: center; gap: 0.3rem;
+    opacity: 0.7;
+    .survey-results__row--clickable:hover & { opacity: 1; }
+  }
+
+  // ── Response drawer ──────────────────────────────────────
+  &__drawer-overlay {
+    position: fixed; inset: 0; z-index: 1300;
+    background: rgba(#0a192f, 0.45); backdrop-filter: blur(4px);
+    display: flex; justify-content: flex-end;
+  }
+
+  &__drawer {
+    width: 100%; max-width: 520px; height: 100%;
+    background: $white; box-shadow: -8px 0 40px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  &__drawer-header {
+    padding: 1.5rem 1.75rem;
+    border-bottom: 1.5px solid rgba($primary-dark, 0.08);
+    display: flex; align-items: center; gap: 1rem;
+    background: $primary-light;
+  }
+
+  &__drawer-who {
+    display: flex; align-items: center; gap: 0.9rem; flex: 1; min-width: 0;
+    h3 { margin: 0; font-size: 1rem; font-weight: 800; color: $primary-dark; }
+    p  { margin: 0; font-size: 0.75rem; color: $text-secondary; margin-top: 2px; }
+  }
+
+  &__drawer-avatar {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    background: rgba($primary, 0.15); color: $primary;
+    font-size: 1.1rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  &__drawer-close {
+    width: 32px; height: 32px; border-radius: 50%; border: none; flex-shrink: 0;
+    background: rgba($primary-dark, 0.08); color: $text-secondary; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    &:hover { background: rgba($primary-dark, 0.14); }
+  }
+
+  &__drawer-body {
+    flex: 1; overflow-y: auto; padding: 1.5rem 1.75rem;
+    display: flex; flex-direction: column; gap: 1rem;
+  }
+
+  &__drawer-empty {
+    color: $text-secondary; font-size: 0.9rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  &__drawer-qa {
+    border: 1.5px solid rgba($primary-dark, 0.08);
+    border-radius: 12px; overflow: hidden;
+  }
+
+  &__drawer-q {
+    padding: 0.7rem 1rem; background: $primary-light;
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    font-size: 0.88rem; font-weight: 600; color: $primary-dark;
+  }
+
+  &__drawer-qnum {
+    background: rgba($primary, 0.12); color: $primary;
+    font-size: 0.7rem; font-weight: 800; padding: 0.15rem 0.45rem;
+    border-radius: 5px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  &__drawer-a {
+    padding: 0.9rem 1rem; font-size: 0.9rem; color: $primary-dark; line-height: 1.6;
+
+    &--empty { color: $text-secondary; font-style: italic; font-size: 0.85rem; }
+
+    &--yes { color: #15803d; font-weight: 700; display: flex; align-items: center; gap: 0.4rem; }
+    &--no  { color: $alert-error; font-weight: 700; display: flex; align-items: center; gap: 0.4rem; }
+
+    &--score {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 1.4rem; font-weight: 800; color: $primary-dark;
+      i { color: #f59e0b; }
+    }
+    &--range { font-size: 0.8rem; color: $text-secondary; font-weight: 400; }
+
+    &--chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  }
+
+  &__drawer-chip {
+    background: rgba($primary, 0.1); color: $primary;
+    font-size: 0.78rem; font-weight: 700;
+    padding: 0.25rem 0.65rem; border-radius: 20px;
   }
 }
 
@@ -650,4 +919,9 @@ function formatDate(dateStr: string): string {
     color: $primary-dark;
   }
 }
+
+.drawer-enter-active { transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.25s; }
+.drawer-leave-active { transition: transform 0.2s ease-in, opacity 0.2s; }
+.drawer-enter-from   { transform: translateX(100%); opacity: 0; }
+.drawer-leave-to     { transform: translateX(100%); opacity: 0; }
 </style>

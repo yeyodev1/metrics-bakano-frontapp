@@ -37,8 +37,8 @@ export interface ISurveyAssignment {
   _id: string
   surveyId: ISurvey | string
   workspaceId: string
-  recipientId: string
-  sentBy: string
+  recipientId: { _id: string; name?: string; email: string } | string
+  sentBy: { _id: string; name?: string; email: string } | string
   token: string
   status: 'pending' | 'completed'
   sentAt: string

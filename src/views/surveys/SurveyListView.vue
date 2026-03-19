@@ -19,6 +19,10 @@ const sendModalMode = ref<'clients' | 'internal'>('clients')
 const sendResult = ref<{ sent: number; skipped: number } | null>(null)
 
 const isSuperadmin = computed(() => userStore.role === 'superadmin')
+const canViewResults = computed(() =>
+  isSuperadmin.value ||
+  (userStore.isInternal && ['project_manager', 'content_manager'].includes(userStore.internalRole ?? ''))
+)
 const canManageSurveys = computed(() => isSuperadmin.value || userStore.isInternal)
 
 const filtered = computed(() => {
@@ -246,7 +250,7 @@ function onSent(result: { sent: number; skipped: number }) {
           </button>
 
           <button
-            v-if="(survey.status === 'active' || survey.status === 'closed') && isSuperadmin"
+            v-if="(survey.status === 'active' || survey.status === 'closed') && canViewResults"
             class="survey-card__btn survey-card__btn--results"
             @click="router.push({ name: 'SurveyResults', params: { surveyId: survey._id } })"
           >
