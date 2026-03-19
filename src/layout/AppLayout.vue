@@ -16,6 +16,37 @@ const confirm = useConfirm()
 const workspaces = ref<Workspace[]>([])
 const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
+const wsSearch = ref('')
+
+const INTERNAL_ROLE_LABELS: Record<string, string> = {
+  director: 'Director',
+  estratega: 'Estratega',
+  project_manager: 'Project Manager',
+  content_manager: 'Content Manager',
+  account_manager: 'Account Manager',
+  community_manager: 'Community Manager',
+  productor: 'Productor',
+  editor: 'Editor',
+  disenador: 'Diseñador',
+  copywriter: 'Copywriter',
+  analista: 'Analista',
+  desarrollador: 'Desarrollador',
+}
+
+const userRoleLabel = computed(() => {
+  if (userStore.role === 'superadmin') return 'Superadmin'
+  if (userStore.isInternal && userStore.internalRole) {
+    return INTERNAL_ROLE_LABELS[userStore.internalRole] || userStore.internalRole
+  }
+  const wsRole = activeWorkspace.value?.userRole || userStore.role
+  return wsRole === 'admin' ? 'Admin / Owner' : 'Colaborador'
+})
+
+const filteredDropdownWorkspaces = computed(() => {
+  if (!wsSearch.value.trim()) return workspaces.value
+  const q = wsSearch.value.toLowerCase()
+  return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
+})
 
 const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults']
 
@@ -60,6 +91,7 @@ function toggleDropdown(e: Event) {
 
 function selectWorkspace(ws: Workspace) {
   isDropdownOpen.value = false
+  wsSearch.value = ''
   router.push({ name: 'AppDashboard', params: { workspaceId: ws._id } })
 }
 
@@ -67,6 +99,7 @@ function closeDropdownOnClickOutside(e: Event) {
   const target = e.target as HTMLElement
   if (!target.closest('.app-layout__ws-selector')) {
     isDropdownOpen.value = false
+    wsSearch.value = ''
   }
 }
 
@@ -192,18 +225,32 @@ router.afterEach(() => {
 
         <Transition name="dropdown-fade">
           <div v-if="isDropdownOpen" class="app-layout__ws-dropdown">
-            <button 
-              v-for="ws in workspaces" 
-              :key="ws._id" 
-              class="app-layout__ws-option" 
-              :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace?._id }" 
+            <!-- Search — only shown when > 5 workspaces -->
+            <div v-if="workspaces.length > 5" class="app-layout__ws-search">
+              <i class="fa-solid fa-magnifying-glass" />
+              <input
+                v-model="wsSearch"
+                type="text"
+                placeholder="Buscar cliente…"
+                class="app-layout__ws-search-input"
+                @click.stop
+              />
+            </div>
+            <div v-if="filteredDropdownWorkspaces.length === 0" class="app-layout__ws-no-results">
+              Sin resultados
+            </div>
+            <button
+              v-for="ws in filteredDropdownWorkspaces"
+              :key="ws._id"
+              class="app-layout__ws-option"
+              :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace?._id }"
               @click="selectWorkspace(ws)"
             >
                <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
-                 <img 
-                   v-if="ws.metaAds?.pageId" 
-                   :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`" 
-                   alt="Logo" 
+                 <img
+                   v-if="ws.metaAds?.pageId"
+                   :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`"
+                   alt="Logo"
                    class="app-layout__ws-page-img"
                    @error="handleImgError"
                  />
@@ -289,13 +336,7 @@ router.afterEach(() => {
           </div>
           <div class="app-layout__user-info">
             <span class="app-layout__user-email">{{ userStore.name || userStore.email }}</span>
-            <span class="app-layout__user-role">
-              {{
-                userStore.role === 'superadmin'
-                  ? 'Superadmin'
-                  : ((activeWorkspace?.userRole || userStore.role) === 'admin' ? 'Admin / Owner' : 'Colaborador')
-              }}
-            </span>
+            <span class="app-layout__user-role">{{ userRoleLabel }}</span>
           </div>
         </div>
         <button class="app-layout__logout" type="button" @click="logout" aria-label="Cerrar sesión" title="Cerrar sesión">
@@ -614,6 +655,41 @@ router.afterEach(() => {
     gap: 0.25rem;
     max-height: 250px;
     overflow-y: auto;
+  }
+
+  &__ws-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem 0.5rem;
+    border-bottom: 1px solid rgba($white, 0.07);
+    margin-bottom: 0.25rem;
+
+    i { color: rgba($white, 0.35); font-size: 0.8rem; flex-shrink: 0; }
+  }
+
+  &__ws-search-input {
+    flex: 1;
+    background: rgba($white, 0.07);
+    border: 1px solid rgba($white, 0.1);
+    border-radius: 6px;
+    padding: 0.35rem 0.6rem;
+    color: $white;
+    font-size: 0.82rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+
+    &::placeholder { color: rgba($white, 0.35); }
+    &:focus { border-color: rgba($primary, 0.5); background: rgba($white, 0.1); }
+  }
+
+  &__ws-no-results {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.8rem;
+    color: rgba($white, 0.4);
+    font-style: italic;
+    text-align: center;
   }
 
   &__ws-option {
