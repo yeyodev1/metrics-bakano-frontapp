@@ -42,7 +42,35 @@ const allWorkspaces = ref<Workspace[]>([])
 const isLoadingWorkspaces = ref(false)
 const isSaving = ref(false)
 const userError = ref('')
-const workspaceSearch = ref('') // Added workspaceSearch ref
+const workspaceSearch = ref('')
+
+// Resend invite
+const showResendPanel = ref(false)
+const resendPassword = ref('')
+const isResending = ref(false)
+const resendError = ref('')
+const resendSuccess = ref(false)
+
+async function handleResendInvite() {
+  if (!resendPassword.value || resendPassword.value.length < 8) {
+    resendError.value = 'La contraseña debe tener mínimo 8 caracteres.'
+    return
+  }
+  if (!modalOptions.value.user?._id) return
+  isResending.value = true
+  resendError.value = ''
+  resendSuccess.value = false
+  try {
+    await workspaceService.resendInvite(modalOptions.value.user._id, resendPassword.value)
+    resendSuccess.value = true
+    resendPassword.value = ''
+    setTimeout(() => { resendSuccess.value = false; showResendPanel.value = false }, 3000)
+  } catch (err: any) {
+    resendError.value = err.response?.data?.message || 'Error al reenviar invitación.'
+  } finally {
+    isResending.value = false
+  }
+}
 
 async function fetchWorkspaces() {
   isLoadingWorkspaces.value = true
@@ -351,6 +379,51 @@ async function handleSubmit() {
                 </span>
               </div>
             </label>
+          </div>
+
+          <!-- Resend invite panel (edit mode only) -->
+          <div v-if="modalOptions.mode === 'edit'" class="global-user-modal__resend-block">
+            <button
+              type="button"
+              class="global-user-modal__resend-toggle"
+              @click="showResendPanel = !showResendPanel; resendError = ''; resendSuccess = false"
+            >
+              <i class="fa-solid fa-paper-plane" />
+              Reenviar invitación / cambiar contraseña
+              <i :class="showResendPanel ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" style="margin-left:auto" />
+            </button>
+
+            <Transition name="resend-fade">
+              <div v-if="showResendPanel" class="global-user-modal__resend-panel">
+                <p class="global-user-modal__resend-hint">
+                  Escribe la nueva contraseña — se actualizará en la cuenta y se enviará el email de bienvenida con las credenciales.
+                </p>
+                <div class="global-user-modal__resend-row">
+                  <input
+                    v-model="resendPassword"
+                    type="password"
+                    minlength="8"
+                    placeholder="Nueva contraseña (mín. 8 caracteres)"
+                    class="global-user-modal__resend-input"
+                    @keydown.enter.prevent="handleResendInvite"
+                  />
+                  <button
+                    type="button"
+                    class="global-user-modal__resend-btn"
+                    :disabled="isResending"
+                    @click="handleResendInvite"
+                  >
+                    <span v-if="isResending" class="global-user-modal__spinner" />
+                    <i v-else class="fa-solid fa-paper-plane" />
+                    {{ isResending ? '' : 'Enviar' }}
+                  </button>
+                </div>
+                <p v-if="resendError" class="global-user-modal__resend-error">{{ resendError }}</p>
+                <p v-if="resendSuccess" class="global-user-modal__resend-ok">
+                  <i class="fa-solid fa-circle-check" /> Invitación enviada correctamente
+                </p>
+              </div>
+            </Transition>
           </div>
 
           <p v-if="userError" class="global-user-modal__error-text">{{ userError }}</p>
@@ -873,6 +946,58 @@ async function handleSubmit() {
     line-height: 1.5;
   }
 
+  &__resend-block {
+    border: 1.5px solid rgba($primary-dark, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  &__resend-toggle {
+    width: 100%; display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.9rem 1.1rem; background: rgba($primary-dark, 0.03);
+    border: none; cursor: pointer; font-size: 0.85rem; font-weight: 700;
+    color: $primary-dark; transition: background 0.2s;
+    &:hover { background: rgba($primary, 0.06); }
+    i:first-child { color: $primary; }
+  }
+
+  &__resend-panel {
+    padding: 1rem 1.1rem 1.1rem;
+    border-top: 1px solid rgba($primary-dark, 0.08);
+    display: flex; flex-direction: column; gap: 0.75rem;
+  }
+
+  &__resend-hint {
+    margin: 0; font-size: 0.78rem; color: $text-secondary; line-height: 1.5;
+  }
+
+  &__resend-row { display: flex; gap: 0.5rem; }
+
+  &__resend-input {
+    flex: 1; padding: 0.7rem 1rem; border-radius: 10px;
+    border: 1.5px solid rgba($primary-dark, 0.12); font-family: inherit;
+    font-size: 0.88rem; transition: all 0.2s;
+    &:focus { outline: none; border-color: $primary; box-shadow: 0 0 0 3px rgba($primary, 0.1); }
+  }
+
+  &__resend-btn {
+    padding: 0.7rem 1.2rem; border-radius: 10px; border: none;
+    background: $primary; color: white; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; display: flex; align-items: center; gap: 0.4rem;
+    transition: all 0.2s; white-space: nowrap;
+    &:hover { background: $primary-dark; }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+
+  &__resend-error {
+    margin: 0; font-size: 0.8rem; color: $alert-error; font-weight: 600;
+  }
+
+  &__resend-ok {
+    margin: 0; font-size: 0.82rem; color: #16a34a; font-weight: 700;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+
   &__error-text {
     color: $alert-error;
     font-size: 0.85rem;
@@ -988,6 +1113,11 @@ async function handleSubmit() {
   transform: translateY(-6px) scale(0.98);
   max-height: 0;
 }
+
+.resend-fade-enter-active { transition: opacity 0.2s, transform 0.2s; }
+.resend-fade-leave-active  { transition: opacity 0.15s; }
+.resend-fade-enter-from    { opacity: 0; transform: translateY(-6px); }
+.resend-fade-leave-to      { opacity: 0; }
 
 :deep(.vue-tel-input) {
   border: 1.5px solid rgba($primary-dark, 0.1);
