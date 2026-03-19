@@ -33,7 +33,8 @@ const userForm = ref<any>({
   phoneNumber: '',
   phoneExtension: '',
   isInternal: false,
-  internalRole: null as InternalRole | null
+  internalRole: null as InternalRole | null,
+  sendWelcomeEmail: true,
 })
 
 const allWorkspaces = ref<Workspace[]>([])
@@ -171,7 +172,8 @@ async function handleSubmit() {
         phoneNumber: userForm.value.phoneNumber,
         phoneExtension: userForm.value.phoneExtension,
         isInternal: userForm.value.isInternal,
-        internalRole: userForm.value.isInternal ? userForm.value.internalRole : undefined
+        internalRole: userForm.value.isInternal ? userForm.value.internalRole : undefined,
+        sendWelcomeEmail: userForm.value.sendWelcomeEmail,
       }
       const { user } = await workspaceService.createGlobalUser(payload)
       toast.success('Colaborador creado con éxito.')
@@ -326,6 +328,28 @@ async function handleSubmit() {
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- Welcome email toggle (only for new users) -->
+          <div v-if="modalOptions.mode === 'create'" class="global-user-modal__welcome-email">
+            <label class="global-user-modal__welcome-label">
+              <div class="global-user-modal__checkbox-wrap">
+                <input type="checkbox" v-model="userForm.sendWelcomeEmail" />
+                <div class="global-user-modal__checkbox-custom">
+                  <i class="fa-solid fa-check" v-if="userForm.sendWelcomeEmail" />
+                </div>
+              </div>
+              <div class="global-user-modal__welcome-text">
+                <span class="global-user-modal__welcome-title">
+                  <i class="fa-solid fa-envelope-open-text" />
+                  Enviar email de bienvenida
+                </span>
+                <span class="global-user-modal__welcome-desc">
+                  Se enviará un correo con las credenciales de acceso al usuario
+                  <strong>{{ userForm.isInternal ? '(colaborador interno)' : '(cliente)' }}</strong>
+                </span>
+              </div>
+            </label>
           </div>
 
           <p v-if="userError" class="global-user-modal__error-text">{{ userError }}</p>
@@ -809,6 +833,43 @@ async function handleSubmit() {
     .global-user-modal__ws-item--selected & {
       color: $primary;
     }
+  }
+
+  &__welcome-email {
+    background: rgba($primary, 0.04);
+    border: 1.5px solid rgba($primary, 0.12);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+
+  &__welcome-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  &__welcome-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__welcome-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: $primary-dark;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    i { color: $primary; }
+  }
+
+  &__welcome-desc {
+    font-size: 0.78rem;
+    color: $text-secondary;
+    line-height: 1.5;
   }
 
   &__error-text {
