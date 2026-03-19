@@ -30,8 +30,8 @@ function isChecked(option: string): boolean {
 }
 
 function ratingRange(): number[] {
-  const min = props.question.min ?? 1
-  const max = props.question.max ?? 5
+  const min = Number(props.question.min ?? 1)
+  const max = Number(props.question.max ?? 5)
   const arr: number[] = []
   for (let i = min; i <= max; i++) arr.push(i)
   return arr
