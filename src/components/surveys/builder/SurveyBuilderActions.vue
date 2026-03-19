@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { } from 'vue'
-
 const props = defineProps({
   isSaving: {
     type: Boolean,
@@ -9,6 +7,10 @@ const props = defineProps({
   canEdit: {
     type: Boolean,
     required: true,
+  },
+  currentStatus: {
+    type: String,
+    default: 'draft',
   },
 })
 
@@ -25,10 +27,11 @@ const emit = defineEmits(['saveDraft', 'activate'])
       >
         <i v-if="isSaving" class="fa-solid fa-spinner fa-spin" />
         <i v-else class="fa-solid fa-floppy-disk" />
-        <span>Guardar como borrador</span>
+        <span>{{ currentStatus === 'draft' ? 'Guardar como borrador' : 'Guardar cambios' }}</span>
       </button>
 
       <button
+        v-if="currentStatus === 'draft'"
         class="btn-activate"
         :disabled="isSaving"
         @click="emit('activate')"
