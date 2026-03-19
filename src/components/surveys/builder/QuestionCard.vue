@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { } from 'vue'
-import type { IQuestion, QuestionType } from '@/types/survey'
+import { computed } from 'vue'
+import type { IQuestion, QuestionType, ImageAnswerType } from '@/types/survey'
+import ImageUploader from '@/components/surveys/ImageUploader.vue'
 
 const props = defineProps({
   question: {
@@ -41,6 +42,7 @@ const QUESTION_TYPES: { value: QuestionType; label: string; icon: string }[] = [
   { value: 'yes_no', label: 'Sí / No', icon: 'fa-toggle-on' },
   { value: 'dropdown', label: 'Desplegable', icon: 'fa-caret-down' },
   { value: 'date', label: 'Fecha', icon: 'fa-calendar-days' },
+  { value: 'image_question', label: 'Pregunta con imagen', icon: 'fa-image' },
 ]
 
 function hasOptions(type: QuestionType) {
@@ -49,6 +51,35 @@ function hasOptions(type: QuestionType) {
 
 function hasMinMax(type: QuestionType) {
   return type === 'rating' || type === 'nps'
+}
+
+const IMAGE_ANSWER_TYPES: { value: ImageAnswerType; label: string; icon: string; hint: string }[] = [
+  { value: 'yes_no',          label: 'Sí / No',         icon: 'fa-toggle-on',    hint: 'El respondedor verá la imagen y contestará Sí o No.' },
+  { value: 'rating',          label: 'Calificación',    icon: 'fa-star',         hint: 'El respondedor verá la imagen y la calificará con un puntaje.' },
+  { value: 'nps',             label: 'NPS (0–10)',       icon: 'fa-gauge-high',   hint: 'El respondedor verá la imagen y dará un puntaje del 0 al 10.' },
+  { value: 'short_text',      label: 'Texto corto',     icon: 'fa-font',         hint: 'El respondedor verá la imagen y escribirá una respuesta corta.' },
+  { value: 'long_text',       label: 'Texto largo',     icon: 'fa-paragraph',    hint: 'El respondedor verá la imagen y escribirá una respuesta detallada.' },
+  { value: 'multiple_choice', label: 'Opción múltiple', icon: 'fa-circle-dot',   hint: 'El respondedor verá la imagen y elegirá una opción.' },
+  { value: 'checkbox',        label: 'Casillas',        icon: 'fa-square-check', hint: 'El respondedor verá la imagen y podrá marcar varias opciones.' },
+  { value: 'dropdown',        label: 'Desplegable',     icon: 'fa-caret-down',   hint: 'El respondedor verá la imagen y elegirá de un desplegable.' },
+  { value: 'date',            label: 'Fecha',           icon: 'fa-calendar-days',hint: 'El respondedor verá la imagen e ingresará una fecha.' },
+]
+
+const currentImageAnswerType = computed(() =>
+  IMAGE_ANSWER_TYPES.find(t => t.value === (props.question.imageAnswerType ?? 'yes_no'))
+)
+
+function onImageAnswerTypeChange(e: Event) {
+  const val = (e.target as HTMLSelectElement).value as ImageAnswerType
+  const updated = { ...props.question, imageAnswerType: val }
+  if (['multiple_choice', 'checkbox', 'dropdown'].includes(val)) {
+    if (!updated.options || updated.options.length === 0) updated.options = ['Opción 1']
+  } else {
+    updated.options = []
+  }
+  if (val === 'rating') { updated.min = updated.min ?? 1; updated.max = updated.max ?? 5 }
+  if (val === 'nps')    { updated.min = 0; updated.max = 10 }
+  emit('update:question', updated)
 }
 
 function onTypeChange(e: Event) {
@@ -186,6 +217,104 @@ function onTypeChange(e: Event) {
             <i class="fa-solid fa-plus" />
             <span>Agregar opción</span>
           </button>
+        </div>
+      </Transition>
+
+      <!-- Answer type row (for image_question) — same visual as main type row -->
+      <Transition name="expand">
+        <div v-if="question.type === 'image_question'" class="question-card__row">
+          <div class="field field--type">
+            <label class="field__label">Tipo de respuesta</label>
+            <div class="select-wrapper">
+              <i class="fa-solid field__type-icon" :class="currentImageAnswerType?.icon" />
+              <select
+                :value="question.imageAnswerType ?? 'yes_no'"
+                class="field__select"
+                :disabled="!canEdit"
+                @change="onImageAnswerTypeChange"
+              >
+                <option v-for="t in IMAGE_ANSWER_TYPES" :key="t.value" :value="t.value">
+                  {{ t.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- Options editor for image_question with options-based answer type -->
+      <Transition name="expand">
+        <div v-if="question.type === 'image_question' && ['multiple_choice','checkbox','dropdown'].includes(question.imageAnswerType ?? '')" class="options-editor">
+          <label class="field__label">Opciones de respuesta</label>
+          <div class="options-list">
+            <div v-for="(_, optIdx) in question.options" :key="optIdx" class="option-row">
+              <div class="option-row__bullet">
+                <i v-if="question.imageAnswerType === 'multiple_choice' || question.imageAnswerType === 'dropdown'" class="fa-regular fa-circle" />
+                <i v-else class="fa-regular fa-square" />
+              </div>
+              <input
+                v-model="question.options![optIdx]"
+                class="option-row__input"
+                type="text"
+                :placeholder="`Opción ${optIdx + 1}`"
+                :disabled="!canEdit"
+              />
+              <button
+                v-if="canEdit && (question.options?.length ?? 0) > 1"
+                type="button"
+                class="option-row__remove"
+                @click="emit('removeOption', optIdx)"
+              >
+                <i class="fa-solid fa-xmark" />
+              </button>
+            </div>
+          </div>
+          <button v-if="canEdit" type="button" class="btn-add-option" @click="emit('addOption')">
+            <i class="fa-solid fa-plus" />
+            <span>Agregar opción</span>
+          </button>
+        </div>
+      </Transition>
+
+      <!-- Rating/NPS min/max for image_question -->
+      <Transition name="expand">
+        <div v-if="question.type === 'image_question' && ['rating','nps'].includes(question.imageAnswerType ?? '')" class="range-settings">
+          <div class="range-settings__col">
+            <div class="field">
+              <label class="field__label">Valor mínimo</label>
+              <input v-model.number="question.min" class="field__input field__input--small" type="number" :disabled="!canEdit" />
+            </div>
+            <div class="field field--grow">
+              <label class="field__label">Etiqueta mínimo</label>
+              <input v-model="question.minLabel" class="field__input" type="text" placeholder="Ej: Muy malo" :disabled="!canEdit" />
+            </div>
+          </div>
+          <div class="range-settings__col">
+            <div class="field">
+              <label class="field__label">Valor máximo</label>
+              <input v-model.number="question.max" class="field__input field__input--small" type="number" :disabled="!canEdit" />
+            </div>
+            <div class="field field--grow">
+              <label class="field__label">Etiqueta máximo</label>
+              <input v-model="question.maxLabel" class="field__input" type="text" placeholder="Ej: Excelente" :disabled="!canEdit" />
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- Image uploader block -->
+      <Transition name="expand">
+        <div v-if="question.type === 'image_question'" class="image-question-editor">
+          <label class="field__label">Imagen de la pregunta</label>
+          <ImageUploader
+            :model-value="question.imageUrl"
+            :disabled="!canEdit"
+            @update:model-value="$emit('update:question', { ...question, imageUrl: $event })"
+          />
+          <p class="image-question-editor__hint">
+            <i class="fa-solid fa-circle-info" />
+            {{ currentImageAnswerType?.hint ?? 'El respondedor verá esta imagen y contestará tu pregunta.' }}
+          </p>
         </div>
       </Transition>
 
@@ -573,6 +702,25 @@ function onTypeChange(e: Event) {
     background: rgba($primary, 0.05);
     border-color: $primary;
     transform: translateX(4px);
+  }
+}
+
+.image-question-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: rgba($primary-light, 0.2);
+  border-radius: 16px;
+
+  &__hint {
+    font-size: 0.8rem;
+    color: $text-secondary;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    i { color: $primary; opacity: 0.7; }
   }
 }
 

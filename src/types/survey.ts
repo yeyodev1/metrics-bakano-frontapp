@@ -8,6 +8,18 @@ export type QuestionType =
   | 'yes_no'
   | 'dropdown'
   | 'date'
+  | 'image_question'
+
+export type ImageAnswerType =
+  | 'yes_no'
+  | 'rating'
+  | 'nps'
+  | 'short_text'
+  | 'long_text'
+  | 'multiple_choice'
+  | 'checkbox'
+  | 'dropdown'
+  | 'date'
 
 export interface IQuestion {
   id: string
@@ -19,12 +31,15 @@ export interface IQuestion {
   max?: number
   minLabel?: string
   maxLabel?: string
+  imageUrl?: string
+  imageAnswerType?: ImageAnswerType
 }
 
 export interface ISurvey {
   _id: string
   title: string
   description?: string
+  coverImage?: string
   questions: IQuestion[]
   createdBy: { _id: string; name: string; email: string } | string
   authorizedSenders?: ({ _id: string; name: string; email: string } | string)[]

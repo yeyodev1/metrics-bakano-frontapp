@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { surveyService } from '@/services/survey.service'
+import { useUserStore } from '@/stores/user'
 import QuestionRenderer from '@/components/surveys/QuestionRenderer.vue'
 import type { ISurvey, ISurveyAssignment, IQuestion } from '@/types/survey'
 
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
 const token = route.params.token as string
 
 const survey = ref<ISurvey | null>(null)
@@ -17,6 +20,22 @@ const isSubmitting = ref(false)
 const submitted = ref(false)
 const errorState = ref<'NOT_FOUND' | 'ALREADY_COMPLETED' | 'GENERAL' | null>(null)
 const submitError = ref('')
+const redirectCountdown = ref(4)
+
+// Destination after submit: internal/superadmin → surveys list, client → my surveys
+const redirectRoute = computed(() => {
+  if (userStore.isInternal || userStore.role === 'superadmin') {
+    return { name: 'SurveyList' }
+  }
+  const wid = userStore.workspaceId
+  return wid ? { name: 'MySurveys', params: { workspaceId: wid } } : { name: 'SurveyList' }
+})
+
+const redirectLabel = computed(() =>
+  userStore.isInternal || userStore.role === 'superadmin'
+    ? 'Ver todas las encuestas'
+    : 'Ver mis encuestas'
+)
 
 onMounted(async () => {
   try {
@@ -67,6 +86,13 @@ async function handleSubmit() {
     }))
     await surveyService.submitSurveyResponse(token, payload)
     submitted.value = true
+    const interval = setInterval(() => {
+      redirectCountdown.value--
+      if (redirectCountdown.value <= 0) {
+        clearInterval(interval)
+        router.push(redirectRoute.value)
+      }
+    }, 1000)
   } catch (err: any) {
     const code = err?.data?.code || ''
     if (code === 'ALREADY_COMPLETED') {
@@ -95,6 +121,10 @@ async function handleSubmit() {
       </div>
       <h2>Ya respondiste esta encuesta</h2>
       <p>Tu respuesta ha sido registrada anteriormente. No puedes responder nuevamente.</p>
+      <button class="survey-fill__redirect-btn" @click="router.push(redirectRoute)">
+        <i class="fa-solid fa-arrow-right" />
+        {{ redirectLabel }}
+      </button>
     </div>
 
     <!-- Error: not found / forbidden -->
@@ -113,11 +143,24 @@ async function handleSubmit() {
       </div>
       <h2>¡Respuesta enviada!</h2>
       <p>Gracias por completar esta encuesta. Tus respuestas han sido registradas.</p>
+      <p class="survey-fill__redirect-hint">
+        Serás redirigido en <strong>{{ redirectCountdown }}</strong> segundo{{ redirectCountdown !== 1 ? 's' : '' }}...
+      </p>
+      <button class="survey-fill__redirect-btn" @click="router.push(redirectRoute)">
+        <i class="fa-solid fa-arrow-right" />
+        {{ redirectLabel }}
+      </button>
     </div>
 
     <!-- Survey form -->
     <div v-else-if="survey" class="survey-fill__form">
       <div class="survey-fill__survey-header">
+        <img
+          v-if="survey.coverImage"
+          :src="survey.coverImage"
+          alt="Portada"
+          class="survey-fill__cover-img"
+        />
         <h1 class="survey-fill__survey-title">{{ survey.title }}</h1>
         <p v-if="survey.description" class="survey-fill__survey-desc">{{ survey.description }}</p>
       </div>
@@ -215,6 +258,32 @@ async function handleSubmit() {
     color: $BAKANO-GREEN;
   }
 
+  &__redirect-hint {
+    font-size: 0.88rem;
+    color: $text-secondary;
+    margin-top: -0.25rem;
+
+    strong { color: $primary-dark; }
+  }
+
+  &__redirect-btn {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    background: $primary;
+    color: $white;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: opacity 0.2s;
+
+    &:hover { opacity: 0.88; }
+  }
+
   &__form {
     width: 100%;
     max-width: 680px;
@@ -226,6 +295,14 @@ async function handleSubmit() {
   &__survey-header {
     padding-bottom: 1.5rem;
     border-bottom: 1px solid rgba($primary-dark, 0.08);
+  }
+
+  &__cover-img {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
   }
 
   &__survey-title {
