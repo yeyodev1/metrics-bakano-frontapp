@@ -18,6 +18,7 @@ const surveyIdArg = route.params.surveyId as string | undefined
 const {
   title,
   description,
+  coverImage,
   questions,
   currentStatus,
   isLoading,
@@ -81,7 +82,9 @@ onMounted(() => {
         <SurveyInfoForm
           v-model:title="title"
           v-model:description="description"
+          :cover-image="coverImage"
           :can-edit="canEdit"
+          @update:cover-image="coverImage = $event"
         />
 
         <!-- Questions List -->

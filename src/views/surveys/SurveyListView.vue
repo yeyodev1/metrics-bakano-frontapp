@@ -18,6 +18,12 @@ const sendModalSurveyId = ref<string | null>(null)
 const sendModalMode = ref<'clients' | 'internal'>('clients')
 const sendResult = ref<{ sent: number; skipped: number } | null>(null)
 
+// Delete confirmation modal
+const deletingsurvey = ref<ISurvey | null>(null)
+const deleteConfirmText = ref('')
+const isDeleting = ref(false)
+const DELETE_PHRASE = 'ELIMINAR PERMANENTEMENTE'
+
 const isSuperadmin = computed(() => userStore.role === 'superadmin')
 const canViewResults = computed(() =>
   isSuperadmin.value ||
@@ -62,13 +68,27 @@ async function loadSurveys() {
   }
 }
 
-async function handleDelete(survey: ISurvey) {
-  if (!confirm(`¿Eliminar la encuesta "${survey.title}"? Esta acción no se puede deshacer.`)) return
+function openDeleteModal(survey: ISurvey) {
+  deletingsurvey.value = survey
+  deleteConfirmText.value = ''
+}
+
+function closeDeleteModal() {
+  deletingsurvey.value = null
+  deleteConfirmText.value = ''
+}
+
+async function confirmDelete() {
+  if (!deletingsurvey.value || deleteConfirmText.value !== DELETE_PHRASE) return
+  isDeleting.value = true
   try {
-    await surveyService.deleteSurvey(survey._id)
-    surveys.value = surveys.value.filter((s) => s._id !== survey._id)
+    await surveyService.deleteSurvey(deletingsurvey.value._id)
+    surveys.value = surveys.value.filter((s) => s._id !== deletingsurvey.value!._id)
+    closeDeleteModal()
   } catch (err: any) {
     alert(err?.message || 'Error al eliminar.')
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -258,9 +278,9 @@ function onSent(result: { sent: number; skipped: number }) {
           </button>
 
           <button
-            v-if="survey.status === 'draft' && canManageSurveys"
+            v-if="canManageSurveys"
             class="survey-card__btn survey-card__btn--delete"
-            @click="handleDelete(survey)"
+            @click="openDeleteModal(survey)"
           >
             <i class="fa-solid fa-trash" />
           </button>
@@ -276,6 +296,49 @@ function onSent(result: { sent: number; skipped: number }) {
       @close="sendModalSurveyId = null"
       @sent="onSent"
     />
+
+    <!-- Delete confirmation modal -->
+    <Teleport to="body">
+      <div v-if="deletingsurvey" class="delete-modal-overlay" @click.self="closeDeleteModal">
+        <div class="delete-modal">
+          <div class="delete-modal__icon">
+            <i class="fa-solid fa-triangle-exclamation" />
+          </div>
+          <h2 class="delete-modal__title">Eliminar encuesta permanentemente</h2>
+          <p class="delete-modal__desc">
+            Estás a punto de eliminar <strong>{{ deletingsurvey.title }}</strong>.
+            Esta acción es <strong>irreversible</strong>: se borrarán la encuesta, todas las asignaciones y todas las respuestas asociadas.
+          </p>
+          <p class="delete-modal__instruction">
+            Para confirmar, escribe exactamente:
+          </p>
+          <code class="delete-modal__phrase">{{ DELETE_PHRASE }}</code>
+          <input
+            v-model="deleteConfirmText"
+            class="delete-modal__input"
+            :class="{ 'delete-modal__input--valid': deleteConfirmText === DELETE_PHRASE }"
+            type="text"
+            placeholder="Escribe la frase de confirmación..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div class="delete-modal__actions">
+            <button class="delete-modal__btn delete-modal__btn--cancel" @click="closeDeleteModal">
+              Cancelar
+            </button>
+            <button
+              class="delete-modal__btn delete-modal__btn--confirm"
+              :disabled="deleteConfirmText !== DELETE_PHRASE || isDeleting"
+              @click="confirmDelete"
+            >
+              <i v-if="isDeleting" class="fa-solid fa-spinner fa-spin" />
+              <i v-else class="fa-solid fa-trash" />
+              {{ isDeleting ? 'Eliminando...' : 'Eliminar permanentemente' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -633,5 +696,120 @@ function onSent(result: { sent: number; skipped: number }) {
 
 @keyframes shimmer {
   100% { transform: translateX(100%); }
+}
+
+// ── Delete confirmation modal ────────────────────────────────
+.delete-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba($primary-dark, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.delete-modal {
+  background: $white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 20px 60px rgba($primary-dark, 0.2);
+
+  &__icon {
+    font-size: 2.5rem;
+    color: $alert-error;
+    text-align: center;
+  }
+
+  &__title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: $primary-dark;
+    text-align: center;
+  }
+
+  &__desc {
+    font-size: 0.9rem;
+    color: $text-secondary;
+    line-height: 1.6;
+    text-align: center;
+
+    strong { color: $primary-dark; }
+  }
+
+  &__instruction {
+    font-size: 0.88rem;
+    color: $text-secondary;
+    text-align: center;
+    margin-bottom: -0.5rem;
+  }
+
+  &__phrase {
+    display: block;
+    text-align: center;
+    background: $alert-error-bg;
+    color: $alert-error;
+    border: 1px solid rgba($alert-error, 0.25);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    user-select: all;
+  }
+
+  &__input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid rgba($primary-dark, 0.15);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+
+    &:focus { border-color: $primary; }
+    &--valid { border-color: $alert-success !important; }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+  }
+
+  &__btn {
+    padding: 0.65rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: opacity 0.2s;
+
+    &--cancel {
+      background: rgba($primary-dark, 0.07);
+      color: $primary-dark;
+      &:hover { opacity: 0.75; }
+    }
+
+    &--confirm {
+      background: $alert-error;
+      color: $white;
+      &:hover:not(:disabled) { opacity: 0.88; }
+      &:disabled { opacity: 0.4; cursor: not-allowed; }
+    }
+  }
 }
 </style>

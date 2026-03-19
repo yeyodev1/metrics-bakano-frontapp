@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { } from 'vue'
+import ImageUploader from '@/components/surveys/ImageUploader.vue'
 
 const props = defineProps({
   title: {
@@ -10,13 +11,18 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  coverImage: {
+    type: String as () => string | undefined,
+    required: false,
+    default: undefined,
+  },
   canEdit: {
     type: Boolean,
     required: true,
   },
 })
 
-const emit = defineEmits(['update:title', 'update:description'])
+const emit = defineEmits(['update:title', 'update:description', 'update:coverImage'])
 
 function onTitleInput(e: Event) {
   emit('update:title', (e.target as HTMLInputElement).value)
@@ -63,6 +69,18 @@ function onDescriptionInput(e: Event) {
           @input="onDescriptionInput"
         />
       </div>
+    </div>
+
+    <div class="info-form__field">
+      <label class="info-form__label">
+        Imagen de portada
+        <span class="info-form__optional">(opcional)</span>
+      </label>
+      <ImageUploader
+        :model-value="coverImage"
+        :disabled="!canEdit"
+        @update:model-value="emit('update:coverImage', $event)"
+      />
     </div>
   </section>
 </template>

@@ -1,4 +1,4 @@
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { surveyService } from '@/services/survey.service'
 import type { IQuestion } from '@/types/survey'
@@ -8,6 +8,7 @@ export function useSurveyBuilder(surveyId?: string) {
 
   const title = ref('')
   const description = ref('')
+  const coverImage = ref('')
   const questions = ref<IQuestion[]>([])
   const currentStatus = ref<'draft' | 'active' | 'closed'>('draft')
   const isLoading = ref(false)
@@ -19,16 +20,64 @@ export function useSurveyBuilder(surveyId?: string) {
   const isDraft = computed(() => currentStatus.value === 'draft')
   const canEdit = computed(() => !isEditMode.value || isDraft.value)
 
+  // ── Cache ─────────────────────────────────────────────────────
+  const CACHE_KEY = surveyId ? `survey_draft_${surveyId}` : 'survey_draft_new'
+  let _cacheTimer: ReturnType<typeof setTimeout> | null = null
+
+  function saveToCache() {
+    if (_cacheTimer) clearTimeout(_cacheTimer)
+    _cacheTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          title: title.value,
+          description: description.value,
+          coverImage: coverImage.value,
+          questions: questions.value,
+        }))
+      } catch { /* storage full — silently ignore */ }
+    }, 600)
+  }
+
+  function restoreFromCache(): boolean {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY)
+      if (!raw) return false
+      const draft = JSON.parse(raw)
+      title.value       = draft.title       ?? ''
+      description.value = draft.description ?? ''
+      coverImage.value  = draft.coverImage  ?? ''
+      questions.value   = draft.questions   ?? []
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function clearCache() {
+    localStorage.removeItem(CACHE_KEY)
+  }
+
+  // Auto-save to localStorage on every change (debounced 600ms)
+  watch([title, description, coverImage, questions], saveToCache, { deep: true })
+
+  // ── Load ──────────────────────────────────────────────────────
   async function loadSurvey() {
-    if (!surveyId) return
+    if (!surveyId) {
+      // New survey: restore any cached draft
+      restoreFromCache()
+      return
+    }
     isLoading.value = true
     try {
       const res = await surveyService.getSurvey(surveyId)
       const s = res.survey
-      title.value = s.title
+      title.value       = s.title
       description.value = s.description ?? ''
-      questions.value = s.questions.map((q) => ({ ...q }))
+      coverImage.value  = s.coverImage  ?? ''
+      questions.value   = s.questions.map((q) => ({ ...q }))
       currentStatus.value = s.status
+      // Overlay unsaved local changes if they exist (user reloaded mid-edit)
+      if (s.status === 'draft') restoreFromCache()
     } catch (err: any) {
       error.value = err?.message || 'Error al cargar la encuesta.'
     } finally {
@@ -74,6 +123,12 @@ export function useSurveyBuilder(surveyId?: string) {
       q.min = 0
       q.max = 10
     }
+    if (q.type === 'image_question') {
+      if (!q.imageAnswerType) q.imageAnswerType = 'yes_no'
+      if (['multiple_choice', 'checkbox', 'dropdown'].includes(q.imageAnswerType)) {
+        if (!q.options || q.options.length === 0) q.options = ['Opción 1']
+      }
+    }
   }
 
   function addOption(q: IQuestion) {
@@ -99,8 +154,11 @@ export function useSurveyBuilder(surveyId?: string) {
         error.value = 'Todas las preguntas deben tener un texto.'
         return false
       }
+      const effectiveOptionsType = q.type === 'image_question'
+        ? q.imageAnswerType
+        : q.type
       if (
-        ['multiple_choice', 'checkbox', 'dropdown'].includes(q.type) &&
+        ['multiple_choice', 'checkbox', 'dropdown'].includes(effectiveOptionsType ?? '') &&
         (!q.options || q.options.length < 2)
       ) {
         error.value = 'Las preguntas de opciones deben tener al menos 2 opciones.'
@@ -131,13 +189,16 @@ export function useSurveyBuilder(surveyId?: string) {
       const payload = {
         title: title.value.trim(),
         description: description.value.trim() || undefined,
+        coverImage: coverImage.value || undefined,
         questions: questions.value,
       }
       if (isEditMode.value) {
         await surveyService.updateSurvey(surveyId!, payload)
+        clearCache()
         successMsg.value = 'Encuesta guardada como borrador.'
       } else {
         const res = await surveyService.createSurvey(payload)
+        clearCache()
         successMsg.value = 'Encuesta creada como borrador.'
         router.replace({ name: 'SurveyEdit', params: { surveyId: res.survey._id } })
       }
@@ -159,6 +220,7 @@ export function useSurveyBuilder(surveyId?: string) {
       const payload = {
         title: title.value.trim(),
         description: description.value.trim() || undefined,
+        coverImage: coverImage.value || undefined,
         questions: questions.value,
       }
       let currentId = surveyId
@@ -169,6 +231,7 @@ export function useSurveyBuilder(surveyId?: string) {
         currentId = res.survey._id
       }
       await surveyService.updateSurveyStatus(currentId!, 'active')
+      clearCache()
       successMsg.value = 'Encuesta activada correctamente.'
       setTimeout(() => {
         router.push({ name: 'SurveyList' })
@@ -183,6 +246,7 @@ export function useSurveyBuilder(surveyId?: string) {
   return {
     title,
     description,
+    coverImage,
     questions,
     currentStatus,
     isLoading,

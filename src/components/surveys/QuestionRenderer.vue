@@ -163,6 +163,108 @@ function npsRange(): number[] {
       </button>
     </div>
 
+    <!-- image_question -->
+    <div v-else-if="question.type === 'image_question'" class="question-renderer__image-q">
+      <img
+        v-if="question.imageUrl"
+        :src="question.imageUrl"
+        alt="Imagen de la pregunta"
+        class="question-renderer__image-q-img"
+      />
+
+      <!-- yes_no (default) -->
+      <div v-if="!question.imageAnswerType || question.imageAnswerType === 'yes_no'" class="question-renderer__yesno">
+        <button type="button" class="question-renderer__yesno-btn"
+          :class="{ 'question-renderer__yesno-btn--selected': modelValue === true }"
+          @click="onInput(true)">
+          <i class="fa-solid fa-check" /> Sí
+        </button>
+        <button type="button" class="question-renderer__yesno-btn question-renderer__yesno-btn--no"
+          :class="{ 'question-renderer__yesno-btn--selected': modelValue === false }"
+          @click="onInput(false)">
+          <i class="fa-solid fa-xmark" /> No
+        </button>
+      </div>
+
+      <!-- rating -->
+      <div v-else-if="question.imageAnswerType === 'rating'" class="question-renderer__rating-wrap">
+        <div class="question-renderer__rating">
+          <button v-for="n in ratingRange()" :key="n" type="button"
+            class="question-renderer__rating-btn"
+            :class="{ 'question-renderer__rating-btn--selected': modelValue === n }"
+            @click="onInput(n)">{{ n }}</button>
+        </div>
+        <div v-if="question.minLabel || question.maxLabel" class="question-renderer__scale-labels">
+          <span>{{ question.minLabel }}</span>
+          <span>{{ question.maxLabel }}</span>
+        </div>
+      </div>
+
+      <!-- nps -->
+      <div v-else-if="question.imageAnswerType === 'nps'" class="question-renderer__nps">
+        <div class="question-renderer__nps-track">
+          <button v-for="n in npsRange()" :key="n" type="button"
+            class="question-renderer__nps-btn"
+            :class="{ 'question-renderer__nps-btn--selected': modelValue === n }"
+            @click="onInput(n)">{{ n }}</button>
+        </div>
+        <div class="question-renderer__nps-labels">
+          <span>{{ question.minLabel || 'Nada probable' }}</span>
+          <span>{{ question.maxLabel || 'Muy probable' }}</span>
+        </div>
+      </div>
+
+      <!-- short_text -->
+      <input v-else-if="question.imageAnswerType === 'short_text'"
+        class="question-renderer__input" type="text"
+        :placeholder="question.required ? 'Respuesta requerida' : 'Tu respuesta'"
+        :value="modelValue ?? ''"
+        @input="onInput(($event.target as HTMLInputElement).value)" />
+
+      <!-- long_text -->
+      <textarea v-else-if="question.imageAnswerType === 'long_text'"
+        class="question-renderer__textarea"
+        :placeholder="question.required ? 'Respuesta requerida' : 'Tu respuesta'"
+        :value="modelValue ?? ''" rows="4"
+        @input="onInput(($event.target as HTMLTextAreaElement).value)" />
+
+      <!-- multiple_choice -->
+      <div v-else-if="question.imageAnswerType === 'multiple_choice'" class="question-renderer__options">
+        <label v-for="opt in question.options" :key="opt"
+          class="question-renderer__radio-label"
+          :class="{ 'question-renderer__radio-label--selected': modelValue === opt }">
+          <input type="radio" :name="`q-${question.id}`" :value="opt" :checked="modelValue === opt" @change="onInput(opt)" />
+          {{ opt }}
+        </label>
+      </div>
+
+      <!-- checkbox -->
+      <div v-else-if="question.imageAnswerType === 'checkbox'" class="question-renderer__options">
+        <label v-for="opt in question.options" :key="opt"
+          class="question-renderer__checkbox-label"
+          :class="{ 'question-renderer__checkbox-label--selected': isChecked(opt) }">
+          <input type="checkbox" :value="opt" :checked="isChecked(opt)"
+            @change="onCheckboxChange(opt, ($event.target as HTMLInputElement).checked)" />
+          {{ opt }}
+        </label>
+      </div>
+
+      <!-- dropdown -->
+      <select v-else-if="question.imageAnswerType === 'dropdown'"
+        class="question-renderer__select"
+        :value="modelValue ?? ''"
+        @change="onInput(($event.target as HTMLSelectElement).value)">
+        <option value="" disabled>Selecciona una opción</option>
+        <option v-for="opt in question.options" :key="opt" :value="opt">{{ opt }}</option>
+      </select>
+
+      <!-- date -->
+      <input v-else-if="question.imageAnswerType === 'date'"
+        class="question-renderer__input" type="date"
+        :value="modelValue ?? ''"
+        @input="onInput(($event.target as HTMLInputElement).value)" />
+    </div>
+
     <!-- dropdown -->
     <select
       v-else-if="question.type === 'dropdown'"
@@ -332,6 +434,20 @@ function npsRange(): number[] {
     justify-content: space-between;
     font-size: 0.75rem;
     color: $text-secondary;
+  }
+
+  &__image-q {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  &__image-q-img {
+    width: 100%;
+    max-height: 280px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1.5px solid rgba($primary-dark, 0.1);
   }
 
   &__yesno {

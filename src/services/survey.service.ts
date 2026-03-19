@@ -136,6 +136,13 @@ class SurveyService extends APIBase {
     }>('surveys/me/surveys')
     return res.data
   }
+
+  async uploadImage(file: File): Promise<{ url: string }> {
+    const formData = new FormData()
+    formData.append('image', file)
+    const res = await this.post<{ url: string }>('surveys/upload-image', formData)
+    return res.data
+  }
 }
 
 export const surveyService = new SurveyService()

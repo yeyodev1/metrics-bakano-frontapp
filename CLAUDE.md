@@ -79,4 +79,19 @@ Full survey feature lives in `src/views/surveys/` and `src/components/surveys/`.
 
 The router `beforeEach` guard handles `?redirect=` so email links (`/app/survey/:token`) redirect correctly after login.
 
-Survey question types: `short_text`, `long_text`, `multiple_choice`, `checkbox`, `rating`, `nps`, `yes_no`, `dropdown`, `date`.
+Survey question types: `short_text`, `long_text`, `multiple_choice`, `checkbox`, `rating`, `nps`, `yes_no`, `dropdown`, `date`, `image_question`.
+
+#### Image question type (`image_question`)
+Admin uploads a photo (e.g. employee) via Cloudinary. Respondent sees the image and answers yes/no. Upload goes through `POST /api/surveys/upload-image` (internal/superadmin only). Surveys also support an optional `coverImage` shown in the fill view header.
+
+**Image upload flow:**
+- Frontend: `surveyService.uploadImage(file)` → `POST surveys/upload-image` (multipart, field: `image`)
+- Backend: multer memory storage → Cloudinary (`surveys/` folder) → returns `{ url: string }`
+- Cloudinary credentials in backend `.env`: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+
+**New/modified files:**
+- `src/components/surveys/ImageUploader.vue` — reusable drag-drop image uploader
+- `src/components/surveys/builder/QuestionCard.vue` — handles `image_question` type with upload UI
+- `src/components/surveys/QuestionRenderer.vue` — renders image + yes/no for `image_question`
+- `src/components/surveys/builder/SurveyInfoForm.vue` — optional cover image upload
+- `src/composables/surveys/useSurveyBuilder.ts` — `coverImage` state wired through save/load
