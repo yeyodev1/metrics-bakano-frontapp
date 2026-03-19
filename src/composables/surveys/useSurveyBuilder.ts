@@ -18,7 +18,7 @@ export function useSurveyBuilder(surveyId?: string) {
 
   const isEditMode = computed(() => !!surveyId)
   const isDraft = computed(() => currentStatus.value === 'draft')
-  const canEdit = computed(() => !isEditMode.value || isDraft.value)
+  const canEdit = computed(() => true)
 
   // ── Cache ─────────────────────────────────────────────────────
   const CACHE_KEY = surveyId ? `survey_draft_${surveyId}` : 'survey_draft_new'
@@ -195,7 +195,9 @@ export function useSurveyBuilder(surveyId?: string) {
       if (isEditMode.value) {
         await surveyService.updateSurvey(surveyId!, payload)
         clearCache()
-        successMsg.value = 'Encuesta guardada como borrador.'
+        successMsg.value = currentStatus.value === 'draft'
+          ? 'Encuesta guardada como borrador.'
+          : 'Cambios guardados correctamente.'
       } else {
         const res = await surveyService.createSurvey(payload)
         clearCache()

@@ -62,11 +62,6 @@ onMounted(() => {
       <div v-else class="survey-builder__content">
         <!-- Notices & Messages -->
         <TransitionGroup name="list">
-          <div v-if="!isDraft && isEditMode" key="readonly" class="notice notice--warning">
-            <i class="fa-solid fa-lock" />
-            <span>Esta encuesta ya no puede editarse porque está <strong>{{ currentStatus === 'active' ? 'activa' : 'cerrada' }}.</strong></span>
-          </div>
-
           <div v-if="error" key="error" class="notice notice--error">
             <i class="fa-solid fa-circle-exclamation" />
             <span>{{ error }}</span>
@@ -145,6 +140,7 @@ onMounted(() => {
         <SurveyBuilderActions
           :is-saving="isSaving"
           :can-edit="canEdit"
+          :current-status="currentStatus"
           @saveDraft="saveAsDraft"
           @activate="activate"
         />

@@ -246,7 +246,7 @@ function onSent(result: { sent: number; skipped: number }) {
 
         <div class="survey-card__actions">
           <button
-            v-if="survey.status === 'draft' && canManageSurveys"
+            v-if="canManageSurveys && survey.status !== 'closed'"
             class="survey-card__btn survey-card__btn--edit"
             @click="router.push({ name: 'SurveyEdit', params: { surveyId: survey._id } })"
           >
