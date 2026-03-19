@@ -80,7 +80,10 @@ const canManage = computed(() => {
 
 const canCreate = computed(() =>
   userStore.role === 'superadmin' ||
-  (userStore.isInternal && userStore.internalRole === 'community_manager')
+  (userStore.isInternal && (
+    userStore.internalRole === 'community_manager' ||
+    userStore.internalRole === 'content_manager'
+  ))
 )
 
 const currentUserId = computed(() => userStore.id)
