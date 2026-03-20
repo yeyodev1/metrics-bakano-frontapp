@@ -48,7 +48,7 @@ const filteredDropdownWorkspaces = computed(() => {
   return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults']
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
 
@@ -184,6 +184,18 @@ router.afterEach(() => {
           <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
         </button>
 
+        <!-- ClientsGlobal: vista global de clientes -->
+        <div v-else-if="route.name === 'ClientsGlobal'" class="app-layout__ws-button app-layout__ws-button--global app-layout__ws-button--clients">
+          <div class="app-layout__ws-avatar app-layout__ws-avatar--clients">
+            <i class="fa-solid fa-users" />
+          </div>
+          <div class="app-layout__ws-info">
+            <span class="app-layout__ws-label">Herramienta Global</span>
+            <span class="app-layout__ws-name">Clientes</span>
+          </div>
+          <span class="app-layout__ws-global-tag">GLOBAL</span>
+        </div>
+
         <!-- Surveys: global tool — no workspace binding -->
         <div v-else-if="isSurveyRoute" class="app-layout__ws-button app-layout__ws-button--global app-layout__ws-button--surveys">
           <div class="app-layout__ws-avatar app-layout__ws-avatar--surveys">
@@ -277,6 +289,17 @@ router.afterEach(() => {
         >
           <i class="fa-solid fa-calendar-range" aria-hidden="true" />
           <span>Planificador Global</span>
+        </RouterLink>
+
+        <!-- Clients global view — internal team only -->
+        <RouterLink
+          v-if="userStore.isInternal"
+          class="app-layout__nav-item app-layout__nav-item--global-tool"
+          :to="{ name: 'ClientsGlobal' }"
+        >
+          <i class="fa-solid fa-users" aria-hidden="true" />
+          <span>Vista de Clientes</span>
+          <span class="app-layout__nav-global-tag">GLOBAL</span>
         </RouterLink>
 
         <!-- Surveys — internal + superadmin (global tool) -->
@@ -532,6 +555,11 @@ router.afterEach(() => {
       border: 1px solid rgba($primary, 0.25);
     }
 
+    &--clients {
+      background: linear-gradient(135deg, rgba($primary, 0.12) 0%, rgba($primary, 0.04) 100%);
+      border: 1px solid rgba($primary, 0.25);
+    }
+
     &--internal-nav {
       background: rgba($primary, 0.06);
       border: 1px dashed rgba($primary, 0.25);
@@ -571,6 +599,12 @@ router.afterEach(() => {
     }
 
     &--surveys {
+      background: rgba($primary, 0.2);
+      color: $primary;
+      font-size: 1rem;
+    }
+
+    &--clients {
       background: rgba($primary, 0.2);
       color: $primary;
       font-size: 1rem;

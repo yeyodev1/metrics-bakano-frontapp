@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { PlanningEntry, WorkspaceUser } from '@/types'
+import type { VideoCalendarItem } from '@/types/videoPlanning'
 
 const router = useRouter()
 
@@ -29,6 +30,10 @@ const props = defineProps({
   workspaceMetaPageId: {
     type: String,
     default: '',
+  },
+  videoItems: {
+    type: Array as () => VideoCalendarItem[],
+    default: () => [],
   },
 })
 
@@ -173,6 +178,26 @@ function goToVideoPlanning() {
               >
                 <span class="planning-modal__assignee-avatar">{{ getInitials(user) }}</span>
                 <span class="planning-modal__assignee-name">{{ user.name || user.email }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Videos with publication dates -->
+          <div v-if="videoItems.length > 0" class="planning-modal__readonly-field">
+            <span class="planning-modal__readonly-label">
+              <i class="fa-solid fa-calendar-check" /> Fechas de publicación previstas
+            </span>
+            <div class="planning-modal__video-dates">
+              <div
+                v-for="video in videoItems.slice().sort((a, b) => a.fechaPublicacion.localeCompare(b.fechaPublicacion))"
+                :key="video._id"
+                class="planning-modal__video-date-row"
+              >
+                <span class="planning-modal__video-date-chip">
+                  <i class="fa-solid fa-calendar-day" />
+                  {{ new Date(video.fechaPublicacion + 'T12:00:00').toLocaleDateString('es-EC', { weekday: 'short', day: 'numeric', month: 'short' }) }}
+                </span>
+                <span class="planning-modal__video-date-name">{{ video.tema }}</span>
               </div>
             </div>
           </div>
@@ -337,4 +362,26 @@ function goToVideoPlanning() {
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; } .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.planning-modal {
+  &__video-dates {
+    display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.25rem;
+  }
+
+  &__video-date-row {
+    display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  }
+
+  &__video-date-chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: rgba($primary, 0.08); color: $primary; border: 1px solid rgba($primary, 0.15);
+    border-radius: 8px; padding: 0.25rem 0.65rem; font-size: 0.75rem; font-weight: 700;
+    white-space: nowrap; flex-shrink: 0;
+    i { font-size: 0.7rem; }
+  }
+
+  &__video-date-name {
+    font-size: 0.85rem; font-weight: 600; color: $primary-dark; line-height: 1.3;
+  }
+}
 </style>

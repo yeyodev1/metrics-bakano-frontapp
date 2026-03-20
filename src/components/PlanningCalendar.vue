@@ -414,6 +414,7 @@ function getThisMonday(d: Date) {
       :workspace-name="workspaceMeta?.name || ''"
       :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
       :workspace-users="workspaceUsers"
+      :video-items="selectedEntry ? videoCalendarItems.filter(v => v.entryId === selectedEntry!._id) : []"
       @close="showModal = false"
     />
   </div>

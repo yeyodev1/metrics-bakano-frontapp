@@ -164,6 +164,10 @@ onMounted(loadPlanning)
                 <span v-if="item.tipo" class="cv-item__tipo">{{ item.tipo }}</span>
               </div>
               <div class="cv-item__badges">
+                <span v-if="item.fechaPublicacion" class="cv-item__date-chip">
+                  <i class="fa-solid fa-calendar-check" />
+                  {{ new Date(item.fechaPublicacion + 'T12:00:00').toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                </span>
                 <StatusBadge :status="item.estadoProduccion" type="produccion" />
                 <StatusBadge :status="item.edicion" type="edicion" />
                 <StatusBadge :status="item.estadoPublicacion" type="publicacion" />
@@ -440,6 +444,14 @@ onMounted(loadPlanning)
   }
 
   &__badges { display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+
+  &__date-chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: rgba($primary, 0.08); color: $primary;
+    border: 1px solid rgba($primary, 0.15); border-radius: 8px;
+    padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: 700;
+    i { font-size: 0.7rem; }
+  }
 
   &__desc {
     margin: 0; font-size: 0.84rem; color: $text-secondary; line-height: 1.55;
