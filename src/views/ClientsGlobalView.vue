@@ -116,8 +116,7 @@ function formatDate(dateStr: string): string {
 }
 
 function formatPhone(user: WorkspaceUser): string {
-  if (!user.phoneNumber) return '—'
-  return user.phoneExtension ? `+${user.phoneExtension} ${user.phoneNumber}` : user.phoneNumber
+  return user.phoneNumber || '—'
 }
 </script>
 
@@ -328,7 +327,7 @@ function formatPhone(user: WorkspaceUser): string {
             </div>
 
             <div v-if="selectedUser.workspaces && selectedUser.workspaces.length > 0" class="user-modal__section">
-              <p class="user-modal__section-title">Entornos asignados</p>
+              <p class="user-modal__section-title">Entornos asignados ({{ selectedUser.workspaces.length }})</p>
               <div
                 v-for="ws in selectedUser.workspaces"
                 :key="typeof ws.workspaceId === 'object' ? ws.workspaceId._id : ws.workspaceId"
@@ -336,7 +335,11 @@ function formatPhone(user: WorkspaceUser): string {
               >
                 <div class="user-modal__ws-dot" />
                 <span class="user-modal__ws-name">
-                  {{ typeof ws.workspaceId === 'object' ? ws.workspaceId.name : ws.workspaceId }}
+                  {{
+                    typeof ws.workspaceId === 'object'
+                      ? ws.workspaceId.name
+                      : (workspaces.find(w => w._id === ws.workspaceId)?.name || ws.workspaceId)
+                  }}
                 </span>
                 <span class="user-modal__ws-role">{{ ws.role === 'admin' ? 'Admin' : 'Colaborador' }}</span>
               </div>
