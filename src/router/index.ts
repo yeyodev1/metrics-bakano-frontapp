@@ -119,6 +119,20 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/videoPlanning/ClientVideoPlanningView.vue'),
         meta: { title: 'Bakano Ads: Aprobación de Videos', requiresAuth: true },
       },
+      // ── Meetings calendar ─────────────────────────────────
+      {
+        path: 'meetings',
+        name: 'PMCalendar',
+        component: () => import('../views/meetings/MeetingsView.vue'),
+        meta: { title: 'Bakano Ads: Calendario de Reuniones', requiresAuth: true, requiresInternal: true },
+      },
+      // ── Notifications ─────────────────────────────────────
+      {
+        path: 'notifications',
+        name: 'Notifications',
+        component: () => import('../views/notifications/NotificationsView.vue'),
+        meta: { title: 'Bakano Ads: Notificaciones', requiresAuth: true },
+      },
     ],
   },
 

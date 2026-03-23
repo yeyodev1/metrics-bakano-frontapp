@@ -95,3 +95,37 @@ Admin uploads a photo (e.g. employee) via Cloudinary. Respondent sees the image 
 - `src/components/surveys/QuestionRenderer.vue` — renders image + yes/no for `image_question`
 - `src/components/surveys/builder/SurveyInfoForm.vue` — optional cover image upload
 - `src/composables/surveys/useSurveyBuilder.ts` — `coverImage` state wired through save/load
+
+### Meetings (PM Calendar)
+
+PM recurring performance meetings with clients (workspaces), every 25 days by default.
+
+- `/app/meetings` → `PMCalendar` route (`requiresInternal: true`) — month calendar + agenda list toggle
+- PM's clients = workspaces in their `user.workspaces[]` array
+- "Complete" action: `lastMeetingDate = now`, `nextMeetingDate = now + intervalDays`
+- Scheduling also accessible from `/app/clients` card per workspace
+
+**Backend:** `POST/GET/PATCH /api/meetings` (internalOrSuperadmin middleware)
+**Frontend files:**
+- `src/services/meeting.service.ts` — `meetingService` singleton
+- `src/views/meetings/MeetingsView.vue` — calendar + agenda
+
+### Notifications
+
+Persistent notification system replacing `SurveyPlanningNotification` banner in `AppLayout.vue`.
+
+**Notification types:**
+- `new_client_assigned` — when any internal user is assigned to a workspace
+- `video_status_changed` — when a video item reaches `estadoPublicacion: PUBLICADO`
+- `video_planning_resent` — when an existing planning doc is updated (re-sent to clients)
+
+**Access:** Internal users get client-assignment notifications. Client (non-internal) users get video notifications.
+
+- `/app/notifications` → `Notifications` route (all auth users) — list with read/unread, mark as read, delete
+- Unread count badge shown in sidebar nav
+
+**Backend:** `GET/PATCH/DELETE /api/notifications` (authMiddleware only)
+**Frontend files:**
+- `src/services/notification.service.ts` — `notificationService` singleton
+- `src/stores/notification.ts` — `useNotificationStore` (unreadCount, fetchAll, markRead)
+- `src/views/notifications/NotificationsView.vue` — notifications center

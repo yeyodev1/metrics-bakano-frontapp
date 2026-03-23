@@ -1,15 +1,114 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
-import type { Workspace, WorkspaceUser } from '@/types'
+import { meetingService } from '@/services/meeting.service'
+import type { Workspace, WorkspaceUser, ClientMeeting } from '@/types'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+
+const LIMIT = 10
 
 const workspaces = ref<Workspace[]>([])
 const searchQuery = ref('')
+const page = ref(1)
+const hasMore = ref(false)
+const total = ref(0)
 const expandedWorkspaceId = ref<string | null>(null)
 const workspaceUsers = ref<Record<string, WorkspaceUser[]>>({})
 const loadingWorkspaces = ref(false)
+const loadingMore = ref(false)
 const loadingUsers = ref<Record<string, boolean>>({})
 const error = ref<string | null>(null)
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+// ── Meeting state ─────────────────────────────────────────────
+const meetingMap = ref<Map<string, ClientMeeting>>(new Map())
+
+async function fetchMeetings() {
+  if (!userStore.isInternal && userStore.role !== 'superadmin') return
+  try {
+    const list = await meetingService.getMyMeetings()
+    const m = new Map<string, ClientMeeting>()
+    for (const meeting of list) m.set(meeting.workspaceId, meeting)
+    meetingMap.value = m
+  } catch {
+    // silent
+  }
+}
+
+function getMeeting(wsId: string): ClientMeeting | undefined {
+  return meetingMap.value.get(wsId)
+}
+
+function daysUntil(dateStr: string): number {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const d = new Date(dateStr)
+  d.setHours(0, 0, 0, 0)
+  return Math.round((d.getTime() - now.getTime()) / 86400000)
+}
+
+function meetingChipLabel(ws: Workspace): string {
+  const m = getMeeting(ws._id)
+  if (!m) return 'Sin programar'
+  const d = daysUntil(m.nextMeetingDate)
+  if (d === 0) return 'Reunión: Hoy'
+  if (d === 1) return 'Reunión: Mañana'
+  if (d < 0) return `Atrasada ${Math.abs(d)}d`
+  return `En ${d}d · ${new Date(m.nextMeetingDate).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}`
+}
+
+function meetingChipClass(ws: Workspace): string {
+  const m = getMeeting(ws._id)
+  if (!m) return 'clients-global__meeting-chip--none'
+  return daysUntil(m.nextMeetingDate) < 0
+    ? 'clients-global__meeting-chip--overdue'
+    : 'clients-global__meeting-chip--ok'
+}
+
+// ── Meeting modal ─────────────────────────────────────────────
+const meetingModalWs = ref<Workspace | null>(null)
+const meetingModalDate = ref('')
+const meetingModalAgenda = ref('')
+const meetingModalSaving = ref(false)
+const meetingModalError = ref<string | null>(null)
+
+function openMeetingModal(ws: Workspace, e: Event) {
+  e.stopPropagation()
+  meetingModalError.value = null
+  meetingModalWs.value = ws
+  const existing = getMeeting(ws._id)
+  meetingModalDate.value = existing ? existing.nextMeetingDate.split('T')[0] : ''
+  meetingModalAgenda.value = existing?.agenda || ''
+}
+
+function closeMeetingModal() {
+  meetingModalWs.value = null
+}
+
+async function saveMeetingModal() {
+  if (!meetingModalDate.value || !meetingModalWs.value) {
+    meetingModalError.value = 'Selecciona una fecha.'
+    return
+  }
+  meetingModalSaving.value = true
+  meetingModalError.value = null
+  try {
+    const saved = await meetingService.createOrUpdate({
+      workspaceId: meetingModalWs.value._id,
+      nextMeetingDate: meetingModalDate.value,
+      agenda: meetingModalAgenda.value,
+    })
+    meetingMap.value = new Map(meetingMap.value).set(saved.workspaceId, saved)
+    closeMeetingModal()
+  } catch {
+    meetingModalError.value = 'Error al guardar. Intenta de nuevo.'
+  } finally {
+    meetingModalSaving.value = false
+  }
+}
 
 // ── User detail modal ─────────────────────────────────────
 const selectedUser = ref<WorkspaceUser | null>(null)
@@ -30,6 +129,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   fetchWorkspaces()
+  fetchMeetings()
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -52,23 +152,47 @@ const INTERNAL_ROLE_LABELS: Record<string, string> = {
   desarrollador: 'Desarrollador',
 }
 
-const filteredWorkspaces = computed(() => {
-  if (!searchQuery.value.trim()) return workspaces.value
-  const q = searchQuery.value.toLowerCase()
-  return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
-})
-
-async function fetchWorkspaces() {
-  loadingWorkspaces.value = true
-  error.value = null
+async function fetchWorkspaces(append = false) {
+  if (append) {
+    loadingMore.value = true
+  } else {
+    loadingWorkspaces.value = true
+    error.value = null
+  }
   try {
-    const res = await workspaceService.listWorkspaces()
-    workspaces.value = res.workspaces
+    const res = await workspaceService.listWorkspaces({
+      search: searchQuery.value.trim() || undefined,
+      page: page.value,
+      limit: LIMIT,
+    })
+    if (append) {
+      workspaces.value = [...workspaces.value, ...res.workspaces]
+    } else {
+      workspaces.value = res.workspaces
+    }
+    hasMore.value = res.metadata?.hasMore ?? false
+    total.value = res.metadata?.total ?? res.workspaces.length
   } catch {
     error.value = 'No se pudieron cargar los clientes.'
   } finally {
     loadingWorkspaces.value = false
+    loadingMore.value = false
   }
+}
+
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    expandedWorkspaceId.value = null
+    workspaceUsers.value = {}
+    fetchWorkspaces()
+  }, 350)
+}
+
+async function loadMore() {
+  page.value++
+  await fetchWorkspaces(true)
 }
 
 async function toggleWorkspace(ws: Workspace) {
@@ -125,7 +249,9 @@ function formatPhone(user: WorkspaceUser): string {
     <div class="clients-global__header">
       <div class="clients-global__header-text">
         <h1 class="clients-global__title">Vista Global de Clientes</h1>
-        <p class="clients-global__subtitle">Explora todos los entornos y sus usuarios.</p>
+        <p class="clients-global__subtitle">
+          {{ total > 0 ? `${total} clientes en total` : 'Explora todos los entornos y sus usuarios.' }}
+        </p>
       </div>
     </div>
 
@@ -136,6 +262,7 @@ function formatPhone(user: WorkspaceUser): string {
         type="text"
         placeholder="Buscar cliente por nombre…"
         class="clients-global__search-input"
+        @input="onSearchInput"
       />
     </div>
 
@@ -149,14 +276,14 @@ function formatPhone(user: WorkspaceUser): string {
       {{ error }}
     </div>
 
-    <div v-else-if="filteredWorkspaces.length === 0" class="clients-global__empty">
+    <div v-else-if="workspaces.length === 0" class="clients-global__empty">
       <i class="fa-solid fa-inbox" />
       <span>No se encontraron clientes.</span>
     </div>
 
     <div v-else class="clients-global__list">
       <div
-        v-for="ws in filteredWorkspaces"
+        v-for="ws in workspaces"
         :key="ws._id"
         class="clients-global__card"
         :class="{ 'clients-global__card--expanded': expandedWorkspaceId === ws._id }"
@@ -182,6 +309,17 @@ function formatPhone(user: WorkspaceUser): string {
               <span v-if="ws.metaAds?.pageName">· {{ ws.metaAds.pageName }}</span>
             </span>
           </div>
+          <!-- Meeting chip (internal users only) -->
+          <button
+            v-if="userStore.isInternal || userStore.role === 'superadmin'"
+            class="clients-global__meeting-chip"
+            :class="meetingChipClass(ws)"
+            @click="openMeetingModal(ws, $event)"
+            :title="getMeeting(ws._id) ? 'Editar reunión' : 'Programar reunión'"
+          >
+            <i class="fa-solid fa-handshake" />
+            {{ meetingChipLabel(ws) }}
+          </button>
           <i
             class="fa-solid fa-chevron-down clients-global__card-chevron"
             :class="{ 'clients-global__card-chevron--open': expandedWorkspaceId === ws._id }"
@@ -253,8 +391,76 @@ function formatPhone(user: WorkspaceUser): string {
           </div>
         </Transition>
       </div>
+
+      <!-- Load More -->
+      <div v-if="hasMore" class="clients-global__load-more">
+        <button class="clients-global__load-more-btn" :disabled="loadingMore" @click="loadMore">
+          <i :class="loadingMore ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-chevron-down'" />
+          {{ loadingMore ? 'Cargando…' : 'Cargar más clientes' }}
+        </button>
+      </div>
     </div>
   </div>
+
+  <!-- Meeting Modal -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="meetingModalWs" class="user-modal-backdrop" @click.self="closeMeetingModal">
+        <div class="user-modal">
+          <div class="user-modal__header">
+            <div class="user-modal__avatar user-modal__avatar--internal">
+              <i class="fa-solid fa-handshake" style="font-size:1.1rem" />
+            </div>
+            <div class="user-modal__header-info">
+              <h2 class="user-modal__name">{{ getMeeting(meetingModalWs._id) ? 'Editar reunión' : 'Programar reunión' }}</h2>
+              <span class="user-modal__type-badge user-modal__type-badge--internal">
+                {{ meetingModalWs.name }}
+              </span>
+            </div>
+            <button class="user-modal__close" @click="closeMeetingModal">
+              <i class="fa-solid fa-xmark" />
+            </button>
+          </div>
+          <div class="user-modal__body">
+            <div class="user-modal__section">
+              <p class="user-modal__section-title">Fecha de reunión</p>
+              <input
+                v-model="meetingModalDate"
+                type="date"
+                style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid rgba(0,0,0,0.12);border-radius:8px;font-size:0.9rem;font-family:inherit;outline:none;"
+              />
+            </div>
+            <div class="user-modal__section">
+              <p class="user-modal__section-title">Agenda <span style="font-weight:400;color:rgba(0,0,0,0.35)">(opcional)</span></p>
+              <textarea
+                v-model="meetingModalAgenda"
+                rows="3"
+                placeholder="Temas a tratar en la reunión…"
+                style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid rgba(0,0,0,0.12);border-radius:8px;font-size:0.88rem;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;"
+              />
+            </div>
+            <p v-if="meetingModalError" style="color:#ef4444;font-size:0.82rem;margin:0;display:flex;align-items:center;gap:0.4rem;">
+              <i class="fa-solid fa-circle-exclamation" /> {{ meetingModalError }}
+            </p>
+            <div style="display:flex;gap:0.75rem;justify-content:flex-end;padding-top:0.5rem;">
+              <button
+                style="padding:0.55rem 1.1rem;border:1.5px solid rgba(0,0,0,0.12);border-radius:8px;background:transparent;cursor:pointer;font-size:0.85rem;font-weight:600;"
+                @click="closeMeetingModal"
+              >Cancelar</button>
+              <button
+                style="padding:0.55rem 1.2rem;background:#e6285c;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;"
+                :disabled="meetingModalSaving"
+                @click="saveMeetingModal"
+              >
+                <i :class="meetingModalSaving ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-check'" />
+                {{ meetingModalSaving ? 'Guardando…' : 'Guardar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 
   <!-- User Detail Modal -->
   <Teleport to="body">
@@ -517,6 +723,76 @@ function formatPhone(user: WorkspaceUser): string {
     color: rgba($primary-dark, 0.4);
     transition: transform 0.2s;
     &--open { transform: rotate(180deg); }
+  }
+
+  &__meeting-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.22rem 0.65rem;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+
+    i { font-size: 0.65rem; }
+
+    &:hover { opacity: 0.78; }
+
+    &--none {
+      background: rgba($primary-dark, 0.07);
+      color: rgba($primary-dark, 0.45);
+      border: 1px solid rgba($primary-dark, 0.1);
+    }
+
+    &--ok {
+      background: rgba($BAKANO-GREEN, 0.1);
+      color: darken($BAKANO-GREEN, 8%);
+      border: 1px solid rgba($BAKANO-GREEN, 0.25);
+    }
+
+    &--overdue {
+      background: rgba($alert-error, 0.1);
+      color: $alert-error;
+      border: 1px solid rgba($alert-error, 0.25);
+    }
+  }
+
+  // ── Load More ─────────────────────────────────────────
+  &__load-more {
+    display: flex;
+    justify-content: center;
+    padding: 1.25rem 0 0.5rem;
+  }
+
+  &__load-more-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.5rem;
+    border: 1.5px solid rgba($primary-dark, 0.15);
+    border-radius: 100px;
+    background: transparent;
+    color: rgba($primary-dark, 0.6);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover:not(:disabled) {
+      border-color: $primary;
+      color: $primary;
+      background: rgba($primary, 0.04);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
   }
 
   // ── Users Panel ───────────────────────────────────────

@@ -223,3 +223,72 @@ export interface GlobalPlanningWeekResponse {
   message: string
   entries: GlobalPlanningEntry[]
 }
+
+// ── Client Meetings ─────────────────────────────────────────
+export interface ClientMeetingWorkspace {
+  _id: string
+  name: string
+  metaAds?: { pageId?: string; pageName?: string }
+}
+
+export interface ClientMeeting {
+  _id: string
+  workspaceId: string
+  pmUserId: string
+  nextMeetingDate: string
+  lastMeetingDate?: string
+  intervalDays: number
+  agenda?: string
+  workspace?: ClientMeetingWorkspace | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MeetingListResponse {
+  meetings: ClientMeeting[]
+}
+
+export interface MeetingResponse {
+  meeting: ClientMeeting
+}
+
+export interface CreateMeetingPayload {
+  workspaceId: string
+  nextMeetingDate: string
+  agenda?: string
+  intervalDays?: number
+  pmUserId?: string
+}
+
+export interface UpdateMeetingPayload {
+  nextMeetingDate?: string
+  agenda?: string
+  intervalDays?: number
+}
+
+// ── Notifications ───────────────────────────────────────────
+export type NotificationType =
+  | 'new_client_assigned'
+  | 'video_status_changed'
+  | 'video_planning_resent'
+
+export interface AppNotification {
+  _id: string
+  userId: string
+  type: NotificationType
+  title: string
+  body: string
+  workspaceId?: string
+  referenceId?: string
+  isRead: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NotificationListResponse {
+  notifications: AppNotification[]
+}
+
+export interface UnreadCountResponse {
+  count: number
+}
