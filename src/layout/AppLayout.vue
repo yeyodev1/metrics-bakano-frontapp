@@ -2,15 +2,16 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useNotificationStore } from '@/stores/notification'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
 import logoDark from '@/assets/logos/bakano-light.png'
-import SurveyPlanningNotification from '@/components/surveys/SurveyPlanningNotification.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const notificationStore = useNotificationStore()
 const confirm = useConfirm()
 
 const workspaces = ref<Workspace[]>([])
@@ -48,7 +49,7 @@ const filteredDropdownWorkspaces = computed(() => {
   return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'Notifications']
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
 
@@ -77,6 +78,7 @@ async function fetchWorkspaces() {
 onMounted(() => {
   fetchWorkspaces()
   userStore.fetchPendingSurveys()
+  notificationStore.fetchUnreadCount()
   document.addEventListener('click', closeDropdownOnClickOutside)
 })
 
@@ -302,6 +304,31 @@ router.afterEach(() => {
           <span class="app-layout__nav-global-tag">GLOBAL</span>
         </RouterLink>
 
+        <!-- Meetings calendar — internal team only -->
+        <RouterLink
+          v-if="userStore.isInternal"
+          class="app-layout__nav-item app-layout__nav-item--global-tool"
+          :to="{ name: 'PMCalendar' }"
+        >
+          <i class="fa-solid fa-handshake" aria-hidden="true" />
+          <span>Reuniones</span>
+          <span class="app-layout__nav-global-tag">GLOBAL</span>
+        </RouterLink>
+
+        <!-- Notifications — all authenticated users -->
+        <RouterLink
+          class="app-layout__nav-item"
+          :to="{ name: 'Notifications' }"
+        >
+          <div class="app-layout__nav-icon-container">
+            <i class="fa-solid fa-bell" aria-hidden="true" />
+            <span v-if="notificationStore.unreadCount > 0" class="app-layout__nav-badge">
+              {{ notificationStore.unreadCount > 99 ? '99+' : notificationStore.unreadCount }}
+            </span>
+          </div>
+          <span>Notificaciones</span>
+        </RouterLink>
+
         <!-- Surveys — internal + superadmin (global tool) -->
         <RouterLink
           v-if="userStore.isInternal || userStore.role === 'superadmin'"
@@ -369,10 +396,6 @@ router.afterEach(() => {
     </aside>
 
     <main class="app-layout__main">
-      <!-- Calendar survey reminder — visible to internal + superadmin only -->
-      <SurveyPlanningNotification
-        v-if="userStore.isInternal || userStore.role === 'superadmin'"
-      />
       <RouterView :key="$route.fullPath" />
     </main>
   </div>
