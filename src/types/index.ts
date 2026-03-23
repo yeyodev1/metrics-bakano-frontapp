@@ -239,6 +239,12 @@ export interface ClientMeeting {
   lastMeetingDate?: string
   intervalDays: number
   agenda?: string
+  meetingLink?: string
+  notes?: string
+  recordingLink?: string
+  contactUserId?: string
+  contactName?: string
+  contactEmail?: string
   workspace?: ClientMeetingWorkspace | null
   createdAt: string
   updatedAt: string
@@ -258,12 +264,22 @@ export interface CreateMeetingPayload {
   agenda?: string
   intervalDays?: number
   pmUserId?: string
+  contactUserId?: string
+  contactName?: string
+  contactEmail?: string
+  meetingLink?: string
+  notes?: string
 }
 
 export interface UpdateMeetingPayload {
   nextMeetingDate?: string
   agenda?: string
   intervalDays?: number
+  meetingLink?: string
+  notes?: string
+  contactUserId?: string
+  contactName?: string
+  contactEmail?: string
 }
 
 // ── Notifications ───────────────────────────────────────────

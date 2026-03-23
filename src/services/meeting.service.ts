@@ -28,8 +28,8 @@ class MeetingService extends APIBase {
     return res.data.meeting
   }
 
-  async completeMeeting(id: string): Promise<ClientMeeting> {
-    const res = await this.patch<MeetingResponse>(`meetings/${id}/complete`, {})
+  async completeMeeting(id: string, opts: { notes?: string; recordingLink?: string } = {}): Promise<ClientMeeting> {
+    const res = await this.patch<MeetingResponse>(`meetings/${id}/complete`, opts)
     return res.data.meeting
   }
 }

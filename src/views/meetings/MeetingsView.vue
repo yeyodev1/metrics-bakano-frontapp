@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { meetingService } from '@/services/meeting.service'
 import { workspaceService } from '@/services/workspace.service'
-import type { ClientMeeting, Workspace, CreateMeetingPayload } from '@/types'
+import type { ClientMeeting, Workspace, WorkspaceUser, CreateMeetingPayload } from '@/types'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -20,8 +20,85 @@ const editingMeeting = ref<ClientMeeting | null>(null)
 const modalWorkspaceId = ref('')
 const modalDate = ref('')
 const modalAgenda = ref('')
+const modalLink = ref('')
+const modalNotes = ref('')
 const modalSaving = ref(false)
 const modalError = ref<string | null>(null)
+
+// ── Workspace picker (modal) ───────────────────────────────────
+const WS_PER_PAGE = 3
+const modalWsSearch = ref('')
+const modalWsPage = ref(0)
+
+watch(modalWsSearch, () => { modalWsPage.value = 0 })
+
+const filteredModalWs = computed(() => {
+  const q = modalWsSearch.value.toLowerCase().trim()
+  const pool = editingMeeting.value ? myWorkspaces.value : unscheduledWorkspaces.value
+  return q ? pool.filter(w => w.name.toLowerCase().includes(q)) : pool
+})
+
+const modalWsPages = computed(() => Math.ceil(filteredModalWs.value.length / WS_PER_PAGE))
+
+const modalWsVisible = computed(() =>
+  filteredModalWs.value.slice(
+    modalWsPage.value * WS_PER_PAGE,
+    (modalWsPage.value + 1) * WS_PER_PAGE,
+  )
+)
+
+const selectedWs = computed(() =>
+  myWorkspaces.value.find(w => w._id === modalWorkspaceId.value) || null
+)
+
+// ── Contact picker (modal) ─────────────────────────────────────
+const modalContactId = ref('')
+const modalContactName = ref('')
+const modalContactEmail = ref('')
+const modalContacts = ref<WorkspaceUser[]>([])
+const loadingContacts = ref(false)
+
+async function loadContacts(wsId: string) {
+  if (!wsId) { modalContacts.value = []; return }
+  loadingContacts.value = true
+  try {
+    const res = await workspaceService.listUsers(wsId)
+    modalContacts.value = res.users.filter(u => !u.isInternal)
+  } catch {
+    modalContacts.value = []
+  } finally {
+    loadingContacts.value = false
+  }
+}
+
+async function selectWorkspace(ws: Workspace) {
+  modalWorkspaceId.value = ws._id
+  modalContactId.value = ''
+  modalContactName.value = ''
+  modalContactEmail.value = ''
+  await loadContacts(ws._id)
+}
+
+function selectContact(user: WorkspaceUser) {
+  modalContactId.value = user._id
+  modalContactName.value = user.name || user.email
+  modalContactEmail.value = user.email
+}
+
+function clearWorkspaceSelection() {
+  modalWorkspaceId.value = ''
+  modalContactId.value = ''
+  modalContactName.value = ''
+  modalContactEmail.value = ''
+  modalContacts.value = []
+}
+
+// ── Complete modal state ───────────────────────────────────────
+const showCompleteModal = ref(false)
+const completingMeeting = ref<ClientMeeting | null>(null)
+const completeNotes = ref('')
+const completeRecordingLink = ref('')
+const completeSaving = ref(false)
 
 // ── Calendar state ────────────────────────────────────────────
 const calendarDate = ref(new Date())
@@ -44,7 +121,7 @@ async function fetchMeetings() {
 
 async function fetchMyWorkspaces() {
   try {
-    const res = await workspaceService.listWorkspaces()
+    const res = await workspaceService.listWorkspaces({ limit: 500 })
     myWorkspaces.value = res.workspaces
   } catch {
     // silent
@@ -196,34 +273,74 @@ function isToday(day: Date): boolean {
 }
 
 // ── Complete meeting ──────────────────────────────────────────
-const completingId = ref<string | null>(null)
+function openCompleteModal(m: ClientMeeting) {
+  completingMeeting.value = m
+  completeNotes.value = m.notes || ''
+  completeRecordingLink.value = m.recordingLink || ''
+  showCompleteModal.value = true
+}
 
-async function completeMeeting(m: ClientMeeting) {
-  completingId.value = m._id
+function closeCompleteModal() {
+  showCompleteModal.value = false
+  completingMeeting.value = null
+  completeNotes.value = ''
+  completeRecordingLink.value = ''
+}
+
+async function confirmComplete() {
+  if (!completingMeeting.value) return
+  completeSaving.value = true
   try {
-    const updated = await meetingService.completeMeeting(m._id)
-    const idx = meetings.value.findIndex(x => x._id === m._id)
+    const updated = await meetingService.completeMeeting(
+      completingMeeting.value._id,
+      {
+        notes: completeNotes.value.trim() || undefined,
+        recordingLink: completeRecordingLink.value.trim() || undefined,
+      }
+    )
+    const idx = meetings.value.findIndex(x => x._id === completingMeeting.value!._id)
     if (idx !== -1) meetings.value[idx] = updated
+    closeCompleteModal()
   } catch {
-    // silent
+    // silent — keep modal open
   } finally {
-    completingId.value = null
+    completeSaving.value = false
   }
 }
 
+function canComplete(m: ClientMeeting): boolean {
+  return daysUntil(m.nextMeetingDate) <= 0
+}
+
 // ── Modal ─────────────────────────────────────────────────────
-function openModal(existing?: ClientMeeting, workspaceId?: string) {
+async function openModal(existing?: ClientMeeting, workspaceId?: string) {
   modalError.value = null
+  modalWsSearch.value = ''
+  modalWsPage.value = 0
   if (existing) {
     editingMeeting.value = existing
     modalWorkspaceId.value = existing.workspaceId
     modalDate.value = existing.nextMeetingDate.split('T')[0]
     modalAgenda.value = existing.agenda || ''
+    modalLink.value = existing.meetingLink || ''
+    modalNotes.value = existing.notes || ''
+    modalContactId.value = existing.contactUserId || ''
+    modalContactName.value = existing.contactName || ''
+    modalContactEmail.value = existing.contactEmail || ''
+    // Load contacts for editing
+    loadContacts(existing.workspaceId)
   } else {
     editingMeeting.value = null
     modalWorkspaceId.value = workspaceId || ''
     modalDate.value = ''
     modalAgenda.value = ''
+    modalLink.value = ''
+    modalNotes.value = ''
+    modalContactId.value = ''
+    modalContactName.value = ''
+    modalContactEmail.value = ''
+    modalContacts.value = []
+    if (workspaceId) loadContacts(workspaceId)
   }
   showModal.value = true
 }
@@ -231,6 +348,12 @@ function openModal(existing?: ClientMeeting, workspaceId?: string) {
 function closeModal() {
   showModal.value = false
   editingMeeting.value = null
+  modalContacts.value = []
+  modalContactId.value = ''
+  modalContactName.value = ''
+  modalContactEmail.value = ''
+  modalWsSearch.value = ''
+  modalWsPage.value = 0
 }
 
 async function saveModal() {
@@ -245,6 +368,11 @@ async function saveModal() {
       const updated = await meetingService.updateMeeting(editingMeeting.value._id, {
         nextMeetingDate: modalDate.value,
         agenda: modalAgenda.value,
+        meetingLink: modalLink.value.trim() || undefined,
+        notes: modalNotes.value.trim() || undefined,
+        contactUserId: modalContactId.value || undefined,
+        contactName: modalContactName.value || undefined,
+        contactEmail: modalContactEmail.value || undefined,
       })
       const idx = meetings.value.findIndex(m => m._id === editingMeeting.value!._id)
       if (idx !== -1) meetings.value[idx] = updated
@@ -252,7 +380,11 @@ async function saveModal() {
       const payload: CreateMeetingPayload = {
         workspaceId: modalWorkspaceId.value,
         nextMeetingDate: modalDate.value,
-        agenda: modalAgenda.value,
+        agenda: modalAgenda.value || undefined,
+        meetingLink: modalLink.value.trim() || undefined,
+        contactUserId: modalContactId.value || undefined,
+        contactName: modalContactName.value || undefined,
+        contactEmail: modalContactEmail.value || undefined,
       }
       const created = await meetingService.createOrUpdate(payload)
       // Replace or add
@@ -377,30 +509,68 @@ const isInternal = computed(() => userStore.isInternal)
               Próxima: {{ formatDate(m.nextMeetingDate) }}
             </div>
 
+            <div v-if="m.contactName" class="meeting-card__contact">
+              <i class="fa-solid fa-user-tie" />
+              Con: <strong>{{ m.contactName }}</strong>
+              <span v-if="m.contactEmail" class="meeting-card__contact-email">· {{ m.contactEmail }}</span>
+            </div>
+
             <div v-if="m.lastMeetingDate" class="meeting-card__last">
               <i class="fa-solid fa-clock-rotate-left" />
               Última: {{ formatDate(m.lastMeetingDate) }}
             </div>
 
+            <a
+              v-if="m.meetingLink"
+              :href="m.meetingLink"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="meeting-card__link"
+              @click.stop
+            >
+              <i class="fa-solid fa-video" />
+              Enlace de reunión
+            </a>
+
+            <a
+              v-if="m.recordingLink"
+              :href="m.recordingLink"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="meeting-card__link meeting-card__link--recording"
+              @click.stop
+            >
+              <i class="fa-solid fa-circle-play" />
+              Ver grabación
+            </a>
+
             <div v-if="m.agenda" class="meeting-card__agenda">
-              <i class="fa-solid fa-notes" />
+              <i class="fa-solid fa-list-check" />
               {{ m.agenda }}
+            </div>
+
+            <div v-if="m.notes" class="meeting-card__notes">
+              <i class="fa-solid fa-file-lines" />
+              {{ m.notes }}
             </div>
           </div>
 
           <div class="meeting-card__actions">
-            <button class="meeting-card__btn meeting-card__btn--edit" @click="openModal(m)">
+            <button
+              class="meeting-card__btn meeting-card__btn--edit"
+              @click="openModal(m)"
+              title="Editar reunión"
+            >
               <i class="fa-solid fa-pen" />
             </button>
             <button
               class="meeting-card__btn meeting-card__btn--complete"
-              :disabled="completingId === m._id"
-              @click="completeMeeting(m)"
-              title="Marcar como realizada"
+              :class="{ 'meeting-card__btn--complete-ready': canComplete(m) }"
+              :disabled="!canComplete(m)"
+              :title="canComplete(m) ? 'Marcar como realizada' : 'Disponible el día de la reunión'"
+              @click="openCompleteModal(m)"
             >
-              <i
-                :class="completingId === m._id ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-circle-check'"
-              />
+              <i class="fa-solid fa-circle-check" />
             </button>
           </div>
         </div>
@@ -473,24 +643,133 @@ const isInternal = computed(() => userStore.isInternal)
           </div>
 
           <div class="meeting-modal__body">
-            <!-- Client selector (only for new meetings) -->
-            <div v-if="!editingMeeting" class="meeting-modal__field">
+            <!-- Client selector -->
+            <div class="meeting-modal__field">
               <label class="meeting-modal__label">Cliente</label>
-              <select v-model="modalWorkspaceId" class="meeting-modal__select">
-                <option value="">Selecciona un cliente…</option>
-                <option
-                  v-for="ws in unscheduledWorkspaces"
-                  :key="ws._id"
-                  :value="ws._id"
-                >
-                  {{ ws.name }}
-                </option>
-              </select>
-            </div>
-            <div v-else class="meeting-modal__field">
-              <label class="meeting-modal__label">Cliente</label>
-              <div class="meeting-modal__client-name">
+
+              <!-- Editing: locked name -->
+              <div v-if="editingMeeting" class="meeting-modal__client-name">
+                <div class="meeting-modal__client-name-avatar">
+                  <img
+                    v-if="(editingMeeting.workspace as any)?.metaAds?.pageId"
+                    :src="`https://graph.facebook.com/${(editingMeeting.workspace as any).metaAds.pageId}/picture?type=normal`"
+                    :alt="workspaceName(editingMeeting)"
+                    style="width:100%;height:100%;object-fit:cover;border-radius:6px;"
+                    @error="($event.target as HTMLImageElement).style.display='none'"
+                  />
+                  <span v-else>{{ workspaceName(editingMeeting).substring(0,2).toUpperCase() }}</span>
+                </div>
                 {{ editingMeeting.workspace?.name || workspaceName(editingMeeting) }}
+              </div>
+
+              <!-- New: workspace picker -->
+              <template v-else>
+                <!-- Selected state -->
+                <div v-if="selectedWs" class="meeting-modal__ws-selected">
+                  <div class="meeting-modal__ws-selected-avatar">
+                    <img
+                      v-if="(selectedWs as any).metaAds?.pageId"
+                      :src="`https://graph.facebook.com/${(selectedWs as any).metaAds.pageId}/picture?type=normal`"
+                      :alt="selectedWs.name"
+                      style="width:100%;height:100%;object-fit:cover;border-radius:6px;"
+                      @error="($event.target as HTMLImageElement).style.display='none'"
+                    />
+                    <span v-else>{{ selectedWs.name.substring(0,2).toUpperCase() }}</span>
+                  </div>
+                  <span class="meeting-modal__ws-selected-name">{{ selectedWs.name }}</span>
+                  <button class="meeting-modal__ws-clear" @click="clearWorkspaceSelection" title="Cambiar cliente">
+                    <i class="fa-solid fa-xmark" />
+                  </button>
+                </div>
+
+                <!-- Picker grid -->
+                <div v-else class="meeting-modal__ws-picker">
+                  <div class="meeting-modal__ws-search-wrap">
+                    <i class="fa-solid fa-magnifying-glass meeting-modal__ws-search-icon" />
+                    <input
+                      v-model="modalWsSearch"
+                      type="text"
+                      class="meeting-modal__ws-search"
+                      placeholder="Buscar cliente…"
+                    />
+                  </div>
+
+                  <div v-if="filteredModalWs.length === 0" class="meeting-modal__ws-empty">
+                    Sin resultados para "{{ modalWsSearch }}"
+                  </div>
+
+                  <div v-else class="meeting-modal__ws-grid">
+                    <button
+                      v-for="ws in modalWsVisible"
+                      :key="ws._id"
+                      type="button"
+                      class="meeting-modal__ws-card"
+                      @click="selectWorkspace(ws)"
+                    >
+                      <div class="meeting-modal__ws-card-avatar">
+                        <img
+                          v-if="(ws as any).metaAds?.pageId"
+                          :src="`https://graph.facebook.com/${(ws as any).metaAds.pageId}/picture?type=normal`"
+                          :alt="ws.name"
+                          style="width:100%;height:100%;object-fit:cover;border-radius:8px;"
+                          @error="($event.target as HTMLImageElement).style.display='none'"
+                        />
+                        <span v-else>{{ ws.name.substring(0,2).toUpperCase() }}</span>
+                      </div>
+                      <span class="meeting-modal__ws-card-name">{{ ws.name }}</span>
+                    </button>
+                  </div>
+
+                  <!-- Pagination -->
+                  <div v-if="modalWsPages > 1" class="meeting-modal__ws-pagination">
+                    <button
+                      class="meeting-modal__ws-page-btn"
+                      :disabled="modalWsPage === 0"
+                      @click="modalWsPage--"
+                    >
+                      <i class="fa-solid fa-chevron-left" />
+                    </button>
+                    <span class="meeting-modal__ws-page-label">{{ modalWsPage + 1 }} / {{ modalWsPages }}</span>
+                    <button
+                      class="meeting-modal__ws-page-btn"
+                      :disabled="modalWsPage >= modalWsPages - 1"
+                      @click="modalWsPage++"
+                    >
+                      <i class="fa-solid fa-chevron-right" />
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- Contact person picker -->
+            <div v-if="modalWorkspaceId" class="meeting-modal__field">
+              <label class="meeting-modal__label">Reunirme con <span class="meeting-modal__optional">(opcional)</span></label>
+
+              <div v-if="loadingContacts" class="meeting-modal__contacts-loading">
+                <i class="fa-solid fa-circle-notch fa-spin" /> Cargando usuarios…
+              </div>
+              <div v-else-if="modalContacts.length === 0" class="meeting-modal__contacts-empty">
+                <i class="fa-solid fa-users-slash" /> Sin usuarios del entorno registrados.
+              </div>
+              <div v-else class="meeting-modal__contacts-grid">
+                <button
+                  v-for="u in modalContacts"
+                  :key="u._id"
+                  type="button"
+                  class="meeting-modal__contact-card"
+                  :class="{ 'meeting-modal__contact-card--selected': modalContactId === u._id }"
+                  @click="selectContact(u)"
+                >
+                  <div class="meeting-modal__contact-avatar">
+                    {{ (u.name || u.email).substring(0,2).toUpperCase() }}
+                  </div>
+                  <div class="meeting-modal__contact-info">
+                    <span class="meeting-modal__contact-name">{{ u.name || u.email }}</span>
+                    <span class="meeting-modal__contact-email">{{ u.email }}</span>
+                  </div>
+                  <i v-if="modalContactId === u._id" class="fa-solid fa-circle-check meeting-modal__contact-check" />
+                </button>
               </div>
             </div>
 
@@ -518,14 +797,39 @@ const isInternal = computed(() => userStore.isInternal)
               />
             </div>
 
+            <!-- Meeting link -->
+            <div class="meeting-modal__field">
+              <label class="meeting-modal__label">Enlace de reunión <span class="meeting-modal__optional">(Zoom, Meet…)</span></label>
+              <div class="meeting-modal__link-wrapper">
+                <i class="fa-solid fa-video meeting-modal__link-icon" />
+                <input
+                  v-model="modalLink"
+                  type="url"
+                  class="meeting-modal__input meeting-modal__input--with-icon"
+                  placeholder="https://meet.google.com/abc-defg-hij"
+                />
+              </div>
+            </div>
+
             <!-- Agenda -->
             <div class="meeting-modal__field">
-              <label class="meeting-modal__label">Agenda <span class="meeting-modal__optional">(opcional)</span></label>
+              <label class="meeting-modal__label">Agenda <span class="meeting-modal__optional">(temas previos)</span></label>
               <textarea
                 v-model="modalAgenda"
                 class="meeting-modal__textarea"
                 placeholder="Temas a tratar: performance de campaña, revisión de métricas…"
-                rows="3"
+                rows="2"
+              />
+            </div>
+
+            <!-- Notes (only for existing meetings) -->
+            <div v-if="editingMeeting" class="meeting-modal__field">
+              <label class="meeting-modal__label">Notas post-reunión <span class="meeting-modal__optional">(opcional)</span></label>
+              <textarea
+                v-model="modalNotes"
+                class="meeting-modal__textarea"
+                placeholder="Resumen, acuerdos, próximos pasos…"
+                rows="2"
               />
             </div>
 
@@ -544,6 +848,72 @@ const isInternal = computed(() => userStore.isInternal)
             >
               <i :class="modalSaving ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-check'" />
               {{ modalSaving ? 'Guardando…' : 'Guardar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- ── COMPLETE MODAL ─────────────────────────────────────────── -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="showCompleteModal" class="meeting-modal-backdrop" @click.self="closeCompleteModal">
+        <div class="meeting-modal meeting-modal--complete">
+          <div class="meeting-modal__header">
+            <div class="meeting-modal__complete-icon">
+              <i class="fa-solid fa-circle-check" />
+            </div>
+            <div>
+              <h2 class="meeting-modal__title">Reunión realizada</h2>
+              <p class="meeting-modal__complete-subtitle">{{ completingMeeting ? workspaceName(completingMeeting) : '' }}</p>
+            </div>
+            <button class="meeting-modal__close" @click="closeCompleteModal">
+              <i class="fa-solid fa-xmark" />
+            </button>
+          </div>
+
+          <div class="meeting-modal__body">
+            <div class="meeting-modal__complete-info">
+              <i class="fa-solid fa-info-circle" />
+              La próxima reunión se programará automáticamente en {{ completingMeeting?.intervalDays ?? 25 }} días.
+            </div>
+
+            <!-- Recording link -->
+            <div class="meeting-modal__field">
+              <label class="meeting-modal__label">Link de la grabación <span class="meeting-modal__optional">(opcional)</span></label>
+              <div class="meeting-modal__link-wrapper">
+                <i class="fa-solid fa-circle-play meeting-modal__link-icon" style="color:#7c3aed;" />
+                <input
+                  v-model="completeRecordingLink"
+                  type="url"
+                  class="meeting-modal__input meeting-modal__input--with-icon"
+                  placeholder="https://drive.google.com/… o Loom, etc."
+                />
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="meeting-modal__field">
+              <label class="meeting-modal__label">Notas de la reunión <span class="meeting-modal__optional">(opcional)</span></label>
+              <textarea
+                v-model="completeNotes"
+                class="meeting-modal__textarea"
+                placeholder="Resumen de lo tratado, acuerdos, próximos pasos…"
+                rows="3"
+              />
+            </div>
+          </div>
+
+          <div class="meeting-modal__footer">
+            <button class="meeting-modal__cancel" @click="closeCompleteModal">Cancelar</button>
+            <button
+              class="meeting-modal__save meeting-modal__save--complete"
+              :disabled="completeSaving"
+              @click="confirmComplete"
+            >
+              <i :class="completeSaving ? 'fa-solid fa-circle-notch fa-spin' : 'fa-solid fa-circle-check'" />
+              {{ completeSaving ? 'Guardando…' : 'Confirmar reunión' }}
             </button>
           </div>
         </div>
@@ -801,6 +1171,75 @@ const isInternal = computed(() => userStore.isInternal)
   &__agenda {
     font-style: italic;
     color: rgba($primary-dark, 0.45);
+  }
+
+  &__contact {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    color: rgba($primary-dark, 0.65);
+
+    i { font-size: 0.75rem; color: rgba($primary-dark, 0.35); flex-shrink: 0; }
+    strong { color: $primary-dark; }
+  }
+
+  &__contact-email {
+    font-size: 0.75rem;
+    color: rgba($primary-dark, 0.4);
+  }
+
+  &__notes {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: rgba($primary-dark, 0.55);
+    background: rgba($primary-dark, 0.03);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+
+    i {
+      font-size: 0.78rem;
+      color: rgba($primary-dark, 0.35);
+      margin-top: 0.1rem;
+      flex-shrink: 0;
+    }
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #2563eb;
+    text-decoration: none;
+    padding: 0.22rem 0.65rem;
+    background: rgba(#2563eb, 0.07);
+    border: 1px solid rgba(#2563eb, 0.18);
+    border-radius: 100px;
+    width: fit-content;
+    transition: background 0.15s;
+
+    i { font-size: 0.7rem; }
+    &:hover { background: rgba(#2563eb, 0.13); }
+
+    &--recording {
+      color: #7c3aed;
+      background: rgba(#7c3aed, 0.07);
+      border-color: rgba(#7c3aed, 0.18);
+
+      &:hover { background: rgba(#7c3aed, 0.13); }
+    }
+  }
+
+  &__btn--complete-ready {
+    background: rgba($alert-success, 0.15) !important;
+    color: darken($alert-success, 8%) !important;
+    box-shadow: 0 0 0 2px rgba($alert-success, 0.2);
+
+    &:hover { background: rgba($alert-success, 0.25) !important; }
   }
 
   &__actions {
@@ -1149,13 +1588,350 @@ const isInternal = computed(() => userStore.isInternal)
   }
 
   &__client-name {
-    padding: 0.65rem 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.5rem 0.85rem;
     background: rgba($primary-dark, 0.04);
     border: 1.5px solid rgba($primary-dark, 0.08);
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 0.9rem;
     font-weight: 600;
     color: $primary-dark;
+  }
+
+  &__client-name-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: $primary;
+    color: $white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  // ── Workspace picker ──────────────────────────────────────
+  &__ws-selected {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.5rem 0.85rem;
+    background: rgba($primary, 0.06);
+    border: 1.5px solid rgba($primary, 0.2);
+    border-radius: 10px;
+  }
+
+  &__ws-selected-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: $primary;
+    color: $white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  &__ws-selected-name {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: $primary-dark;
+  }
+
+  &__ws-clear {
+    width: 26px;
+    height: 26px;
+    background: rgba($primary-dark, 0.07);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba($primary-dark, 0.45);
+    font-size: 0.75rem;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover { background: rgba($alert-error, 0.1); color: $alert-error; }
+  }
+
+  &__ws-picker {
+    border: 1.5px solid rgba($primary-dark, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  &__ws-search-wrap {
+    position: relative;
+    border-bottom: 1px solid rgba($primary-dark, 0.08);
+  }
+
+  &__ws-search-icon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.78rem;
+    color: rgba($primary-dark, 0.35);
+    pointer-events: none;
+  }
+
+  &__ws-search {
+    width: 100%;
+    padding: 0.65rem 0.85rem 0.65rem 2.2rem;
+    border: none;
+    outline: none;
+    font-size: 0.88rem;
+    font-family: inherit;
+    color: $primary-dark;
+    background: transparent;
+    box-sizing: border-box;
+
+    &::placeholder { color: rgba($primary-dark, 0.3); }
+  }
+
+  &__ws-empty {
+    padding: 1rem;
+    text-align: center;
+    font-size: 0.82rem;
+    color: rgba($primary-dark, 0.4);
+  }
+
+  &__ws-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-bottom: 1px solid rgba($primary-dark, 0.06);
+  }
+
+  &__ws-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.85rem 0.5rem;
+    border: none;
+    border-right: 1px solid rgba($primary-dark, 0.06);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:last-child { border-right: none; }
+    &:hover { background: rgba($primary, 0.05); }
+  }
+
+  &__ws-card-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: $primary;
+    color: $white;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  &__ws-card-name {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: $primary-dark;
+    text-align: center;
+    line-height: 1.3;
+    word-break: break-word;
+    max-width: 90px;
+  }
+
+  &__ws-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.6rem;
+  }
+
+  &__ws-page-btn {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid rgba($primary-dark, 0.12);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: rgba($primary-dark, 0.5);
+    transition: all 0.15s;
+
+    &:hover:not(:disabled) { border-color: $primary; color: $primary; }
+    &:disabled { opacity: 0.35; cursor: default; }
+  }
+
+  &__ws-page-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: rgba($primary-dark, 0.5);
+    min-width: 40px;
+    text-align: center;
+  }
+
+  // ── Contact picker ────────────────────────────────────────
+  &__contacts-loading,
+  &__contacts-empty {
+    font-size: 0.82rem;
+    color: rgba($primary-dark, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+  }
+
+  &__contacts-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  &__contact-card {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    border: 1.5px solid rgba($primary-dark, 0.1);
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+
+    &:hover { border-color: $primary; background: rgba($primary, 0.04); }
+
+    &--selected {
+      border-color: $alert-success;
+      background: rgba($alert-success, 0.06);
+    }
+  }
+
+  &__contact-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba($primary-dark, 0.12);
+    color: $primary-dark;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__contact-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  &__contact-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: $primary-dark;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__contact-email {
+    font-size: 0.75rem;
+    color: rgba($primary-dark, 0.45);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__contact-check {
+    color: $alert-success;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+
+  // ── Link field ────────────────────────────────────────────
+  &__link-wrapper {
+    position: relative;
+  }
+
+  &__link-icon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    color: #2563eb;
+    pointer-events: none;
+  }
+
+  &__input--with-icon {
+    padding-left: 2.2rem !important;
+  }
+
+  // ── Complete modal ────────────────────────────────────────
+  &--complete {
+    max-width: 440px;
+  }
+
+  &__complete-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba($alert-success, 0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $alert-success;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  &__complete-subtitle {
+    font-size: 0.8rem;
+    color: rgba($primary-dark, 0.45);
+    margin: 0.1rem 0 0;
+    font-weight: 500;
+  }
+
+  &__complete-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    background: rgba(#2563eb, 0.06);
+    border: 1px solid rgba(#2563eb, 0.15);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.82rem;
+    color: #1d4ed8;
+
+    i { flex-shrink: 0; margin-top: 0.1rem; }
+  }
+
+  &__save--complete {
+    background: $alert-success !important;
+    &:hover { opacity: 0.88; }
   }
 
   &__error {
