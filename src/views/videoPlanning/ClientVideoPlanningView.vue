@@ -26,7 +26,7 @@ const approvals = reactive<Record<string, ClienteAprobacion>>({})
 const rejections = reactive<Record<string, string>>({})
 
 const locked = computed(() => planning.value?.clienteAprobado === true)
-const items = computed(() => planning.value?.items ?? [])
+const items = computed(() => [...(planning.value?.items ?? [])].sort((a, b) => a.order - b.order))
 
 const reviewed = computed(() =>
   items.value.filter(i => approvals[i._id] && approvals[i._id] !== ClienteAprobacion.PENDIENTE).length
@@ -144,7 +144,7 @@ onMounted(loadPlanning)
       <!-- Left: video list -->
       <div class="cv__list">
         <div
-          v-for="item in items"
+          v-for="(item, idx) in items"
           :key="item._id"
           class="cv-item"
           :class="{
@@ -153,7 +153,7 @@ onMounted(loadPlanning)
           }"
         >
           <!-- Number -->
-          <div class="cv-item__num">{{ item.numero }}</div>
+          <div class="cv-item__num">{{ idx + 1 }}</div>
 
           <!-- Main content -->
           <div class="cv-item__content">

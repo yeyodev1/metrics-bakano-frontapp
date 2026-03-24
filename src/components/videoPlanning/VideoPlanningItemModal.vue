@@ -11,6 +11,7 @@ const props = defineProps<{
   show: boolean
   item: VideoItem | null
   isSaving: boolean
+  locked?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -227,6 +228,7 @@ watch(() => props.show, (isShown) => {
 
             <!-- Form View (Internal) -->
             <template v-else>
+
               <div class="vp-item-modal__field">
                 <label>Tema <span class="req">*</span></label>
                 <input v-model="form.tema" type="text" placeholder="Ej: Receta de verano" required />
