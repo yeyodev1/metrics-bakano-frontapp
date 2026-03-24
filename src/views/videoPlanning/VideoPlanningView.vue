@@ -426,6 +426,7 @@ onMounted(() => {
       :show="showItemModal"
       :item="editingItem"
       :isSaving="saving"
+      :locked="locked"
       @close="showItemModal = false"
       @save="handleSaveItem"
     />

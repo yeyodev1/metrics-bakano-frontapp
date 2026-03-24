@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { VideoItem } from '@/types/videoPlanning'
 import VideoPlanningRow from './VideoPlanningRow.vue'
 
-defineProps<{
+const props = defineProps<{
   items: VideoItem[]
   canManageFull: boolean
   canEditProduction: boolean
   locked: boolean
 }>()
+
+const sortedItems = computed(() =>
+  [...props.items].sort((a, b) => a.order - b.order)
+)
 
 const emit = defineEmits<{
   (e: 'update-field', itemId: string, field: string, value: string): void
@@ -34,7 +39,7 @@ const emit = defineEmits<{
       </thead>
       <tbody>
         <VideoPlanningRow
-          v-for="(item, i) in items"
+          v-for="(item, i) in sortedItems"
           :key="item._id"
           :item="item"
           :index="i"

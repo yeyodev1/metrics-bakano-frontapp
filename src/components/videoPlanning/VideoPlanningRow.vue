@@ -77,7 +77,7 @@ function onUpdate(field: string, value: string) {
       'vp-row--rejected': item.clienteAprobacion === 'RECHAZADO',
     }"
   >
-    <td class="vp-row__num">{{ item.numero }}</td>
+    <td class="vp-row__num">{{ index + 1 }}</td>
 
     <td class="vp-row__tema vp-row__tema--clickable" @click="emit('edit-item', item)">
       <span class="vp-row__tema-text">{{ item.tema }}</span>
