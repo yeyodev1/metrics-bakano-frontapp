@@ -189,11 +189,13 @@ async function fetchWorkspaceMeta() {
 
 async function fetchVideoCalendarItems(startDate: string, endDate: string) {
   try {
-    videoCalendarItems.value = await videoPlanningService.getCalendarItems(
+    const items = await videoPlanningService.getCalendarItems(
       props.workspaceId,
       startDate,
       endDate,
     )
+    // Safety filter: discard any item whose workspaceId doesn't match the current workspace
+    videoCalendarItems.value = items.filter(i => i.workspaceId === props.workspaceId)
   } catch {
     // Non-critical: calendar video items are supplementary
   }

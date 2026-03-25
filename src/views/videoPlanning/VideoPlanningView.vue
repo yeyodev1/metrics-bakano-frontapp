@@ -59,7 +59,14 @@ async function loadPlanning() {
   loading.value = true
   backendMissing.value = false
   try {
-    planning.value = await videoPlanningService.getByEntry(entryId)
+    const loaded = await videoPlanningService.getByEntry(entryId)
+    // Guard: workspace mismatch — prevents cross-workspace data leaks
+    if (loaded && loaded.workspaceId && loaded.workspaceId !== workspaceId) {
+      error.value = `Error de integridad: esta planificación pertenece a otro entorno (${loaded.workspaceId}). Contacta a soporte.`
+      planning.value = null
+      return
+    }
+    planning.value = loaded
   } catch (err) {
     handleApiError(err, 'Error al cargar la planificación')
   } finally {

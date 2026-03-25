@@ -6,13 +6,15 @@ import type {
 } from '@/types'
 
 class NotificationService extends APIBase {
-  async getMyNotifications(): Promise<AppNotification[]> {
-    const res = await this.get<NotificationListResponse>('notifications')
+  async getMyNotifications(workspaceId?: string): Promise<AppNotification[]> {
+    const qs = workspaceId ? `?workspaceId=${workspaceId}` : ''
+    const res = await this.get<NotificationListResponse>(`notifications${qs}`)
     return res.data.notifications
   }
 
-  async getUnreadCount(): Promise<number> {
-    const res = await this.get<UnreadCountResponse>('notifications/unread-count')
+  async getUnreadCount(workspaceId?: string): Promise<number> {
+    const qs = workspaceId ? `?workspaceId=${workspaceId}` : ''
+    const res = await this.get<UnreadCountResponse>(`notifications/unread-count${qs}`)
     return res.data.count
   }
 
