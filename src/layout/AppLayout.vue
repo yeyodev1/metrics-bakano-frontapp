@@ -49,7 +49,7 @@ const filteredDropdownWorkspaces = computed(() => {
   return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'Notifications']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar']
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
 

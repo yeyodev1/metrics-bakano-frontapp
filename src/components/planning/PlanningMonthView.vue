@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import type { PlanningEntry, GlobalPlanningEntry } from '@/types'
 import type { VideoCalendarItem } from '@/types/videoPlanning'
 import PlanningEntryCard from './PlanningEntryCard.vue'
@@ -104,6 +104,23 @@ function pubColor(status: string): { bg: string; text: string; dot: string } {
   const color = PUB_COLOR[status] || PUB_COLOR['-']
   return color as { bg: string; text: string; dot: string }
 }
+
+const gridRef = ref<HTMLElement | null>(null)
+
+function scrollToToday() {
+  if (window.innerWidth > 768) return
+  nextTick(() => {
+    const todayEl = gridRef.value?.querySelector('.is-today') as HTMLElement | null
+    if (todayEl) {
+      todayEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  })
+}
+
+onMounted(scrollToToday)
+// Re-scroll when data loads (API returns after mount) or month changes
+watch(() => props.entries, scrollToToday, { once: true })
+watch(() => props.currentMonth, scrollToToday)
 </script>
 
 <template>
@@ -114,7 +131,7 @@ function pubColor(status: string): { bg: string; text: string; dot: string } {
       </div>
     </div>
 
-    <div class="planning-month__grid">
+    <div ref="gridRef" class="planning-month__grid">
       <div
         v-for="(day, idx) in daysInMonth"
         :key="idx"
