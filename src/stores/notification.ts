@@ -1,15 +1,23 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { notificationService } from '@/services/notification.service'
+import { useUserStore } from '@/stores/user'
 import type { AppNotification } from '@/types'
 
 export const useNotificationStore = defineStore('notification', () => {
   const unreadCount = ref(0)
   const notifications = ref<AppNotification[]>([])
 
+  function getWorkspaceFilter(): string | undefined {
+    const userStore = useUserStore()
+    // Internal users and superadmins see all workspaces; clients are scoped to their workspace
+    if (userStore.isInternal || userStore.role === 'superadmin') return undefined
+    return userStore.workspaceId ?? undefined
+  }
+
   async function fetchUnreadCount() {
     try {
-      unreadCount.value = await notificationService.getUnreadCount()
+      unreadCount.value = await notificationService.getUnreadCount(getWorkspaceFilter())
     } catch {
       // silent — don't break layout if endpoint fails
     }
@@ -17,7 +25,7 @@ export const useNotificationStore = defineStore('notification', () => {
 
   async function fetchAll() {
     try {
-      notifications.value = await notificationService.getMyNotifications()
+      notifications.value = await notificationService.getMyNotifications(getWorkspaceFilter())
       unreadCount.value = notifications.value.filter(n => !n.isRead).length
     } catch {
       // silent
