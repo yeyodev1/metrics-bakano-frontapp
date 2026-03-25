@@ -74,27 +74,39 @@ function setFilter(id: 'all' | 'production' | 'publication') {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1rem;
+    gap: 0.4rem;
+    padding: 0.55rem 0.5rem;
     border-radius: 10px;
     border: none;
     background: transparent;
     color: $text-secondary;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
 
+    @media (min-width: 480px) {
+      padding: 0.6rem 1rem;
+      font-size: 0.78rem;
+      gap: 0.5rem;
+    }
+
     i {
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       opacity: 0.7;
       transition: transform 0.3s ease;
+      flex-shrink: 0;
     }
 
     span {
       position: relative;
       z-index: 1;
+      display: none;
+
+      @media (min-width: 480px) {
+        display: inline;
+      }
     }
 
     &:hover:not(.is-active) {
