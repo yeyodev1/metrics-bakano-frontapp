@@ -6,25 +6,35 @@ import PlanningCalendar from '@/components/PlanningCalendar.vue'
 import InternalPlanningHeader from '@/components/planning/internal/InternalPlanningHeader.vue'
 import InternalPlanningSidebar from '@/components/planning/internal/InternalPlanningSidebar.vue'
 
+const PAGE_SIZE = 6
+
 const workspaces = ref<Workspace[]>([])
 const selectedWorkspaceId = ref<string>('')
 const calendarDefaultView = ref<'month' | 'week' | 'global-week' | 'global-month'>('global-month')
 const isLoading = ref(true)
+const isLoadingMore = ref(false)
+const currentPage = ref(1)
+const hasMore = ref(false)
 
-async function fetchWorkspaces() {
+async function fetchWorkspaces(page = 1) {
   try {
-    const res = await workspaceService.listWorkspaces({ limit: 100 })
-    // Defensive check: ensure res.workspaces is an array
-    workspaces.value = Array.isArray(res.workspaces) ? res.workspaces : []
-
-    if (workspaces.value.length > 0) {
-      selectedWorkspaceId.value = workspaces.value[0]._id
-    }
+    const res = await workspaceService.listWorkspaces({ page, limit: PAGE_SIZE })
+    const fetched = Array.isArray(res.workspaces) ? res.workspaces : []
+    workspaces.value = page === 1 ? fetched : [...workspaces.value, ...fetched]
+    hasMore.value = res.metadata?.hasMore ?? false
+    currentPage.value = page
   } catch (error) {
     console.error('Error fetching workspaces:', error)
   } finally {
     isLoading.value = false
+    isLoadingMore.value = false
   }
+}
+
+async function loadMoreWorkspaces() {
+  if (isLoadingMore.value || !hasMore.value) return
+  isLoadingMore.value = true
+  await fetchWorkspaces(currentPage.value + 1)
 }
 
 function handleSelectWorkspace(id: string) {
@@ -32,7 +42,7 @@ function handleSelectWorkspace(id: string) {
   calendarDefaultView.value = 'week'
 }
 
-onMounted(fetchWorkspaces)
+onMounted(() => fetchWorkspaces(1))
 </script>
 
 <template>
@@ -42,21 +52,36 @@ onMounted(fetchWorkspaces)
 
     <!-- Main Content Grid -->
     <main class="internal-planning__content">
-      <!-- Left Sidebar -->
-      <InternalPlanningSidebar
-        :selected-workspace-id="selectedWorkspaceId"
-        :workspaces="workspaces"
-        :is-loading="isLoading"
-        @update:selected-workspace-id="handleSelectWorkspace"
-      />
+      <!-- Left Sidebar (sticky) -->
+      <div class="internal-planning__sidebar-wrapper">
+        <InternalPlanningSidebar
+          :selected-workspace-id="selectedWorkspaceId"
+          :workspaces="workspaces"
+          :is-loading="isLoading"
+          :is-loading-more="isLoadingMore"
+          :has-more="hasMore"
+          @update:selected-workspace-id="handleSelectWorkspace"
+          @load-more="loadMoreWorkspaces"
+        />
+      </div>
 
       <!-- Right Calendar Area -->
       <section class="internal-planning__calendar">
-        <div v-if="isLoading || !selectedWorkspaceId" class="internal-planning__loader">
+        <!-- Loading -->
+        <div v-if="isLoading" class="internal-planning__loader">
           <div class="internal-planning__spinner" />
-          <p>Cargando planificador…</p>
+          <p>Cargando clientes…</p>
         </div>
-        
+
+        <!-- No client selected yet -->
+        <div v-else-if="!selectedWorkspaceId" class="internal-planning__empty">
+          <div class="internal-planning__empty-icon">
+            <i class="fa-solid fa-arrow-left" />
+          </div>
+          <h3>Selecciona un cliente</h3>
+          <p>Elige un entorno de la lista para ver su planificación.</p>
+        </div>
+
         <PlanningCalendar
           v-else
           :key="selectedWorkspaceId"
@@ -94,10 +119,22 @@ onMounted(fetchWorkspaces)
     }
   }
 
+  &__sidebar-wrapper {
+    width: 100%;
+
+    @media (min-width: 900px) {
+      width: 260px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 1.5rem;
+      align-self: flex-start;
+    }
+  }
+
   &__calendar {
     flex: 1;
-    width: 100%; // Ensure it takes full width on mobile
-    min-width: 0; // Prevent overflow in flexbox
+    width: 100%;
+    min-width: 0;
   }
 
   &__loader {
@@ -112,6 +149,47 @@ onMounted(fetchWorkspaces)
     background: $white;
     border-radius: 16px;
     border: 1px solid rgba($primary-dark, 0.06);
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 6rem 2rem;
+    background: $white;
+    border-radius: 16px;
+    border: 1.5px dashed rgba($primary-dark, 0.1);
+    text-align: center;
+
+    h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: $primary-dark;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: $text-secondary;
+    }
+  }
+
+  &__empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: rgba($primary, 0.08);
+    border: 2px dashed rgba($primary, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: $primary;
+    opacity: 0.7;
+    margin-bottom: 0.25rem;
   }
 
   &__spinner {

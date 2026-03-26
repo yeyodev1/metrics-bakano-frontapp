@@ -16,12 +16,21 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isLoadingMore: {
+    type: Boolean,
+    default: false,
+  },
+  hasMore: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['update:selectedWorkspaceId'])
+const emit = defineEmits(['update:selectedWorkspaceId', 'load-more'])
 
 const searchQuery = ref('')
 
+// Local search filters already-loaded workspaces; full search resets at server level
 const filteredWorkspaces = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return props.workspaces
@@ -110,6 +119,15 @@ function handleSelect(id: string) {
           :color="getClientColor(ws._id)"
           @select="handleSelect"
         />
+        <button
+          v-if="hasMore && !searchQuery"
+          class="internal-planning-sidebar__load-more"
+          :disabled="isLoadingMore"
+          @click="emit('load-more')"
+        >
+          <i :class="isLoadingMore ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-chevron-down'" />
+          {{ isLoadingMore ? 'Cargando…' : 'Ver 6 más' }}
+        </button>
       </template>
     </div>
 
@@ -267,6 +285,32 @@ function handleSelect(id: string) {
 
     i {
       font-size: 1.2rem;
+    }
+  }
+
+  &__load-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: calc(100% - 1.5rem);
+    margin: 0.25rem 0.75rem 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 10px;
+    border: 1.5px dashed rgba($primary-dark, 0.12);
+    background: transparent;
+    color: $text-secondary;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    i { font-size: 0.72rem; }
+
+    &:hover {
+      background: rgba($primary, 0.05);
+      border-color: rgba($primary, 0.3);
+      color: $primary;
     }
   }
 
