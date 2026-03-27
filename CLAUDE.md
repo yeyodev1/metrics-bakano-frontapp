@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Repository layout
+
+This frontend lives alongside its backend at the same directory level:
+```
+roas-platform/
+  ads-bakano-clients-frontapp/   ← this project (Vue 3)
+  ads-bakano-clients-backapp/    ← backend (Node + Express + Mongoose)
+```
+
+For any full-stack feature, edit both projects in the same session. Backend structure: `src/{controllers,models,routes,services,middlewares}`. Staging API: `https://testing-storybrand-backapp.bakano.ec/api`.
+
 ## Commands
 
 ```bash

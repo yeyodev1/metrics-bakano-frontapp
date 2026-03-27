@@ -145,7 +145,7 @@ async function handleFieldUpdate(itemId: string, field: string, value: string) {
   }
 }
 
-async function handleSaveLinkVideo(itemId: string, payload: { linkVideo: string; fechaPublicacion: string }) {
+async function handleSaveLinkVideo(itemId: string, payload: { linkVideo: string; fechaPublicacion: string; copyPublicacion: string; estadoPublicacion?: string }) {
   if (!planning.value) return
   savingLink.value = true
   try {

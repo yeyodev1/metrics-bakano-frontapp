@@ -10,24 +10,32 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'save-link', itemId: string, payload: { linkVideo: string; fechaPublicacion: string }): void
+  (e: 'save-link', itemId: string, payload: { linkVideo: string; fechaPublicacion: string; copyPublicacion: string; estadoPublicacion?: string }): void
 }>()
 
 const localLink = ref('')
 const localFecha = ref('')
+const localCopy = ref('')
 
 watch(() => props.show, (isShown) => {
   if (isShown && props.item) {
     localLink.value = props.item.linkVideo || ''
     localFecha.value = props.item.fechaPublicacion ? (props.item.fechaPublicacion.split('T')[0] || '') : ''
+    localCopy.value = props.item.copyPublicacion || ''
   }
 })
 
 function handleSave() {
   if (!props.item) return
-  emit('save-link', props.item._id, { 
-    linkVideo: localLink.value, 
-    fechaPublicacion: localFecha.value 
+  // Append T12:00:00.000Z so the date stays on the correct calendar day
+  // in any timezone (avoids UTC midnight → previous day in UTC-5 Ecuador)
+  const fechaISO = localFecha.value ? `${localFecha.value}T12:00:00.000Z` : ''
+  emit('save-link', props.item._id, {
+    linkVideo: localLink.value,
+    fechaPublicacion: fechaISO,
+    copyPublicacion: localCopy.value,
+    // Auto-set to PROGRAMADO when a publication date is provided
+    ...(fechaISO ? { estadoPublicacion: 'PROGRAMADO' } : {}),
   })
 }
 </script>
@@ -110,6 +118,20 @@ function handleSave() {
             />
             <span class="vcm__form-hint">Día en el que está planificado que el video salga en redes.</span>
           </div>
+
+          <!-- Copy -->
+          <div class="vcm__form-group">
+            <label class="vcm__form-label">
+              <i class="fa-solid fa-pen-to-square" /> Copy de publicación
+            </label>
+            <textarea
+              v-model="localCopy"
+              class="vcm__input vcm__textarea"
+              placeholder="Escribe el caption, hashtags y texto que acompañará la publicación..."
+              rows="4"
+            />
+            <span class="vcm__form-hint">Texto que el community manager usará al publicar en redes sociales.</span>
+          </div>
         </div>
 
         <!-- Footer -->
@@ -124,7 +146,7 @@ function handleSave() {
           >
             <span v-if="isSaving" class="vcm__spinner" />
             <i v-else class="fa-solid fa-floppy-disk" />
-            <span>{{ localLink || localFecha ? 'Guardar datos' : 'Marcar sin detalles' }}</span>
+            <span>{{ localLink || localFecha || localCopy ? 'Guardar datos' : 'Marcar sin detalles' }}</span>
           </button>
         </div>
       </div>
@@ -241,6 +263,10 @@ function handleSave() {
     border: 1.5px solid rgba($primary-dark, 0.12); background: rgba($primary-dark, 0.02);
     font-family: inherit; font-size: 0.9rem; transition: all 0.2s;
     &:focus { outline: none; border-color: $primary; background: $white; box-shadow: 0 0 0 3px rgba($primary, 0.1); }
+  }
+
+  &__textarea {
+    resize: vertical; min-height: 100px; line-height: 1.5;
   }
 
   &__link-preview {

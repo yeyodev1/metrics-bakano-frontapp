@@ -90,7 +90,9 @@ function getEntriesForDay(day: Date) {
 function getVideoItemsForDay(day: Date): VideoCalendarItem[] {
   const targetDate = day.toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
   return props.videoItems.filter(v => {
-    const d = new Date(v.fechaPublicacion).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
+    // Use the stored date string directly (first 10 chars = YYYY-MM-DD)
+    // to avoid UTC-midnight shifting one day back in UTC-5 Ecuador
+    const d = v.fechaPublicacion.substring(0, 10)
     return d === targetDate
   })
 }
