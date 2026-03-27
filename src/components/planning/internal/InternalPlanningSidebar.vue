@@ -26,16 +26,25 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:selectedWorkspaceId', 'load-more'])
+const emit = defineEmits(['update:selectedWorkspaceId', 'load-more', 'search'])
 
 const searchQuery = ref('')
 
-// Local search filters already-loaded workspaces; full search resets at server level
-const filteredWorkspaces = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return props.workspaces
-  return props.workspaces.filter(w => w.name.toLowerCase().includes(q))
-})
+// All filtering is handled server-side; local list reflects what the parent passes
+const filteredWorkspaces = computed(() => props.workspaces)
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    emit('search', searchQuery.value.trim())
+  }, 350)
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  emit('search', '')
+}
 
 const selectedWorkspace = computed(() =>
   props.workspaces.find(w => w._id === props.selectedWorkspaceId)
@@ -74,7 +83,7 @@ function handleSelect(id: string) {
         <span>Clientes</span>
       </div>
       <span class="internal-planning-sidebar__count">
-        {{ filteredWorkspaces.length }}<template v-if="searchQuery"> / {{ workspaces.length }}</template>
+        {{ filteredWorkspaces.length }}
       </span>
     </div>
 
@@ -86,11 +95,12 @@ function handleSelect(id: string) {
         type="text"
         placeholder="Buscar cliente…"
         autocomplete="off"
+        @input="onSearchInput"
       />
       <button
         v-if="searchQuery"
         class="internal-planning-sidebar__search-clear"
-        @click="searchQuery = ''"
+        @click="clearSearch"
       >
         <i class="fa-solid fa-xmark" />
       </button>
@@ -120,7 +130,7 @@ function handleSelect(id: string) {
           @select="handleSelect"
         />
         <button
-          v-if="hasMore && !searchQuery"
+          v-if="hasMore && !searchQuery.trim()"
           class="internal-planning-sidebar__load-more"
           :disabled="isLoadingMore"
           @click="emit('load-more')"

@@ -15,13 +15,16 @@ const isLoading = ref(true)
 const isLoadingMore = ref(false)
 const currentPage = ref(1)
 const hasMore = ref(false)
+const activeSearch = ref('')
 
-async function fetchWorkspaces(page = 1) {
+async function fetchWorkspaces(page = 1, search = '') {
   try {
-    const res = await workspaceService.listWorkspaces({ page, limit: PAGE_SIZE })
+    const params: { page: number; limit: number; search?: string } = { page, limit: PAGE_SIZE }
+    if (search) params.search = search
+    const res = await workspaceService.listWorkspaces(params)
     const fetched = Array.isArray(res.workspaces) ? res.workspaces : []
     workspaces.value = page === 1 ? fetched : [...workspaces.value, ...fetched]
-    hasMore.value = res.metadata?.hasMore ?? false
+    hasMore.value = search ? false : (res.metadata?.hasMore ?? false)
     currentPage.value = page
   } catch (error) {
     console.error('Error fetching workspaces:', error)
@@ -31,10 +34,16 @@ async function fetchWorkspaces(page = 1) {
   }
 }
 
+async function handleSearch(query: string) {
+  activeSearch.value = query
+  isLoading.value = true
+  await fetchWorkspaces(1, query)
+}
+
 async function loadMoreWorkspaces() {
   if (isLoadingMore.value || !hasMore.value) return
   isLoadingMore.value = true
-  await fetchWorkspaces(currentPage.value + 1)
+  await fetchWorkspaces(currentPage.value + 1, activeSearch.value)
 }
 
 function handleSelectWorkspace(id: string) {
@@ -62,6 +71,7 @@ onMounted(() => fetchWorkspaces(1))
           :has-more="hasMore"
           @update:selected-workspace-id="handleSelectWorkspace"
           @load-more="loadMoreWorkspaces"
+          @search="handleSearch"
         />
       </div>
 

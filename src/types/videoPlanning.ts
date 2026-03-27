@@ -48,6 +48,7 @@ export interface VideoItem {
   motivoRechazo?: string
   linkVideo?: string
   fechaPublicacion?: string
+  copyPublicacion?: string
   order: number
 }
 
@@ -83,6 +84,7 @@ export interface CreateVideoItemPayload {
   comentario?: string
   linkVideo?: string
   fechaPublicacion?: string
+  copyPublicacion?: string
 }
 
 export interface UpdateVideoItemPayload {
@@ -100,6 +102,7 @@ export interface UpdateVideoItemPayload {
   comentario?: string
   linkVideo?: string
   fechaPublicacion?: string
+  copyPublicacion?: string
 }
 
 export interface ClientApprovalPayload {
@@ -120,6 +123,7 @@ export interface VideoCalendarItem {
   clienteAprobacion: ClienteAprobacion
   linkVideo?: string
   fechaPublicacion: string
+  copyPublicacion?: string
 }
 
 export interface VideoCalendarResponse {

@@ -12,7 +12,7 @@ import type {
   WorkspaceUser,
   Workspace
 } from '@/types'
-import type { VideoCalendarItem } from '@/types/videoPlanning'
+import type { VideoCalendarItem, VideoItem } from '@/types/videoPlanning'
 
 // Sub-components
 import PlanningHeader from './planning/PlanningHeader.vue'
@@ -22,7 +22,7 @@ import PlanningEventModal from './planning/PlanningEventModal.vue'
 import ClientPlanningEventModal from './planning/ClientPlanningEventModal.vue'
 import PlanningTypeFilters from './planning/PlanningTypeFilters.vue'
 import VideoPlanningItemModal from './videoPlanning/VideoPlanningItemModal.vue'
-import type { VideoItem } from '@/types/videoPlanning'
+import VideoInstagramPreviewModal from './videoPlanning/VideoInstagramPreviewModal.vue'
 
 const props = defineProps({
   workspaceId: {
@@ -65,6 +65,9 @@ const calendarFilter = ref<'all' | 'production' | 'publication'>('all')
 
 const showVideoItemModal = ref(false)
 const selectedVideoItem = ref<VideoItem | null>(null)
+
+const showInstagramPreviewModal = ref(false)
+const selectedVideoCalendarItem = ref<VideoCalendarItem | null>(null)
 
 // Permissions & Filters
 const showMineOnly = ref(userStore.role !== 'superadmin' && !userStore.isInternal)
@@ -117,14 +120,13 @@ const activeVideoItems = computed(() => {
 
 async function fetchEntries() {
   isLoading.value = true
+  const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1).toISOString()
+  const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59).toISOString()
+  // Always fetch video calendar items independently — works for all roles including clients
+  fetchVideoCalendarItems(start, end)
   try {
-    const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1).toISOString()
-    const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59).toISOString()
-    const [entriesRes] = await Promise.all([
-      planningService.listEntries(props.workspaceId, { startDate: start, endDate: end }),
-      fetchVideoCalendarItems(start, end),
-    ])
-    entries.value = entriesRes.entries
+    const res = await planningService.listEntries(props.workspaceId, { startDate: start, endDate: end })
+    entries.value = res.entries
   } catch {
     toast.error('Error al cargar planificación')
   } finally { isLoading.value = false }
@@ -132,15 +134,14 @@ async function fetchEntries() {
 
 async function fetchWeekEntries() {
   isWeekLoading.value = true
+  const start = new Date(currentWeekStart.value)
+  const end = new Date(currentWeekStart.value)
+  end.setDate(end.getDate() + 6)
+  end.setHours(23, 59, 59, 999)
+  // Always fetch video calendar items independently — works for all roles including clients
+  fetchVideoCalendarItems(start.toISOString(), end.toISOString())
   try {
-    const start = new Date(currentWeekStart.value)
-    const end = new Date(currentWeekStart.value)
-    end.setDate(end.getDate() + 6)
-    end.setHours(23, 59, 59, 999)
-    const [res] = await Promise.all([
-      planningService.listEntries(props.workspaceId, { startDate: start.toISOString(), endDate: end.toISOString() }),
-      fetchVideoCalendarItems(start.toISOString(), end.toISOString()),
-    ])
+    const res = await planningService.listEntries(props.workspaceId, { startDate: start.toISOString(), endDate: end.toISOString() })
     weekEntries.value = res.entries
   } catch {
     toast.error('Error al cargar semana')
@@ -230,7 +231,19 @@ function openCreate(date?: Date) {
   showModal.value = true
 }
 
+const isClient = computed(() => !userStore.isInternal && userStore.role !== 'superadmin')
+
 async function handleVideoClick(videoChip: any) {
+  // Clients see the Instagram-style preview
+  if (isClient.value) {
+    const calItem = videoCalendarItems.value.find(v => v._id === videoChip._id)
+    if (calItem) {
+      selectedVideoCalendarItem.value = calItem
+      showInstagramPreviewModal.value = true
+    }
+    return
+  }
+
   isLoading.value = true
   try {
     const planning = await videoPlanningService.getByEntry(videoChip.entryId)
@@ -389,6 +402,14 @@ function getThisMonday(d: Date) {
       :item="selectedVideoItem"
       :is-saving="false"
       @close="showVideoItemModal = false"
+    />
+
+    <VideoInstagramPreviewModal
+      :show="showInstagramPreviewModal"
+      :item="selectedVideoCalendarItem"
+      :workspace-name="workspaceMeta?.name || ''"
+      :workspace-logo-url="workspaceMeta?.metaAds?.pageId ? `https://graph.facebook.com/${workspaceMeta.metaAds.pageId}/picture?type=square&width=96&height=96` : ''"
+      @close="showInstagramPreviewModal = false"
     />
     <!-- Internal/Superadmin Modal Overlay -->
     <PlanningEventModal
