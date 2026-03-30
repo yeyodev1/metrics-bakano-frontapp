@@ -27,6 +27,7 @@ const INTERNAL_ROLE_LABELS: Record<string, string> = {
   account_manager: 'Account Manager',
   community_manager: 'Community Manager',
   productor: 'Productor',
+  asistente_produccion: 'Asistente de Producción',
   editor: 'Editor',
   disenador: 'Diseñador',
   copywriter: 'Copywriter',
@@ -49,7 +50,8 @@ const filteredDropdownWorkspaces = computed(() => {
   return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis']
+
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
 
@@ -315,6 +317,17 @@ router.afterEach(() => {
         >
           <i class="fa-solid fa-handshake" aria-hidden="true" />
           <span>Reuniones</span>
+          <span class="app-layout__nav-global-tag">GLOBAL</span>
+        </RouterLink>
+
+        <!-- Team KPIs — superadmin and project_manager only -->
+        <RouterLink
+          v-if="userStore.role === 'superadmin' || (userStore.isInternal && userStore.internalRole === 'project_manager')"
+          class="app-layout__nav-item app-layout__nav-item--kpis"
+          :to="{ name: 'TeamKpis' }"
+        >
+          <i class="fa-solid fa-chart-bar" aria-hidden="true" />
+          <span>KPIs del Equipo</span>
           <span class="app-layout__nav-global-tag">GLOBAL</span>
         </RouterLink>
 

@@ -133,6 +133,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/workspaces/WorkspaceBrandProfileView.vue'),
         meta: { title: 'Bakano Ads: Perfil de Marca', requiresAuth: true, requiresInternal: true },
       },
+      // ── Team KPIs ─────────────────────────────────────
+      {
+        path: 'kpis',
+        name: 'TeamKpis',
+        component: () => import('../views/kpis/TeamKpisView.vue'),
+        meta: { title: 'Bakano Ads: KPIs del Equipo', requiresAuth: true, requiresInternal: true },
+      },
       // ── Meetings calendar ─────────────────────────────────
       {
         path: 'meetings',
