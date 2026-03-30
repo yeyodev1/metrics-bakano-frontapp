@@ -6,6 +6,7 @@ import GlobalToast from '@/components/common/GlobalToast.vue'
 import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
 import GlobalUserFormModal from '@/components/common/GlobalUserFormModal.vue'
 import GlobalSuperadminModal from '@/components/common/GlobalSuperadminModal.vue'
+import AppUpdater from '@/components/common/AppUpdater.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -37,6 +38,7 @@ onUnmounted(() => {
     <GlobalConfirmModal />
     <GlobalUserFormModal />
     <GlobalSuperadminModal />
+    <AppUpdater />
   </div>
 </template>
 
