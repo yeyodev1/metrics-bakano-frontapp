@@ -187,3 +187,51 @@ Persistent notification system replacing `SurveyPlanningNotification` banner in 
 - `src/services/notification.service.ts` — `notificationService` singleton
 - `src/stores/notification.ts` — `useNotificationStore` (unreadCount, fetchAll, markRead)
 - `src/views/notifications/NotificationsView.vue` — notifications center
+
+### Team KPIs
+
+Monthly performance evaluation per internal role. Route: `/app/kpis` (`requiresInternal: true`).
+
+**Roles tracked:** `editor`, `asistente_produccion`/`productor`, `content_manager`/`community_manager`
+**Write permissions:** `superadmin`, `editor`, `director` (via `kpiWrite.middleware.ts`)
+
+**Backend:**
+- Model: `src/models/teamKpiRecord.model.ts` — unique index `{ userId, month }`
+- Controller: `src/controllers/teamKpi.controller.ts` — `computePerformance()` calculates score 0–100 by roleType
+- Router: `src/routes/teamKpi.router.ts` → `/api/team-kpis`
+
+**Frontend:**
+- `src/views/kpis/TeamKpisView.vue` — month navigator, 3 tabs, user cards with score badges
+- `src/components/kpi/KpiEditorForm.vue`, `KpiProducerForm.vue`, `KpiContentForm.vue`
+- `src/services/teamKpi.service.ts`
+
+### Visit Log (attendance tracking)
+
+Producers/assistants log individual client visits with attendees list. PM can see all.
+
+**Backend:**
+- Model: `src/models/visitLog.model.ts` — fields: `producerId`, `workspaceId`, `visitDate`, `attendees[]`, `month`, `notes`
+- Controller: `src/controllers/visitLog.controller.ts`
+- Router: `src/routes/visitLog.router.ts` → `/api/visit-logs`
+- Access: create = any internal (producerId from JWT); delete = creator or superadmin
+
+**Frontend:**
+- `src/services/visitLog.service.ts`
+- `src/components/kpi/VisitLogModal.vue` — workspace picker, date, multi-select attendees, notes
+- Integrated in `TeamKpisView.vue` producer tab: "Registrar visita" button + expandable per-user log panel
+
+### Brand Profile — Tono personalizado
+
+`WorkspaceBrandProfileView.vue` tono field supports both preset chips and free-text custom tone.
+- Presets: `['Profesional', 'Cercano', 'Divertido', 'Aspiracional', 'Educativo', 'Inspirador']`
+- `+ Otro` button (dashed border) reveals a text input (max 80 chars) for custom tone
+- `isCustomTone` computed: `profile.tono` is non-empty and not in presets
+- Read mode shows custom tone as a purple chip (`bp__tone-custom-display`); edit mode shows input
+- `PRESET_TONES` constant defined in script for reuse
+
+### AI Script Generator — Few-shot prompting
+
+`src/services/gemini.service.ts` `SYSTEM_PROMPT` now includes:
+- 5 explicit specificity rules (use brand data, emotional hooks, real numbers, keyword CTAs)
+- 5 high-quality reference examples (Helen Bermeo tax scripts) showing the expected style depth
+- User prompt updated to explicitly instruct using brand profile data and avoiding generic language
