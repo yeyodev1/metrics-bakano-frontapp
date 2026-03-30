@@ -50,6 +50,16 @@ class PlanningService extends APIBase {
     const res = await this.get<GlobalPlanningWeekResponse>('planning/my-week', undefined, { params })
     return res.data
   }
+
+  async uploadItemMedia(itemId: string, file: File): Promise<{ url: string; mediaType: 'video' | 'image' }> {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await this.post<{ url: string; mediaType: 'video' | 'image' }>(
+      `video-planning/items/${itemId}/upload-media`,
+      fd,
+    )
+    return res.data
+  }
 }
 
 export const planningService = new PlanningService()

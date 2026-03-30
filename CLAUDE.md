@@ -121,14 +121,16 @@ Each workspace has an optional Brand Profile used to generate AI video scripts w
 **AI Script Generator:**
 - Endpoint: `POST /api/video-planning/:videoItemId/generate-script`
 - Backend: `src/controllers/scriptGeneration.controller.ts` → `GeminiService` (`src/services/gemini.service.ts`)
-- Uses `gemini-1.5-flash`. Required env var: `GEMINI_API_KEY` in **backend** `.env` only (not frontend).
+- Uses `gemini-2.5-flash` (current stable). Required env var: `GEMINI_API_KEY` in **backend** `.env` only (not frontend).
 - Returns `GuionIA`: `{ conceptoVisual, gancho, textoPantalla, cuerpo, cta, broll, generadoEn, contextoMes? }`
 - `GeminiService.inferTipoGuion(numero)` maps item number → TOFU/MOFU/BOFU cycling
+- LLM health check: `GET /api/video-planning/llm-status` — uses `countTokens("health check")` as lightweight ping
 
 **Frontend panel (`ScriptGeneratorPanel.vue`):**
 - Embedded in `VideoPlanningItemModal.vue` with `v-if="item && workspaceId"` — **only visible in edit mode** (existing item), never in "Nuevo video" (create) mode. This is intentional: needs item `_id` to save result.
 - `VideoPlanningView.vue` loads brand profile on `onMounted` and passes `hasBrandProfile` + `brandProfile` as props to the modal.
 - If `hasBrandProfile` is false (no `descripcion`), panel shows a "configure brand profile" warning.
+- Generate button disabled when LLM unavailable (checked via `brandProfileService.getLLMStatus()` on mount).
 - Optional monthly context: `productoMes`, `ofertaEspecial`, `referenciasAdicionales`
 
 ### Meetings (PM Calendar)
@@ -144,6 +146,27 @@ PM recurring performance meetings with clients (workspaces), every 25 days by de
 **Frontend files:**
 - `src/services/meeting.service.ts` — `meetingService` singleton
 - `src/views/meetings/MeetingsView.vue` — calendar + agenda
+
+### Video Planning — Upload, Scheduling & Social Media
+
+#### Media Upload (VideoCompletedModal)
+When a video item reaches `edicion = EDITADO`, `VideoCompletedModal.vue` opens and allows:
+- **Drag & drop upload** → `planningService.uploadItemMedia(itemId, file)` → `POST /api/video-planning/items/:itemId/upload-media` → Cloudinary (`video-planning/items/:id/` folder) → returns `{ url, mediaType }`
+- **Date + time** inputs side by side. Time is in **Ecuador timezone (UTC-5, no DST)**. Helpers `utcIsoToEcuador()` / `ecuadorToUtcIso()` handle conversion. Stored as UTC in MongoDB.
+- **Cloudinary cleanup**: when items deleted (PUT replace) or files replaced (new upload), `cloudinary.uploader.destroy()` is called automatically.
+
+#### Social Media Scheduling
+When user selects a platform + saves in the modal, `publishToInstagram` / `publishToFacebook` flags are sent in the PATCH body. Backend (`videoPlanning.service.ts`) handles scheduling after the item save.
+
+- **Facebook (ACTIVE):** `metaService.scheduleFacebookPost()` → `POST /{pageId}/videos` or `/photos`. Requires `pageAccessToken` with `pages_manage_posts`.
+- **Instagram (DISABLED):** Pending Meta App Review for `instagram_content_publish`. Code is commented in `videoPlanning.service.ts`. Frontend shows "Próximamente" badge.
+- Validation: min 10 min / max 75 days from now — enforced on both frontend and backend.
+- Result stored on item: `fbPostId` / `fbScheduleStatus` / `fbScheduleError` (and ig* equivalents for future use).
+- Meta OAuth scopes (in `src/composables/useMetaAds.ts`): `pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish, ads_read, business_management`.
+- To re-enable Instagram: uncomment block in `videoPlanning.service.ts` after Meta App Review approved.
+
+#### Brand Profile (locked-by-default UX)
+`WorkspaceBrandProfileView.vue` — fields are **disabled by default**. "Editar" button (top-right) toggles edit mode. "Cancelar" + "Guardar" appear grouped. Cancel restores from snapshot. All 10 fields saved by PATCH including `publicoObjetivo`, `propuestaValor`, `tono`, `productosServicios`, `problemaResuelto`.
 
 ### Notifications
 

@@ -75,6 +75,12 @@ export interface VideoItem {
   fechaPublicacion?: string
   copyPublicacion?: string
   order: number
+  igContainerId?: string
+  igScheduleStatus?: 'SCHEDULED' | 'FAILED'
+  igScheduleError?: string
+  fbPostId?: string
+  fbScheduleStatus?: 'SCHEDULED' | 'FAILED'
+  fbScheduleError?: string
 }
 
 export interface VideoPlanning {
