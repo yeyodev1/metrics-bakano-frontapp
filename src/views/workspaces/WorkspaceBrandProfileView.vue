@@ -33,6 +33,25 @@ const dragOver = ref(false)
 const isEditing = ref(false)
 const originalProfile = ref<BrandProfile | null>(null)
 
+const PRESET_TONES = ['Profesional', 'Cercano', 'Divertido', 'Aspiracional', 'Educativo', 'Inspirador']
+
+const isCustomTone = computed(() =>
+  !!profile.value.tono && !PRESET_TONES.includes(profile.value.tono)
+)
+
+function selectTone(t: string) {
+  if (!isEditing.value) return
+  profile.value.tono = profile.value.tono === t ? '' : t
+}
+
+function activateCustomTone() {
+  if (!isEditing.value) return
+  // Clear preset selection so the user can type freely
+  if (PRESET_TONES.includes(profile.value.tono || '')) {
+    profile.value.tono = ''
+  }
+}
+
 const canEdit = computed(() =>
   userStore.role === 'superadmin' ||
   ['community_manager', 'content_manager'].includes(userStore.internalRole || '')
@@ -302,16 +321,56 @@ onMounted(load)
             </div>
 
             <div class="bp__field">
-              <label>Tono de comunicación</label>
+              <label>
+                Tono de comunicación
+                <span v-if="isCustomTone" class="bp__tone-custom-badge">
+                  <i class="fa-solid fa-pen-nib" /> Personalizado
+                </span>
+              </label>
               <div class="bp__tone-grid">
                 <button
-                  v-for="t in ['Profesional', 'Cercano', 'Divertido', 'Aspiracional', 'Educativo', 'Inspirador']"
+                  v-for="t in PRESET_TONES"
                   :key="t"
                   :class="['bp__tone-btn', { 'is-active': profile.tono === t }]"
-                  :disabled="!isEditing" type="button"
-                  @click="profile.tono = profile.tono === t ? '' : t"
+                  :disabled="!isEditing"
+                  type="button"
+                  @click="selectTone(t)"
                 >{{ t }}</button>
+                <button
+                  :class="['bp__tone-btn', 'bp__tone-btn--custom', { 'is-active': isCustomTone }]"
+                  :disabled="!isEditing"
+                  type="button"
+                  @click="activateCustomTone"
+                >
+                  <i class="fa-solid fa-plus" />
+                  Otro
+                </button>
               </div>
+              <transition name="bp-tone-input">
+                <div v-if="isCustomTone || (isEditing && !profile.tono)" class="bp__tone-custom-wrap">
+                  <!-- Read mode: show the saved custom value -->
+                  <div v-if="!isEditing && isCustomTone" class="bp__tone-custom-display">
+                    <i class="fa-solid fa-pen-nib" />
+                    {{ profile.tono }}
+                  </div>
+
+                  <!-- Edit mode: editable input -->
+                  <template v-if="isEditing">
+                    <input
+                      v-model="profile.tono"
+                      type="text"
+                      class="bp__tone-custom-input"
+                      maxlength="80"
+                      placeholder="Describe el tono exacto: ej. 'Directo y empático, como un amigo experto'"
+                      @focus="activateCustomTone"
+                    />
+                    <p class="bp__tone-custom-hint">
+                      <i class="fa-solid fa-circle-info" />
+                      Cuanto más específico seas, mejores guiones generará la IA. Ej: <em>"Serio pero accesible, con humor técnico y jerga del sector"</em>
+                    </p>
+                  </template>
+                </div>
+              </transition>
             </div>
           </div>
 
@@ -821,11 +880,98 @@ onMounted(load)
     background: $white;
     cursor: pointer;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
 
     &:hover:not(:disabled) { border-color: $primary; color: $primary; }
     &.is-active { background: $primary; border-color: $primary; color: #fff; }
     &:disabled { cursor: not-allowed; opacity: 0.55; }
+
+    &--custom {
+      border-style: dashed;
+      &:hover:not(:disabled) { border-color: #a855f7; color: #a855f7; }
+      &.is-active { background: #a855f7; border-color: #a855f7; color: #fff; border-style: solid; }
+    }
   }
+
+  &__tone-custom-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 10px;
+    background: rgba(#a855f7, 0.1);
+    color: #a855f7;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    i { font-size: 0.65rem; }
+  }
+
+  &__tone-custom-wrap {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  &__tone-custom-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 10px;
+    border: 1.5px solid rgba(#a855f7, 0.3);
+    background: rgba(#a855f7, 0.06);
+    color: #7c3aed;
+    font-size: 0.88rem;
+    font-weight: 600;
+
+    i { font-size: 0.75rem; opacity: 0.7; }
+  }
+
+  &__tone-custom-input {
+    width: 100%;
+    padding: 0.55rem 0.85rem;
+    border: 1.5px solid #a855f7;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    color: $primary-dark;
+    font-family: inherit;
+    background: rgba(#a855f7, 0.03);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: #a855f7;
+      box-shadow: 0 0 0 3px rgba(#a855f7, 0.12);
+    }
+
+    &::placeholder { color: rgba($text-secondary, 0.6); font-style: italic; }
+  }
+
+  &__tone-custom-hint {
+    font-size: 0.73rem;
+    color: $text-secondary;
+    margin: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    line-height: 1.5;
+
+    i { color: #a855f7; font-size: 0.72rem; flex-shrink: 0; margin-top: 0.15rem; }
+    em { color: $primary-dark; font-style: italic; font-weight: 500; }
+  }
+
+  // ── Transition for custom tone input ─────────────────────────
+  .bp-tone-input-enter-active,
+  .bp-tone-input-leave-active { transition: all 0.25s ease; }
+  .bp-tone-input-enter-from,
+  .bp-tone-input-leave-to { opacity: 0; transform: translateY(-6px); }
 
   // ── Toggle group ──────────────────────────────────────────────
   &__toggle-group {
