@@ -119,6 +119,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/videoPlanning/ClientVideoPlanningView.vue'),
         meta: { title: 'Bakano Ads: Aprobación de Videos', requiresAuth: true },
       },
+      // ── Brand Profile ─────────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/brand-profile',
+        name: 'WorkspaceBrandProfile',
+        component: () => import('../views/workspaces/WorkspaceBrandProfileView.vue'),
+        meta: { title: 'Bakano Ads: Perfil de Marca', requiresAuth: true, requiresInternal: true },
+      },
       // ── Meetings calendar ─────────────────────────────────
       {
         path: 'meetings',

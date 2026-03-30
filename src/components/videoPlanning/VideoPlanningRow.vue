@@ -134,6 +134,18 @@ function onUpdate(field: string, value: string) {
     <!-- Aprobación cliente -->
     <td>
       <StatusBadge :status="item.clienteAprobacion" type="aprobacion" />
+      <span v-if="item.igScheduleStatus === 'SCHEDULED'" class="vp-row__ig-chip vp-row__ig-chip--ig" title="Programado en Instagram">
+        <i class="fa-brands fa-instagram" />
+      </span>
+      <span v-else-if="item.igScheduleStatus === 'FAILED'" class="vp-row__ig-chip vp-row__ig-chip--fail" :title="`IG: ${item.igScheduleError || 'error'}`">
+        <i class="fa-brands fa-instagram" />
+      </span>
+      <span v-if="item.fbScheduleStatus === 'SCHEDULED'" class="vp-row__ig-chip vp-row__ig-chip--fb" title="Programado en Facebook">
+        <i class="fa-brands fa-facebook" />
+      </span>
+      <span v-else-if="item.fbScheduleStatus === 'FAILED'" class="vp-row__ig-chip vp-row__ig-chip--fail" :title="`FB: ${item.fbScheduleError || 'error'}`">
+        <i class="fa-brands fa-facebook" />
+      </span>
     </td>
 
     <!-- Acciones -->
@@ -143,11 +155,11 @@ function onUpdate(field: string, value: string) {
       </button>
       <button
         v-if="canManageFull"
-        class="vp-row__action-btn vp-row__action-btn--edit"
-        title="Ver / Editar"
+        class="vp-row__action-btn vp-row__action-btn--edit-labeled"
         @click="emit('edit-item', item)"
       >
-        <i class="fa-solid fa-pen" />
+        <i class="fa-solid fa-pen-to-square" />
+        <span>Editar</span>
       </button>
       <button
         v-if="canManageFull && !locked"
@@ -288,8 +300,43 @@ function onUpdate(field: string, value: string) {
     flex-shrink: 0;
 
     &--script:hover { background: rgba($primary, 0.1); color: $primary; }
-    &--edit:hover   { background: #fef9c3; color: #854d0e; }
     &--delete:hover { background: #fee2e2; color: #dc2626; }
+
+  &__ig-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 5px;
+    font-size: 0.65rem; margin-left: 0.3rem; cursor: default;
+
+    &--ig {
+      background: linear-gradient(135deg, #f58529, #dd2a7b, #8134af);
+      color: #fff;
+    }
+    &--fb {
+      background: #1877f2;
+      color: #fff;
+    }
+    &--fail {
+      background: rgba(#dc2626, 0.1); color: #dc2626;
+      border: 1px solid rgba(#dc2626, 0.25);
+    }
+  }
+
+    &--edit-labeled {
+      width: auto;
+      padding: 0 0.75rem;
+      gap: 0.35rem;
+      background: rgba($primary, 0.07);
+      color: $primary;
+      font-size: 0.75rem;
+      font-weight: 700;
+
+      span { line-height: 1; }
+
+      &:hover {
+        background: $primary;
+        color: #fff;
+      }
+    }
   }
 }
 </style>
