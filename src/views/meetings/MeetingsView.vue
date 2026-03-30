@@ -3,10 +3,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { meetingService } from '@/services/meeting.service'
 import { workspaceService } from '@/services/workspace.service'
 import type { ClientMeeting, Workspace, WorkspaceUser, CreateMeetingPayload } from '@/types'
-import { useUserStore } from '@/stores/user'
-
-const userStore = useUserStore()
-
 // ── State ─────────────────────────────────────────────────────
 const view = ref<'calendar' | 'agenda'>('agenda')
 const meetings = ref<ClientMeeting[]>([])
@@ -139,11 +135,14 @@ const meetingByWorkspace = computed(() => {
 
 // ── Days until date ───────────────────────────────────────────
 function daysUntil(dateStr: string): number {
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  const d = new Date(dateStr)
-  d.setHours(0, 0, 0, 0)
-  return Math.round((d.getTime() - now.getTime()) / 86400000)
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' })
+  const ecuadorTodayStr = formatter.format(new Date())
+  const nowEc = new Date(`${ecuadorTodayStr}T00:00:00.000Z`)
+  
+  const mDateStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+  const mDate = new Date(`${mDateStr}T00:00:00.000Z`)
+  
+  return Math.round((mDate.getTime() - nowEc.getTime()) / 86400000)
 }
 
 function daysLabel(dateStr: string): string {
@@ -159,10 +158,13 @@ function isOverdue(dateStr: string): boolean {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('es-EC', {
+  const isoDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+  const d = new Date(`${isoDate}T12:00:00.000Z`)
+  return d.toLocaleDateString('es-EC', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+    timeZone: 'UTC'
   })
 }
 
@@ -205,9 +207,19 @@ function daysIcon(dateStr: string): string {
 
 // ── Modal quick-pick chips ─────────────────────────────────────
 function pickDate(offsetDays: number) {
-  const d = new Date()
-  d.setDate(d.getDate() + offsetDays)
-  modalDate.value = d.toISOString().split('T')[0]
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' })
+  const ecuadorTodayStr = formatter.format(new Date())
+  const d = new Date(`${ecuadorTodayStr}T00:00:00.000Z`)
+  d.setUTCDate(d.getUTCDate() + offsetDays)
+  modalDate.value = d.toISOString().split('T')[0] || ''
+}
+
+function isChipSelected(offsetDays: number): boolean {
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' })
+  const ecuadorTodayStr = formatter.format(new Date())
+  const d = new Date(`${ecuadorTodayStr}T00:00:00.000Z`)
+  d.setUTCDate(d.getUTCDate() + offsetDays)
+  return modalDate.value === d.toISOString().split('T')[0]
 }
 
 type QuickChip = { label: string; offset: number; icon: string; urgency: Urgency }
@@ -254,22 +266,17 @@ function nextMonth() {
 
 function meetingsOnDay(day: Date): ClientMeeting[] {
   return meetings.value.filter(m => {
-    const mDay = new Date(m.nextMeetingDate)
-    return (
-      mDay.getFullYear() === day.getFullYear() &&
-      mDay.getMonth() === day.getMonth() &&
-      mDay.getDate() === day.getDate()
-    )
+    const meetStr = m.nextMeetingDate.includes('T') ? m.nextMeetingDate.split('T')[0] : m.nextMeetingDate
+    const localDayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+    return meetStr === localDayStr
   })
 }
 
 function isToday(day: Date): boolean {
-  const today = new Date()
-  return (
-    day.getDate() === today.getDate() &&
-    day.getMonth() === today.getMonth() &&
-    day.getFullYear() === today.getFullYear()
-  )
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' })
+  const ecuadorTodayStr = formatter.format(new Date())
+  const localDayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+  return ecuadorTodayStr === localDayStr
 }
 
 // ── Complete meeting ──────────────────────────────────────────
@@ -320,7 +327,7 @@ async function openModal(existing?: ClientMeeting, workspaceId?: string) {
   if (existing) {
     editingMeeting.value = existing
     modalWorkspaceId.value = existing.workspaceId
-    modalDate.value = existing.nextMeetingDate.split('T')[0]
+    modalDate.value = existing.nextMeetingDate.split('T')[0] || ''
     modalAgenda.value = existing.agenda || ''
     modalLink.value = existing.meetingLink || ''
     modalNotes.value = existing.notes || ''
@@ -409,8 +416,6 @@ const unscheduledWorkspaces = computed(() => {
   if (editingMeeting.value) return myWorkspaces.value // editing: show all
   return myWorkspaces.value.filter(w => !meetingByWorkspace.value.has(w._id))
 })
-
-const isInternal = computed(() => userStore.isInternal)
 </script>
 
 <template>
@@ -783,7 +788,7 @@ const isInternal = computed(() => userStore.isInternal)
                   :key="chip.offset"
                   type="button"
                   class="meeting-modal__chip"
-                  :class="[`meeting-modal__chip--${chip.urgency}`, { 'meeting-modal__chip--selected': modalDate === new Date(new Date().setDate(new Date().getDate() + chip.offset)).toISOString().split('T')[0] }]"
+                  :class="[`meeting-modal__chip--${chip.urgency}`, { 'meeting-modal__chip--selected': isChipSelected(chip.offset) }]"
                   @click="pickDate(chip.offset)"
                 >
                   <i :class="chip.icon" />
