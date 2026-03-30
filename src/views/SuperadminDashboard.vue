@@ -835,6 +835,8 @@ onMounted(fetchWorkspaces)
                     account_manager: 'Account Manager',
                     community_manager: 'Community Manager',
                     productor: 'Productor',
+                    asistente_produccion: 'Asistente de Producción',
+                    editor: 'Editor',
                     disenador: 'Diseñador',
                     copywriter: 'Copywriter',
                     analista: 'Analista',
