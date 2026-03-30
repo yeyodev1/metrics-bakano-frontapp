@@ -119,6 +119,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/videoPlanning/ClientVideoPlanningView.vue'),
         meta: { title: 'Bakano Ads: Aprobación de Videos', requiresAuth: true },
       },
+      // ── Billing & ROAS ───────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/billing',
+        name: 'BillingRoas',
+        component: () => import('../views/billing/BillingRoasView.vue'),
+        meta: { title: 'Bakano Ads: Facturación & ROAS', requiresAuth: true },
+      },
       // ── Brand Profile ─────────────────────────────────────
       {
         path: 'workspaces/:workspaceId/brand-profile',
@@ -209,10 +216,11 @@ router.beforeEach((to, _from, next) => {
     }
   }
 
-  // Internal-only guard
+  // Internal-only guard (superadmin also allowed)
   if (to.meta?.requiresInternal) {
     const isInternal = localStorage.getItem('user_isInternal') === 'true'
-    if (!isInternal) {
+    const role = localStorage.getItem('user_role')
+    if (!isInternal && role !== 'superadmin') {
       return next({ name: 'AuthLogin', replace: true })
     }
   }
