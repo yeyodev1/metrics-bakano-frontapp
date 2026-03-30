@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import type { VideoItem, CreateVideoItemPayload } from '@/types/videoPlanning'
-import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion, ClienteAprobacion } from '@/types/videoPlanning'
+import type { BrandProfile } from '@/types'
+import type { BrandProfile as BrandProfileType } from '@/types'
+import type { VideoItem, CreateVideoItemPayload, GuionIA } from '@/types/videoPlanning'
+import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion, ClienteAprobacion, TipoReel } from '@/types/videoPlanning'
+import ScriptGeneratorPanel from './ScriptGeneratorPanel.vue'
 
 const userStore = useUserStore()
 const isReadOnly = computed(() => !userStore.isInternal)
@@ -12,11 +15,15 @@ const props = defineProps<{
   item: VideoItem | null
   isSaving: boolean
   locked?: boolean
+  workspaceId?: string
+  hasBrandProfile?: boolean
+  brandProfile?: BrandProfile | null
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'save', payload: CreateVideoItemPayload): void
+  (e: 'brand-profile-updated', profile: BrandProfileType): void
 }>()
 
 const form = ref<CreateVideoItemPayload>({
@@ -236,8 +243,11 @@ watch(() => props.show, (isShown) => {
 
               <div class="vp-item-modal__row">
                 <div class="vp-item-modal__field">
-                  <label>Tipo</label>
-                  <input v-model="form.tipo" type="text" placeholder="Ej: Reel educativo" />
+                  <label>Tipo de Reel</label>
+                  <select v-model="form.tipo">
+                    <option value="">— Sin tipo —</option>
+                    <option v-for="t in TipoReel" :key="t" :value="t">{{ t }}</option>
+                  </select>
                 </div>
                 <div class="vp-item-modal__field">
                   <label>Lugar de grabación</label>
@@ -261,9 +271,25 @@ watch(() => props.show, (isShown) => {
                 </div>
               </div>
 
+              <!-- AI Script Generator — context + generate + result in one section -->
+              <ScriptGeneratorPanel
+                v-if="workspaceId"
+                :item="item"
+                :workspace-id="workspaceId"
+                :tema="form.tema"
+                :tipo="form.tipo"
+                :has-brand-profile="hasBrandProfile ?? false"
+                :brand-profile="brandProfile ?? null"
+                @script-generated="(g: GuionIA) => { form.guion = g.gancho + '\n\n' + g.cuerpo + '\n\n' + g.cta }"
+                @brand-profile-updated="(p: BrandProfileType) => emit('brand-profile-updated', p)"
+              />
+
               <div class="vp-item-modal__field">
-                <label>Guión</label>
-                <textarea v-model="form.guion" placeholder="Escribe el guión aquí..." rows="5" />
+                <label>
+                  Guión
+                  <span v-if="form.guion" class="vp-item-modal__field-hint">auto-completado por IA — editable</span>
+                </label>
+                <textarea v-model="form.guion" placeholder="Se completará automáticamente al generar con IA, o escribe aquí manualmente..." rows="5" />
               </div>
 
               <div class="vp-item-modal__field">
@@ -384,8 +410,9 @@ watch(() => props.show, (isShown) => {
 
   &__field {
     display: flex; flex-direction: column; gap: 0.5rem;
-    label { font-size: 0.72rem; font-weight: 800; color: $primary-dark; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+    label { font-size: 0.72rem; font-weight: 800; color: $primary-dark; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; display: flex; align-items: center; gap: 0.5rem; }
     .req { color: #dc2626; }
+    &-hint { font-size: 0.68rem; font-weight: 500; color: #7c3aed; background: rgba(#7c3aed, 0.08); padding: 0.15rem 0.5rem; border-radius: 20px; text-transform: none; letter-spacing: 0; opacity: 1; }
 
     input, textarea, select {
       padding: 0.75rem 1rem; border-radius: 12px; border: 1.5px solid rgba($primary-dark, 0.1);

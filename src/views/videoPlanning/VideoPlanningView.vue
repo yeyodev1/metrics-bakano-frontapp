@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { videoPlanningService } from '@/services/videoPlanning.service'
+import { brandProfileService } from '@/services/brandProfile.service'
+import type { BrandProfile } from '@/types'
 import type { VideoPlanning, VideoItem, CreateVideoItemPayload } from '@/types/videoPlanning'
 import VideoPlanningStats from '@/components/videoPlanning/VideoPlanningStats.vue'
 import VideoPlanningTable from '@/components/videoPlanning/VideoPlanningTable.vue'
@@ -22,6 +24,8 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
 const backendMissing = ref(false)
+const hasBrandProfile = ref(false)
+const brandProfile = ref<BrandProfile | null>(null)
 
 const showItemModal = ref(false)
 const editingItem = ref<VideoItem | null>(null)
@@ -258,7 +262,7 @@ function copyClientLink() {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
   // Redirect workspace clients to the client approval view
   if (!userStore.isInternal && userStore.role !== 'superadmin') {
     router.replace({
@@ -269,6 +273,16 @@ onMounted(() => {
     return
   }
   loadPlanning()
+  // Load brand profile status for script generator
+  const bp = await brandProfileService.getProfile(workspaceId)
+  brandProfile.value = bp
+  hasBrandProfile.value = !!(
+    bp?.descripcion?.trim() ||
+    bp?.publicoObjetivo?.trim() ||
+    bp?.propuestaValor?.trim() ||
+    bp?.productosServicios?.trim() ||
+    bp?.tipoNegocio
+  )
 })
 </script>
 
@@ -432,8 +446,15 @@ onMounted(() => {
       :item="editingItem"
       :isSaving="saving"
       :locked="locked"
+      :workspace-id="workspaceId"
+      :has-brand-profile="hasBrandProfile"
+      :brand-profile="brandProfile"
       @close="showItemModal = false"
       @save="handleSaveItem"
+      @brand-profile-updated="(bp) => {
+        brandProfile = bp
+        hasBrandProfile = !!(bp?.descripcion?.trim() || bp?.publicoObjetivo?.trim() || bp?.propuestaValor?.trim() || bp?.productosServicios?.trim() || bp?.tipoNegocio)
+      }"
     />
 
     <VideoScriptModal

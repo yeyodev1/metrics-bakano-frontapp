@@ -283,6 +283,9 @@ router.afterEach(() => {
           <span>Vista Global (Superadmin)</span>
         </RouterLink>
 
+        <!-- Global tools label -->
+        <div v-if="userStore.isInternal || userStore.role === 'superadmin'" class="app-layout__nav-section-label">Herramientas globales</div>
+
         <!-- Global planner — internal team only -->
         <RouterLink
           v-if="userStore.isInternal"
@@ -355,8 +358,10 @@ router.afterEach(() => {
           <span>Mis Encuestas</span>
         </RouterLink>
 
-        <!-- Divider between global tools and workspace-specific nav -->
-        <div v-if="(userStore.isInternal || userStore.role === 'superadmin') && activeWorkspace" class="app-layout__nav-divider" />
+        <!-- Divider with "Este cliente" label -->
+        <div v-if="(userStore.isInternal || userStore.role === 'superadmin') && activeWorkspace" class="app-layout__nav-divider">
+          <span class="app-layout__nav-divider-label">Este cliente</span>
+        </div>
 
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppDashboard', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-chart-line" aria-hidden="true" />
@@ -371,6 +376,17 @@ router.afterEach(() => {
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: activeWorkspace._id } }">
           <i class="fa-solid fa-calendar-days" aria-hidden="true" />
           <span>Planificación</span>
+        </RouterLink>
+
+        <!-- Perfil de Marca — IA para community/content -->
+        <RouterLink
+          v-if="activeWorkspace && (userStore.role === 'superadmin' || ['community_manager', 'content_manager', 'copywriter'].includes(userStore.internalRole || ''))"
+          class="app-layout__nav-item app-layout__nav-item--brand-profile"
+          :to="{ name: 'WorkspaceBrandProfile', params: { workspaceId: activeWorkspace._id } }"
+        >
+          <i class="fa-solid fa-palette" aria-hidden="true" />
+          <span>Perfil de Marca</span>
+          <span class="app-layout__nav-ai-tag">IA</span>
         </RouterLink>
 
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: activeWorkspace._id } }">

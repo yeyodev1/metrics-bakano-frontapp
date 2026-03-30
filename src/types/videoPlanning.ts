@@ -29,6 +29,29 @@ export enum ClienteAprobacion {
   RECHAZADO = 'RECHAZADO',
 }
 
+export type TipoGuion = 'TOFU' | 'MOFU' | 'BOFU'
+
+export enum TipoReel {
+  EDUCATIVO = 'Educativo',
+  VENTA = 'Venta',
+  CREACION_VALOR = 'Creación de valor',
+}
+
+export interface GuionIA {
+  conceptoVisual: string
+  gancho: string
+  textoPantalla: string
+  cuerpo: string
+  cta: string
+  broll: string
+  generadoEn?: string
+  contextoMes?: {
+    productoMes?: string
+    ofertaEspecial?: string
+    referenciasAdicionales?: string
+  }
+}
+
 export interface VideoItem {
   _id: string
   numero: number
@@ -39,6 +62,8 @@ export interface VideoItem {
   recursos?: string
   lugarGrabacion?: string
   guion?: string
+  tipoGuion?: TipoGuion
+  guionIA?: GuionIA
   estadoIdea: EstadoIdea
   estadoProduccion: EstadoProduccion
   edicion: EstadoEdicion

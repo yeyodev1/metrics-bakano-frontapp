@@ -107,6 +107,30 @@ Admin uploads a photo (e.g. employee) via Cloudinary. Respondent sees the image 
 - `src/components/surveys/builder/SurveyInfoForm.vue` — optional cover image upload
 - `src/composables/surveys/useSurveyBuilder.ts` — `coverImage` state wired through save/load
 
+### Brand Profile & AI Script Generator
+
+Each workspace has an optional Brand Profile used to generate AI video scripts with Gemini.
+
+**Brand Profile:**
+- `GET/PATCH /api/workspaces/:id/brand-profile` — get/upsert
+- `POST /api/workspaces/:id/brand-profile/files` — upload file to Gemini Files API (for multimodal context)
+- `DELETE /api/workspaces/:id/brand-profile/files/:publicId`
+- Frontend service: `brandProfileService` in `src/services/brandProfile.service.ts`
+- Type: `BrandProfile` in `src/types/index.ts` (fields include `descripcion`, `tipoNegocio`, `vertical`, `trafficDirection`, `archivos[]`)
+
+**AI Script Generator:**
+- Endpoint: `POST /api/video-planning/:videoItemId/generate-script`
+- Backend: `src/controllers/scriptGeneration.controller.ts` → `GeminiService` (`src/services/gemini.service.ts`)
+- Uses `gemini-1.5-flash`. Required env var: `GEMINI_API_KEY` in **backend** `.env` only (not frontend).
+- Returns `GuionIA`: `{ conceptoVisual, gancho, textoPantalla, cuerpo, cta, broll, generadoEn, contextoMes? }`
+- `GeminiService.inferTipoGuion(numero)` maps item number → TOFU/MOFU/BOFU cycling
+
+**Frontend panel (`ScriptGeneratorPanel.vue`):**
+- Embedded in `VideoPlanningItemModal.vue` with `v-if="item && workspaceId"` — **only visible in edit mode** (existing item), never in "Nuevo video" (create) mode. This is intentional: needs item `_id` to save result.
+- `VideoPlanningView.vue` loads brand profile on `onMounted` and passes `hasBrandProfile` + `brandProfile` as props to the modal.
+- If `hasBrandProfile` is false (no `descripcion`), panel shows a "configure brand profile" warning.
+- Optional monthly context: `productoMes`, `ofertaEspecial`, `referenciasAdicionales`
+
 ### Meetings (PM Calendar)
 
 PM recurring performance meetings with clients (workspaces), every 25 days by default.

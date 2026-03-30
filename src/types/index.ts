@@ -45,6 +45,29 @@ export interface LoginResponse {
 }
 
 // ── Workspace types ───────────────────────────────────────
+export interface BrandProfileFile {
+  _id?: string
+  nombre: string
+  url: string
+  publicId: string
+  tipo: string
+}
+
+export interface BrandProfile {
+  descripcion?: string
+  tipoNegocio?: 'SERVICIOS' | 'PRODUCTOS'
+  vertical?: string
+  publicoObjetivo?: string
+  propuestaValor?: string
+  tono?: string
+  productosServicios?: string
+  problemaResuelto?: string
+  trafficDirection?: 'WHATSAPP' | 'GHL'
+  trafficLink?: string
+  archivos?: BrandProfileFile[]
+  updatedAt?: string
+}
+
 export interface Workspace {
   _id: string
   name: string
@@ -65,6 +88,7 @@ export interface Workspace {
     adAccountName?: string
     lastSyncedAt: string
   }
+  brandProfile?: BrandProfile
   userRole?: 'admin' | 'colaborador'
   createdAt: string
   updatedAt: string
