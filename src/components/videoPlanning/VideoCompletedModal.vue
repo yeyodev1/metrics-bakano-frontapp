@@ -353,7 +353,7 @@ function handleSave() {
           </div>
 
           <!-- Platform selector -->
-          <div v-if="localFecha" class="vcm__form-group">
+          <div class="vcm__form-group">
             <label class="vcm__form-label">
               <i class="fa-solid fa-share-nodes" /> Programar también en redes
             </label>
