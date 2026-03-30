@@ -378,6 +378,16 @@ router.afterEach(() => {
           <span>Planificación</span>
         </RouterLink>
 
+        <!-- Facturación & ROAS — superadmin, admin y colaborador externo -->
+        <RouterLink
+          v-if="activeWorkspace && (userStore.role === 'superadmin' || !userStore.isInternal)"
+          class="app-layout__nav-item app-layout__nav-item--billing"
+          :to="{ name: 'BillingRoas', params: { workspaceId: activeWorkspace._id } }"
+        >
+          <i class="fa-solid fa-chart-column" aria-hidden="true" />
+          <span>Facturación & ROAS</span>
+        </RouterLink>
+
         <!-- Perfil de Marca — IA para community/content -->
         <RouterLink
           v-if="activeWorkspace && (userStore.role === 'superadmin' || ['community_manager', 'content_manager', 'copywriter'].includes(userStore.internalRole || ''))"
