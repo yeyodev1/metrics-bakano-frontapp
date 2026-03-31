@@ -104,6 +104,7 @@ export interface CreateVideoItemPayload {
   tema: string
   descripcion?: string
   tipo?: string
+  tipoGuion?: TipoGuion
   linkEjemplo?: string
   recursos?: string
   lugarGrabacion?: string
@@ -122,6 +123,7 @@ export interface UpdateVideoItemPayload {
   tema?: string
   descripcion?: string
   tipo?: string
+  tipoGuion?: TipoGuion
   linkEjemplo?: string
   recursos?: string
   lugarGrabacion?: string

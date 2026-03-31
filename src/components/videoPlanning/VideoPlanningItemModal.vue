@@ -3,9 +3,10 @@ import { ref, watch, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { BrandProfile } from '@/types'
 import type { BrandProfile as BrandProfileType } from '@/types'
-import type { VideoItem, CreateVideoItemPayload, GuionIA } from '@/types/videoPlanning'
+import type { VideoItem, CreateVideoItemPayload, GuionIA, TipoGuion } from '@/types/videoPlanning'
 import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion, ClienteAprobacion, TipoReel } from '@/types/videoPlanning'
 import ScriptGeneratorPanel from './ScriptGeneratorPanel.vue'
+import ScriptDistributionWidget from './ScriptDistributionWidget.vue'
 
 const userStore = useUserStore()
 const isReadOnly = computed(() => !userStore.isInternal)
@@ -18,6 +19,7 @@ const props = defineProps<{
   workspaceId?: string
   hasBrandProfile?: boolean
   brandProfile?: BrandProfile | null
+  allItems?: VideoItem[]
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +32,7 @@ const form = ref<CreateVideoItemPayload>({
   tema: '',
   descripcion: '',
   tipo: '',
+  tipoGuion: undefined,
   linkEjemplo: '',
   recursos: '',
   lugarGrabacion: '',
@@ -95,6 +98,7 @@ watch(() => props.show, (isShown) => {
       tema: props.item.tema,
       descripcion: props.item.descripcion || '',
       tipo: props.item.tipo || '',
+      tipoGuion: props.item.tipoGuion,
       linkEjemplo: props.item.linkEjemplo || '',
       recursos: props.item.recursos || '',
       lugarGrabacion: props.item.lugarGrabacion || '',
@@ -111,7 +115,7 @@ watch(() => props.show, (isShown) => {
     }
   } else {
     form.value = {
-      tema: '', descripcion: '', tipo: '', linkEjemplo: '',
+      tema: '', descripcion: '', tipo: '', tipoGuion: undefined, linkEjemplo: '',
       recursos: '', lugarGrabacion: '', guion: '', comentario: '',
       linkVideo: '',
       fechaPublicacion: '',
@@ -122,6 +126,25 @@ watch(() => props.show, (isShown) => {
     }
   }
 }, { immediate: true })
+
+// ── Bidirectional sync: Tipo de Reel ↔ tipoGuion ────────────────────
+const TIPO_REEL_TO_GUION: Record<string, TipoGuion> = {
+  'Educativo': 'TOFU',
+  'Creación de valor': 'MOFU',
+  'Venta': 'BOFU',
+}
+const GUION_TO_TIPO_REEL: Record<TipoGuion, string> = {
+  TOFU: 'Educativo',
+  MOFU: 'Creación de valor',
+  BOFU: 'Venta',
+}
+
+// Dropdown → selector
+watch(() => form.value.tipo, (tipo) => {
+  if (tipo && TIPO_REEL_TO_GUION[tipo]) {
+    form.value.tipoGuion = TIPO_REEL_TO_GUION[tipo]
+  }
+})
 </script>
 
 <template>
@@ -278,10 +301,13 @@ watch(() => props.show, (isShown) => {
                 :workspace-id="workspaceId"
                 :tema="form.tema"
                 :tipo="form.tipo"
+                :tipo-guion="form.tipoGuion"
                 :has-brand-profile="hasBrandProfile ?? false"
                 :brand-profile="brandProfile ?? null"
+                :all-items="allItems"
                 @script-generated="(g: GuionIA) => { form.guion = g.gancho + '\n\n' + g.cuerpo + '\n\n' + g.cta }"
                 @brand-profile-updated="(p: BrandProfileType) => emit('brand-profile-updated', p)"
+                @update:tipoGuion="(t: TipoGuion) => { form.tipoGuion = t; form.tipo = GUION_TO_TIPO_REEL[t] }"
               />
 
               <div class="vp-item-modal__field">
