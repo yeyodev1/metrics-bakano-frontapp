@@ -1,6 +1,6 @@
 import APIBase from './httpBase'
 import type { BrandProfile, BrandProfileFile } from '@/types'
-import type { GuionIA } from '@/types/videoPlanning'
+import type { GuionIA, TipoGuion } from '@/types/videoPlanning'
 
 interface BrandProfileResponse {
   message: string
@@ -53,10 +53,13 @@ class BrandProfileService extends APIBase {
   async generateScript(
     videoItemId: string,
     contextoMes?: { productoMes?: string; ofertaEspecial?: string; referenciasAdicionales?: string },
+    tipoGuion?: TipoGuion,
   ): Promise<ScriptGenerateResponse> {
     const res = await this.post<ScriptGenerateResponse>(
       `video-planning/${videoItemId}/generate-script`,
-      { contextoMes },
+      { contextoMes, tipoGuion },
+      undefined,
+      { timeout: 60000 },
     )
     return res.data
   }
@@ -71,10 +74,13 @@ class BrandProfileService extends APIBase {
     tema: string,
     tipo?: string,
     contextoMes?: { productoMes?: string; ofertaEspecial?: string; referenciasAdicionales?: string },
+    tipoGuion?: TipoGuion,
   ): Promise<ScriptGenerateResponse> {
     const res = await this.post<ScriptGenerateResponse>(
       'video-planning/generate-script-quick',
-      { workspaceId, tema, tipo, contextoMes },
+      { workspaceId, tema, tipo, contextoMes, tipoGuion },
+      undefined,
+      { timeout: 60000 },
     )
     return res.data
   }

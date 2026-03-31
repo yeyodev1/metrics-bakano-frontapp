@@ -11,6 +11,7 @@ import VideoPlanningTable from '@/components/videoPlanning/VideoPlanningTable.vu
 import VideoPlanningItemModal from '@/components/videoPlanning/VideoPlanningItemModal.vue'
 import VideoScriptModal from '@/components/videoPlanning/VideoScriptModal.vue'
 import VideoCompletedModal from '@/components/videoPlanning/VideoCompletedModal.vue'
+import ScriptDistributionWidget from '@/components/videoPlanning/ScriptDistributionWidget.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -542,6 +543,7 @@ onMounted(async () => {
       <!-- Planning cargada -->
       <template v-else>
         <VideoPlanningStats :items="items" />
+        <ScriptDistributionWidget v-if="items.some(i => i.tipoGuion)" :items="items" />
 
         <div class="vp-view__table-section">
           <div class="vp-view__table-header">
@@ -585,6 +587,7 @@ onMounted(async () => {
       :workspace-id="workspaceId"
       :has-brand-profile="hasBrandProfile"
       :brand-profile="brandProfile"
+      :all-items="items"
       @close="showItemModal = false"
       @save="handleSaveItem"
       @brand-profile-updated="(bp) => {

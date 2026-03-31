@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { brandProfileService } from '@/services/brandProfile.service'
 import type { BrandProfile } from '@/types'
 import type { VideoItem, GuionIA, TipoGuion } from '@/types/videoPlanning'
+import ScriptDistributionWidget from './ScriptDistributionWidget.vue'
 
 const router = useRouter()
 
@@ -12,17 +13,44 @@ const props = defineProps<{
   workspaceId: string
   tema?: string
   tipo?: string
+  tipoGuion?: TipoGuion
   hasBrandProfile: boolean
   brandProfile?: BrandProfile | null
+  allItems?: VideoItem[]
 }>()
 
 const emit = defineEmits<{
   (e: 'script-generated', guionIA: GuionIA): void
   (e: 'brand-profile-updated', profile: BrandProfile): void
+  (e: 'update:tipoGuion', tipoGuion: TipoGuion): void
 }>()
 
 const generating = ref(false)
 const error = ref<string | null>(null)
+
+// ── TOFU/MOFU/BOFU selector ──────────────────────────────────
+function inferTipoGuion(numero: number): TipoGuion {
+  const mod = ((numero - 1) % 3) + 1
+  if (mod === 1) return 'TOFU'
+  if (mod === 2) return 'MOFU'
+  return 'BOFU'
+}
+
+const selectedTipoGuion = ref<TipoGuion>(
+  props.tipoGuion ?? props.item?.tipoGuion ?? (props.item?.numero ? inferTipoGuion(props.item.numero) : 'TOFU')
+)
+
+// Keep in sync with parent (dropdown changes or item changes)
+watch(() => props.tipoGuion, (t) => { if (t && t !== selectedTipoGuion.value) selectedTipoGuion.value = t })
+watch(() => props.item, (item) => {
+  const next = props.tipoGuion ?? item?.tipoGuion ?? (item?.numero ? inferTipoGuion(item.numero) : 'TOFU')
+  selectedTipoGuion.value = next
+})
+
+function selectTipoGuion(t: TipoGuion) {
+  selectedTipoGuion.value = t
+  emit('update:tipoGuion', t)
+}
 
 // ── LLM availability ──────────────────────────────────────────
 const llmStatus = ref<{ available: boolean; model: string; error?: string } | null>(null)
@@ -146,10 +174,7 @@ const TIPO_GUION_INFO: Record<TipoGuion, { label: string; color: string; icon: s
   },
 }
 
-const tipoInfo = computed(() => {
-  if (!props.item?.tipoGuion) return null
-  return TIPO_GUION_INFO[props.item.tipoGuion]
-})
+const tipoInfo = computed(() => TIPO_GUION_INFO[selectedTipoGuion.value])
 
 const hasExistingScript = computed(() => !!localGuionIA.value?.gancho)
 const canGenerate = computed(() => props.hasBrandProfile && !!llmStatus.value?.available && !llmChecking.value)
@@ -182,7 +207,7 @@ async function generate() {
     let res
     if (props.item?._id) {
       // Edit mode: save result to the existing item
-      res = await brandProfileService.generateScript(props.item._id, ctx)
+      res = await brandProfileService.generateScript(props.item._id, ctx, selectedTipoGuion.value)
     } else {
       // Create mode: quick generation, no item ID needed
       const temaTopic = props.tema || ''
@@ -191,7 +216,7 @@ async function generate() {
         generating.value = false
         return
       }
-      res = await brandProfileService.generateScriptQuick(props.workspaceId, temaTopic, props.tipo, ctx)
+      res = await brandProfileService.generateScriptQuick(props.workspaceId, temaTopic, props.tipo, ctx, selectedTipoGuion.value)
     }
     localGuionIA.value = res.guionIA
     emit('script-generated', res.guionIA)
@@ -217,11 +242,11 @@ function isFieldVisible(index: number) {
         <i class="fa-solid fa-wand-magic-sparkles sgp__toggle-icon" />
         <span class="sgp__toggle-title">Guión IA</span>
         <span
-          v-if="item?.tipoGuion && tipoInfo"
           class="sgp__tipo-badge"
           :style="{ background: tipoInfo.color + '18', color: tipoInfo.color, borderColor: tipoInfo.color + '30' }"
         >
           <i :class="tipoInfo.icon" /> {{ tipoInfo.label }}
+          <span class="sgp__tipo-tooltip">{{ tipoInfo.desc }}</span>
         </span>
       </div>
       <span v-if="hasExistingScript" class="sgp__has-script">
@@ -329,14 +354,37 @@ function isFieldVisible(index: number) {
           </button>
         </div>
 
-        <!-- ── TOFU/MOFU/BOFU banner ──────────────────────── -->
-        <div v-if="item?.tipoGuion && tipoInfo" class="sgp__tipo-banner" :style="{ borderColor: tipoInfo.color + '30', background: tipoInfo.color + '08' }">
-          <i :class="tipoInfo.icon" :style="{ color: tipoInfo.color }" />
-          <div>
-            <strong :style="{ color: tipoInfo.color }">{{ tipoInfo.label }} ({{ item.tipoGuion }})</strong>
-            <p>{{ tipoInfo.desc }}</p>
+        <!-- ── TOFU/MOFU/BOFU selector ────────────────────── -->
+        <div class="sgp__tipo-selector">
+          <p class="sgp__tipo-selector-label">
+            <i class="fa-solid fa-sliders" />
+            Tipo de guión
+          </p>
+          <div class="sgp__tipo-buttons">
+            <button
+              v-for="t in (['TOFU', 'MOFU', 'BOFU'] as const)"
+              :key="t"
+              type="button"
+              :class="['sgp__tipo-btn', { 'is-active': selectedTipoGuion === t }]"
+              :style="selectedTipoGuion === t
+                ? { background: TIPO_GUION_INFO[t].color + '14', borderColor: TIPO_GUION_INFO[t].color, color: TIPO_GUION_INFO[t].color }
+                : {}"
+              @click="selectTipoGuion(t)"
+            >
+              <i :class="TIPO_GUION_INFO[t].icon" />
+              <span class="sgp__tipo-btn-text">{{ TIPO_GUION_INFO[t].label }}</span>
+              <span class="sgp__tipo-btn-stage">{{ t }}</span>
+              <span class="sgp__tipo-btn-tooltip">{{ TIPO_GUION_INFO[t].desc }}</span>
+            </button>
           </div>
         </div>
+
+        <!-- ── Distribution widget (compact) ────────────── -->
+        <ScriptDistributionWidget
+          v-if="allItems && allItems.length > 0"
+          :items="allItems"
+          compact
+        />
 
         <!-- ── STEP 1: Context + Generate ────────────────── -->
         <div class="sgp__generate-area">
@@ -781,20 +829,118 @@ function isFieldVisible(index: number) {
     }
   }
 
-  // ── TOFU/MOFU/BOFU banner ────────────────────────────────────
-  &__tipo-banner {
+  // ── TOFU/MOFU/BOFU interactive selector ─────────────────────
+  &__tipo-selector {
     display: flex;
-    align-items: flex-start;
-    gap: 0.65rem;
-    border: 1px solid;
-    border-radius: 10px;
-    padding: 0.65rem 0.9rem;
-    font-size: 0.78rem;
-    line-height: 1.45;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
 
-    > i { font-size: 1rem; flex-shrink: 0; margin-top: 0.1rem; }
-    strong { font-weight: 700; font-size: 0.78rem; display: block; margin-bottom: 0.15rem; }
-    p { margin: 0; color: $text-secondary; }
+  &__tipo-selector-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+
+    i { font-size: 0.65rem; }
+  }
+
+  &__tipo-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem;
+
+    @media (max-width: 480px) { grid-template-columns: 1fr; }
+  }
+
+  &__tipo-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.6rem 0.5rem;
+    border-radius: 10px;
+    border: 1.5px solid rgba($primary-dark, 0.12);
+    background: rgba($primary-dark, 0.02);
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-size: 0.75rem;
+    font-family: inherit;
+    overflow: visible;
+
+    &:hover {
+      border-color: rgba($primary-dark, 0.25);
+      background: rgba($primary-dark, 0.04);
+      color: $primary-dark;
+    }
+
+    &.is-active {
+      font-weight: 700;
+    }
+
+    i { font-size: 0.9rem; }
+
+    // Show tooltip on hover
+    &:hover .sgp__tipo-btn-tooltip {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+  }
+
+  &__tipo-btn-text {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  &__tipo-btn-stage {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.65;
+  }
+
+  &__tipo-btn-tooltip {
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    min-width: 200px;
+    max-width: 240px;
+    background: $primary-dark;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 400;
+    line-height: 1.45;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+    white-space: normal;
+    text-align: center;
+    transition: all 0.18s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+
+    // Arrow
+    &::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: $primary-dark;
+    }
   }
 
   // ── Generated script fields ──────────────────────────────────

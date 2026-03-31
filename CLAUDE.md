@@ -233,5 +233,23 @@ Producers/assistants log individual client visits with attendees list. PM can se
 
 `src/services/gemini.service.ts` `SYSTEM_PROMPT` now includes:
 - 5 explicit specificity rules (use brand data, emotional hooks, real numbers, keyword CTAs)
-- 5 high-quality reference examples (Helen Bermeo tax scripts) showing the expected style depth
+- 12 high-quality reference examples (Helen Bermeo tax scripts + ROLKI bakery real scripts) covering TOFU/MOFU/BOFU for services and physical product niches
 - User prompt updated to explicitly instruct using brand profile data and avoiding generic language
+
+### AI Script Generator — TOFU/MOFU/BOFU Distribution Tracker
+
+Target distribution per planning: **10 TOFU · 5 MOFU · 5 BOFU = 20 videos**.
+
+**How it works:**
+- `tipoGuion` (TOFU/MOFU/BOFU) is selected by the user in `ScriptGeneratorPanel.vue` via an interactive 3-button selector with tooltips
+- It is passed as override to both `generateScript` and `generateScriptQuick` endpoints
+- `tipoGuion` is saved to the `VideoItem` when the form is saved (not during generation)
+- The distribution is tracked reactively from `planning.items` array (counts items with `tipoGuion` set and `_id` present)
+
+**New/modified files:**
+- `src/components/videoPlanning/ScriptDistributionWidget.vue` — reusable counter showing TOFU/MOFU/BOFU progress (full mode in view, compact mode in panel)
+- `src/components/videoPlanning/ScriptGeneratorPanel.vue` — replaced read-only banner with interactive selector; emits `update:tipoGuion`; accepts `allItems` prop
+- `src/components/videoPlanning/VideoPlanningItemModal.vue` — adds `tipoGuion` to form, wires emit from panel, passes `allItems`; includes `ScriptDistributionWidget` compact
+- `src/views/videoPlanning/VideoPlanningView.vue` — shows `ScriptDistributionWidget` full mode after stats; passes `allItems` to modal
+- Backend `tipoGuion` override: `scriptGeneration.controller.ts` accepts override in both endpoints; `videoPlanning.service.ts` adds `tipoGuion` to `MUTABLE_FIELDS`
+- Timeout fix: both `generateScript` and `generateScriptQuick` now use `timeout: 60000`
