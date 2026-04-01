@@ -478,7 +478,7 @@ onMounted(async () => {
             {{ copiedLink ? 'Enlace copiado' : 'Compartir con cliente' }}
           </button>
           <button
-            v-if="canManageFull && !locked && !backendMissing"
+            v-if="canManageFull && !backendMissing"
             class="vp-view__add-btn"
             @click="openAddModal"
           >
@@ -555,7 +555,7 @@ onMounted(async () => {
               <span class="vp-view__table-count">{{ items.length }} registros</span>
             </div>
             <button
-              v-if="canManageFull && !locked"
+              v-if="canManageFull"
               class="vp-view__table-add-btn"
               @click="openAddModal"
             >
