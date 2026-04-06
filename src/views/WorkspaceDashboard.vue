@@ -74,6 +74,46 @@ function getPurchaseROAS(ad: any) {
   return roas ? parseFloat(roas.value).toFixed(2) : '0.00'
 }
 
+function getAdConversations(ad: any): number {
+  const actions: any[] = ad.actions || []
+  const result = actions.find(a =>
+    a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+    a.action_type === 'onsite_conversion.total_messaging_connection'
+  )
+  return result ? parseInt(result.value || '0') : 0
+}
+
+function rowColorClass(ad: any): string {
+  const status = ad.effective_status || ''
+  if (status === 'PAUSED' || status === 'CAMPAIGN_PAUSED' || status === 'ADSET_PAUSED') return 'ad-row--paused'
+  if (status === 'DISAPPROVED' || status === 'DELETED') return 'ad-row--error'
+  const roas = parseFloat(getPurchaseROAS(ad))
+  if (roas >= 2) return 'ad-row--success'
+  if (roas >= 1) return 'ad-row--warning'
+  const convs = getAdConversations(ad)
+  if (convs > 0) return 'ad-row--active'
+  return 'ad-row--neutral'
+}
+
+function adStatusLabel(s: string) {
+  const map: Record<string, string> = {
+    ACTIVE: 'Activo',
+    PAUSED: 'Pausado',
+    CAMPAIGN_PAUSED: 'Campaña pausada',
+    ADSET_PAUSED: 'Conjunto pausado',
+    DELETED: 'Eliminado',
+    DISAPPROVED: 'Rechazado',
+  }
+  return map[s] || ''
+}
+
+function adStatusClass(s: string) {
+  if (s === 'ACTIVE') return 'status-pill--active'
+  if (s === 'PAUSED' || s === 'CAMPAIGN_PAUSED' || s === 'ADSET_PAUSED') return 'status-pill--paused'
+  if (s === 'DISAPPROVED' || s === 'DELETED') return 'status-pill--error'
+  return ''
+}
+
 function getCPA(ad: any) {
   if (!ad.cost_per_action_type) return '0.00'
   const cpa = ad.cost_per_action_type.find((c: any) => c.action_type === 'omni_purchase') || ad.cost_per_action_type[0]
@@ -464,25 +504,41 @@ onUnmounted(() => {
                 <thead>
                   <tr>
                     <th>Campaña & Anuncio</th>
-                    <th>Inversión</th>
+                    <th class="th--spend">Inversión</th>
+                    <th class="th--conv"><i class="fa-solid fa-comment-dots" /> Conv.</th>
                     <th>Compras</th>
                     <th>CPA</th>
-                    <th>ROAS</th>
+                    <th class="th--roas">ROAS</th>
                     <th>Clics / CPC</th>
                     <th>Impresiones</th>
                     <th>Ver</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="ad in adsInsights" :key="ad.ad_id" class="workspace-dashboard__ad-row">
+                  <tr
+                    v-for="ad in adsInsights"
+                    :key="ad.ad_id"
+                    class="workspace-dashboard__ad-row"
+                    :class="rowColorClass(ad)"
+                  >
                     <td>
                       <div class="workspace-dashboard__ad-identity">
                         <span class="workspace-dashboard__ad-campaign"><i class="fa-solid fa-folder-open" /> {{ ad.campaign_name || 'Desconocida' }}</span>
-                        <strong class="workspace-dashboard__ad-name">{{ ad.ad_name || 'Anuncio sin nombre' }}</strong>
+                        <div class="ad-name-row">
+                          <strong class="workspace-dashboard__ad-name">{{ ad.ad_name || 'Anuncio sin nombre' }}</strong>
+                          <span
+                            v-if="ad.effective_status"
+                            class="status-pill"
+                            :class="adStatusClass(ad.effective_status)"
+                          >
+                            <i :class="ad.effective_status === 'ACTIVE' ? 'fa-solid fa-circle-dot' : 'fa-solid fa-circle-pause'" />
+                            {{ adStatusLabel(ad.effective_status) }}
+                          </span>
+                        </div>
                         <span class="workspace-dashboard__ad-id">ID: {{ ad.ad_id }}</span>
                       </div>
                     </td>
-                    <td class="workspace-dashboard__ad-numeric">
+                    <td class="workspace-dashboard__ad-numeric td--spend">
                       <div class="workspace-dashboard__ad-spend">
                         <strong>${{ parseFloat(ad.spend || 0).toFixed(2) }}</strong>
                         <div v-if="getAdFbSpend(ad.ad_id) || getAdIgSpend(ad.ad_id)" class="workspace-dashboard__ad-spend-breakdown">
@@ -491,13 +547,19 @@ onUnmounted(() => {
                         </div>
                       </div>
                     </td>
+                    <td class="workspace-dashboard__ad-numeric td--conv">
+                      <div class="conv-cell" :class="{ 'conv-cell--zero': getAdConversations(ad) === 0 }">
+                        <span class="conv-cell__num">{{ getAdConversations(ad) }}</span>
+                        <span class="conv-cell__label">conv.</span>
+                      </div>
+                    </td>
                     <td class="workspace-dashboard__ad-numeric">
                       <span class="workspace-dashboard__badge--purchases">{{ getPurchases(ad) }}</span>
                     </td>
                     <td class="workspace-dashboard__ad-numeric">
                       <strong>${{ getCPA(ad) }}</strong>
                     </td>
-                    <td class="workspace-dashboard__ad-numeric">
+                    <td class="workspace-dashboard__ad-numeric td--roas">
                       <span class="workspace-dashboard__badge--roas" :class="{ 'warning': parseFloat(getPurchaseROAS(ad)) < 2, 'success': parseFloat(getPurchaseROAS(ad)) >= 2 }">
                         {{ getPurchaseROAS(ad) }}x
                       </span>
@@ -1095,6 +1157,11 @@ onUnmounted(() => {
     100% {
       transform: translateX(100%);
     }
+  }
+
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }
+    50% { box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2); }
   }
 
   @keyframes fadeIn {
@@ -1744,6 +1811,126 @@ onUnmounted(() => {
 
     strong {
       font-size: 1.05rem;
+    }
+  }
+
+  // ── Table header accents ──────────────────────────────
+  .th--spend { color: #7C3AED; }
+  .th--conv  { color: #3B82F6; }
+  .th--roas  { color: #059669; }
+
+  .td--spend strong { color: #7C3AED; }
+
+  .td--roas { text-align: center; }
+
+  // ── Conversations cell ────────────────────────────────
+  .td--conv { text-align: center; }
+
+  .conv-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+
+    &__num {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #3B82F6;
+      line-height: 1;
+    }
+
+    &__label {
+      font-size: 0.65rem;
+      color: #6b7280;
+      font-weight: 600;
+    }
+
+    &--zero {
+      .conv-cell__num { color: rgba($primary-dark, 0.2); }
+      .conv-cell__label { color: rgba($primary-dark, 0.2); }
+    }
+  }
+
+  // ── Ad name row ───────────────────────────────────────
+  .ad-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  // ── Status pill ───────────────────────────────────────
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.67rem;
+    font-weight: 700;
+    padding: 0.18rem 0.45rem;
+    border-radius: 100px;
+    border: 1px solid;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    i { font-size: 0.58rem; }
+
+    &--active {
+      color: #059669;
+      background: rgba(5, 150, 105, 0.1);
+      border-color: rgba(5, 150, 105, 0.3);
+      animation: pulse-green 2.5s ease-in-out infinite;
+    }
+
+    &--paused {
+      color: #D97706;
+      background: rgba(217, 119, 6, 0.1);
+      border-color: rgba(217, 119, 6, 0.3);
+    }
+
+    &--error {
+      color: #DC2626;
+      background: rgba(220, 38, 38, 0.08);
+      border-color: rgba(220, 38, 38, 0.25);
+    }
+  }
+
+  // ── Row color coding ──────────────────────────────────
+  &__ad-row {
+    &.ad-row--success {
+      border-left: 3px solid #059669;
+      background: linear-gradient(90deg, rgba(5, 150, 105, 0.04) 0%, transparent 40%);
+
+      td:first-child { padding-left: calc(1rem - 3px); }
+    }
+
+    &.ad-row--warning {
+      border-left: 3px solid #D97706;
+      background: linear-gradient(90deg, rgba(217, 119, 6, 0.04) 0%, transparent 40%);
+
+      td:first-child { padding-left: calc(1rem - 3px); }
+    }
+
+    &.ad-row--active {
+      border-left: 3px solid #3B82F6;
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.04) 0%, transparent 40%);
+
+      td:first-child { padding-left: calc(1rem - 3px); }
+    }
+
+    &.ad-row--paused {
+      border-left: 3px solid #D97706;
+      background: rgba(217, 119, 6, 0.02);
+      opacity: 0.75;
+    }
+
+    &.ad-row--error {
+      border-left: 3px solid #DC2626;
+      background: rgba(220, 38, 38, 0.02);
+      opacity: 0.6;
+    }
+
+    &.ad-row--neutral {
+      border-left: 3px solid rgba($primary-dark, 0.1);
     }
   }
 

@@ -134,10 +134,30 @@
 
         <!-- Who entered -->
         <div v-if="day.entries?.length" class="entry-list">
-          <div v-for="entry in day.entries" :key="entry._id" class="entry-chip">
-            <div class="entry-avatar">{{ entry.userName.charAt(0).toUpperCase() }}</div>
-            <span class="entry-user">{{ entry.userName }}</span>
-            <span class="entry-amount">${{ formatAmount(entry.amount) }}</span>
+          <div
+            v-for="entry in day.entries"
+            :key="entry._id"
+            class="entry-row"
+            :class="{ 'entry-row--mine': (entry.userId === userStore.id) || (entry.userEmail === userStore.email) }"
+          >
+            <div class="entry-row__left">
+              <div class="entry-avatar">{{ entry.userName.charAt(0).toUpperCase() }}</div>
+              <div class="entry-row__info">
+                <span class="entry-user">{{ entry.userName }}</span>
+                <span v-if="(entry.userId === userStore.id) || (entry.userEmail === userStore.email)" class="entry-mine-tag">Tu registro</span>
+              </div>
+            </div>
+            <div class="entry-row__right">
+              <span class="entry-amount">${{ formatAmount(entry.amount) }}</span>
+              <button
+                v-if="canEditEntry(entry, day.date)"
+                class="entry-edit-btn"
+                @click.stop="openEditModal(entry, dateStr(day.date), day.totalAmount)"
+              >
+                <i class="fa-solid fa-pen-to-square" />
+                Editar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -169,8 +189,20 @@
       :current-day-total="modalDayTotal"
       :date="modalDate"
       :loading="submitting"
+      :edit-mode="modalEditMode"
+      :entry-id="modalEntryId"
+      :existing-amount="modalExistingAmount"
+      :existing-notes="modalExistingNotes"
       @confirmed="handleEntry"
     />
+
+    <!-- Success toast -->
+    <Transition name="toast-fade">
+      <div v-if="successMsg" class="success-toast">
+        <i class="fa-solid fa-circle-check" />
+        {{ successMsg }}
+      </div>
+    </Transition>
 
     <!-- Error toast -->
     <Transition name="toast-fade">
@@ -215,6 +247,7 @@ const currentMonth = ref(now.getMonth() + 1)
 const loading = ref(false)
 const submitting = ref(false)
 const errorMsg = ref('')
+const successMsg = ref('')
 const monthData = ref<IMonthData | null>(null)
 const todayDaySummary = ref<IDaySummary | null>(null)
 const myEntryToday = ref<{ _id: string; amount: number } | null>(null)
@@ -222,6 +255,10 @@ const myEntryToday = ref<{ _id: string; amount: number } | null>(null)
 const showModal = ref(false)
 const modalDate = ref('')
 const modalDayTotal = ref(0)
+const modalEditMode = ref(false)
+const modalEntryId = ref<string | undefined>()
+const modalExistingAmount = ref<number | undefined>()
+const modalExistingNotes = ref<string | undefined>()
 
 const todayStr = computed(() => {
   const d = new Date()
@@ -345,9 +382,24 @@ function nextMonth() {
 function openModal(date: string, currentTotal: number) {
   modalDate.value = date
   modalDayTotal.value = currentTotal
+  modalEditMode.value = false
+  modalEntryId.value = undefined
+  modalExistingAmount.value = undefined
+  modalExistingNotes.value = undefined
   showModal.value = true
 }
 
+function openEditModal(entry: { _id: string; amount: number; notes?: string }, date: string, dayTotal: number) {
+  modalDate.value = date
+  modalDayTotal.value = dayTotal - entry.amount // total excluding this entry
+  modalEditMode.value = true
+  modalEntryId.value = entry._id
+  modalExistingAmount.value = entry.amount
+  modalExistingNotes.value = entry.notes
+  showModal.value = true
+}
+
+// Can register a NEW entry only on today (if not already entered)
 function canRegisterOnDay(date: string): boolean {
   if (!canEnterBilling.value) return false
   if (userStore.role === 'superadmin') return true
@@ -355,11 +407,33 @@ function canRegisterOnDay(date: string): boolean {
   return !todayHasMyEntry.value
 }
 
-async function handleEntry(payload: { amount: number; notes?: string }) {
+// Can edit OWN entry within 7 days
+function canEditEntry(entry: { userId?: string; userEmail?: string }, entryDate: string): boolean {
+  if (!canEnterBilling.value) return false
+  if (userStore.role === 'superadmin') return true
+  // Match by userId OR email as fallback (ObjectId string comparison can fail)
+  const isOwner =
+    (userStore.id && entry.userId && entry.userId === userStore.id) ||
+    (userStore.email && entry.userEmail && entry.userEmail === userStore.email)
+  if (!isOwner) return false
+  const entryTime = new Date(dateStr(entryDate) + 'T12:00:00').getTime()
+  const todayTime = new Date(todayStr.value + 'T12:00:00').getTime()
+  const diffDays = Math.round((todayTime - entryTime) / (1000 * 60 * 60 * 24))
+  return diffDays <= 7
+}
+
+async function handleEntry(payload: { amount: number; notes?: string; entryId?: string }) {
   submitting.value = true
   try {
-    await billingService.createEntry(workspaceId.value, payload)
+    if (payload.entryId) {
+      await billingService.updateEntry(workspaceId.value, payload.entryId, { amount: payload.amount, notes: payload.notes })
+      successMsg.value = '✓ Facturación actualizada correctamente'
+    } else {
+      await billingService.createEntry(workspaceId.value, { amount: payload.amount, notes: payload.notes })
+      successMsg.value = '✓ Facturación registrada correctamente'
+    }
     showModal.value = false
+    setTimeout(() => (successMsg.value = ''), 4000)
     await Promise.all([fetchMonth(), fetchTodayStatus()])
   } catch (e: any) {
     errorMsg.value = e?.message || 'Error al guardar la facturación'
@@ -781,28 +855,56 @@ onMounted(async () => {
 
 .entry-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
-.entry-chip {
+.entry-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: space-between;
+  gap: 10px;
   background: #f8fafc;
   border: 1.5px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 4px 12px 4px 4px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &--mine {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
 }
 
 .entry-avatar {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: #0f1117;
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -811,15 +913,51 @@ onMounted(async () => {
 }
 
 .entry-user {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry-mine-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #3b82f6;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .entry-amount {
+  font-size: 14px;
+  font-weight: 800;
+  color: #059669;
+  white-space: nowrap;
+}
+
+.entry-edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #1e40af;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 700;
-  color: #059669;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  i { font-size: 11px; }
+
+  &:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+  }
 }
 
 .day-action { margin-top: 4px; }
@@ -889,6 +1027,23 @@ onMounted(async () => {
 }
 
 // ── Toast ────────────────────────────────────────────────
+.success-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #059669;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(5, 150, 105, 0.35);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .error-toast {
   position: fixed;
   bottom: 24px;

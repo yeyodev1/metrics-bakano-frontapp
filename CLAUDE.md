@@ -253,3 +253,21 @@ Target distribution per planning: **10 TOFU · 5 MOFU · 5 BOFU = 20 videos**.
 - `src/views/videoPlanning/VideoPlanningView.vue` — shows `ScriptDistributionWidget` full mode after stats; passes `allItems` to modal
 - Backend `tipoGuion` override: `scriptGeneration.controller.ts` accepts override in both endpoints; `videoPlanning.service.ts` adds `tipoGuion` to `MUTABLE_FIELDS`
 - Timeout fix: both `generateScript` and `generateScriptQuick` now use `timeout: 60000`
+
+### Client Booking Modal (Agendar Reunión)
+
+Clients (non-internal, non-superadmin) see an "Agendar Reunión" button in the sidebar that opens a two-step booking modal.
+
+**Step 1 — Expert selection screen:**
+- Two card options with clear descriptions of topics to avoid wrong bookings
+- **Denisse** (Meta Ads expert): Facebook/Instagram ads, campaign strategy, creatives → GoHighLevel: `https://api.leadconnectorhq.com/widget/bookings/bakano-tech-supportf7tixz`
+- **Diego Reyes** (Tech director): Technology, CRM, metrics.bakano.ec, integrations → GoHighLevel: `https://api.leadconnectorhq.com/widget/booking/oOlLR0GxtmjAxyMaKesw`
+- Yellow warning alert urges clients to pick the right expert before booking
+
+**Step 2 — Calendar embed:**
+- Inline `<iframe>` of the GoHighLevel booking widget
+- Colored warning banner reiterating what topics belong to this expert
+
+**Files:**
+- `src/components/common/BookingModal.vue` — self-contained modal with selection + iframe embed
+- `src/layout/AppLayout.vue` — `isBookingModalOpen` ref, booking button (client-only, green accent), `<BookingModal>` mounted at root

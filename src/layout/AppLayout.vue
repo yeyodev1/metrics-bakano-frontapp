@@ -7,6 +7,7 @@ import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
 import logoDark from '@/assets/logos/bakano-light.png'
+import BookingModal from '@/components/common/BookingModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,6 +19,7 @@ const workspaces = ref<Workspace[]>([])
 const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
 const wsSearch = ref('')
+const isBookingModalOpen = ref(false)
 
 const INTERNAL_ROLE_LABELS: Record<string, string> = {
   director: 'Director',
@@ -371,6 +373,17 @@ router.afterEach(() => {
           <span>Mis Encuestas</span>
         </RouterLink>
 
+        <!-- Book a meeting — clients only -->
+        <button
+          v-if="!userStore.isInternal && userStore.role !== 'superadmin'"
+          class="app-layout__nav-item app-layout__nav-item--booking"
+          @click="isBookingModalOpen = true"
+        >
+          <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
+          <span>Agendar Reunión</span>
+          <span class="app-layout__nav-booking-tag">NUEVO</span>
+        </button>
+
         <!-- Divider with "Este cliente" label -->
         <div v-if="(userStore.isInternal || userStore.role === 'superadmin') && activeWorkspace" class="app-layout__nav-divider">
           <span class="app-layout__nav-divider-label">Este cliente</span>
@@ -437,6 +450,9 @@ router.afterEach(() => {
     <main class="app-layout__main">
       <RouterView :key="$route.fullPath" />
     </main>
+
+    <!-- Booking modal (client-only) -->
+    <BookingModal v-model="isBookingModalOpen" />
   </div>
 </template>
 
@@ -941,6 +957,38 @@ router.afterEach(() => {
     border-radius: 100px;
     border: 1px solid rgba($primary, 0.25);
     flex-shrink: 0;
+  }
+
+  &__nav-booking-tag {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.15);
+    padding: 0.15rem 0.45rem;
+    border-radius: 100px;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    flex-shrink: 0;
+  }
+
+  &__nav-item--booking {
+    width: 100%;
+    text-align: left;
+    border: none;
+    cursor: pointer;
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.2);
+    color: #34d399 !important;
+    margin-top: 0.25rem;
+
+    i { color: #34d399 !important; }
+
+    &:hover {
+      background: rgba(52, 211, 153, 0.15) !important;
+      color: #34d399 !important;
+      transform: none;
+    }
   }
 
   &__nav-icon-container {
