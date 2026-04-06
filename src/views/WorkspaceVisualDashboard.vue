@@ -37,19 +37,68 @@ const datePreset = ref('this_month')
 const spendByPlatform = ref<any[]>([])
 const isLoadingInsights = ref(false)
 
+function getAdConversations(ad: any): number {
+  const actions: any[] = ad.actions || []
+  const result = actions.find(a =>
+    a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+    a.action_type === 'onsite_conversion.total_messaging_connection'
+  )
+  return result ? parseInt(result.value || '0') : 0
+}
+
 const aggregatedMetrics = computed(() => {
   if (!adsInsights.value.length) return null
   let spend = 0
   let clicks = 0
   let impressions = 0
+  let conversations = 0
   adsInsights.value.forEach(ad => {
     spend += parseFloat(ad.spend || '0')
     clicks += parseInt(ad.clicks || '0', 10)
     impressions += parseInt(ad.impressions || '0', 10)
+    conversations += getAdConversations(ad)
   })
   const cpc = clicks > 0 ? (spend / clicks) : 0
-  return { spend, clicks, impressions, cpc }
+  const cpr = conversations > 0 ? (spend / conversations) : 0
+  return { spend, clicks, impressions, cpc, conversations, cpr }
 })
+
+const conversationsPerAd = computed(() => {
+  return [...adsInsights.value]
+    .map(ad => ({
+      id: ad.ad_id,
+      name: ad.ad_name || 'Sin nombre',
+      campaign: ad.campaign_name || '',
+      conversations: getAdConversations(ad),
+      spend: parseFloat(ad.spend || '0'),
+      clicks: parseInt(ad.clicks || '0', 10),
+      impressions: parseInt(ad.impressions || '0', 10),
+      status: (ad.effective_status || 'UNKNOWN') as string,
+    }))
+    .sort((a, b) => b.conversations - a.conversations)
+})
+
+function statusLabel(s: string) {
+  const map: Record<string, string> = {
+    ACTIVE: 'Activo',
+    PAUSED: 'Pausado',
+    DELETED: 'Eliminado',
+    ARCHIVED: 'Archivado',
+    CAMPAIGN_PAUSED: 'Campaña pausada',
+    ADSET_PAUSED: 'Conjunto pausado',
+    DISAPPROVED: 'Rechazado',
+    PENDING_REVIEW: 'En revisión',
+    UNKNOWN: 'Desconocido',
+  }
+  return map[s] || s
+}
+
+function statusClass(s: string) {
+  if (s === 'ACTIVE') return 'status--active'
+  if (s === 'PAUSED' || s === 'CAMPAIGN_PAUSED' || s === 'ADSET_PAUSED') return 'status--paused'
+  if (s === 'DISAPPROVED' || s === 'DELETED') return 'status--error'
+  return 'status--unknown'
+}
 
 // Platform Splits
 const fbSpend = computed(() => {
@@ -318,6 +367,7 @@ onMounted(fetchWorkspace)
         <div class="visual-dashboard__skeleton-card skeleton-card--hero skeleton-shimmer" />
         <div class="visual-dashboard__skeleton-card skeleton-shimmer" />
         <div class="visual-dashboard__skeleton-card skeleton-shimmer" />
+        <div class="visual-dashboard__skeleton-card skeleton-shimmer" />
       </div>
       <div class="visual-dashboard__skeleton-charts">
         <div class="visual-dashboard__skeleton-chart skeleton-shimmer" />
@@ -334,6 +384,12 @@ onMounted(fetchWorkspace)
           <span class="value">${{ aggregatedMetrics.spend.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span>
           <div class="indicator success"><i class="fa-solid fa-arrow-trend-up" /> Activo</div>
         </div>
+        <div v-if="aggregatedMetrics" class="visual-dashboard__kpi-card visual-dashboard__kpi-card--conversations">
+          <span class="label"><i class="fa-solid fa-comment-dots" /> Conversaciones Totales</span>
+          <span class="value">{{ aggregatedMetrics.conversations.toLocaleString() }}</span>
+          <span class="sub" v-if="aggregatedMetrics.conversations > 0">CPR: ${{ aggregatedMetrics.cpr.toFixed(2) }} c/u</span>
+          <span class="sub empty" v-else>Sin datos de mensajes</span>
+        </div>
         <div v-if="aggregatedMetrics" class="visual-dashboard__kpi-card">
           <span class="label">Costo por Clic</span>
           <span class="value">${{ aggregatedMetrics.cpc.toFixed(2) }}</span>
@@ -341,6 +397,71 @@ onMounted(fetchWorkspace)
         <div v-if="aggregatedMetrics" class="visual-dashboard__kpi-card">
           <span class="label">Alcance (Impresiones)</span>
           <span class="value">{{ aggregatedMetrics.impressions.toLocaleString() }}</span>
+        </div>
+      </section>
+
+      <!-- Conversations per Ad -->
+      <section v-if="conversationsPerAd.length" class="visual-dashboard__conv-section">
+        <div class="visual-dashboard__conv-header">
+          <h3><i class="fa-solid fa-comment-dots" /> Conversaciones por Anuncio</h3>
+          <span class="visual-dashboard__conv-hint">Ordenados de mayor a menor impacto</span>
+        </div>
+
+        <div class="visual-dashboard__conv-list">
+          <div
+            v-for="(ad, index) in conversationsPerAd"
+            :key="ad.id"
+            class="visual-dashboard__conv-row"
+            :class="{
+              'visual-dashboard__conv-row--top': index === 0 && ad.conversations > 0,
+              'visual-dashboard__conv-row--zero': ad.conversations === 0
+            }"
+          >
+            <!-- Rank -->
+            <div class="conv-rank" :class="{ 'conv-rank--gold': index === 0 && ad.conversations > 0 }">
+              <i v-if="index === 0 && ad.conversations > 0" class="fa-solid fa-trophy" />
+              <span v-else>{{ index + 1 }}</span>
+            </div>
+
+            <!-- Ad info -->
+            <div class="conv-info">
+              <div class="conv-name-row">
+                <span class="conv-name">{{ ad.name }}</span>
+                <span class="conv-status-badge" :class="statusClass(ad.status)">
+                  <i :class="ad.status === 'ACTIVE' ? 'fa-solid fa-circle-dot' : 'fa-solid fa-circle-pause'" />
+                  {{ statusLabel(ad.status) }}
+                </span>
+              </div>
+              <div class="conv-campaign">{{ ad.campaign }}</div>
+            </div>
+
+            <!-- Conversation bar -->
+            <div class="conv-bar-wrap" v-if="conversationsPerAd[0].conversations > 0">
+              <div
+                class="conv-bar"
+                :style="{
+                  width: conversationsPerAd[0].conversations > 0
+                    ? (ad.conversations / conversationsPerAd[0].conversations * 100) + '%'
+                    : '0%'
+                }"
+              />
+            </div>
+
+            <!-- Count badge -->
+            <div class="conv-count" :class="{ 'conv-count--zero': ad.conversations === 0 }">
+              <span class="conv-count__number">{{ ad.conversations }}</span>
+              <span class="conv-count__label">conv.</span>
+            </div>
+
+            <!-- Spend + CPR -->
+            <div class="conv-metrics">
+              <span class="conv-spend">${{ ad.spend.toFixed(2) }}</span>
+              <span class="conv-cpr" v-if="ad.conversations > 0">
+                ${{ (ad.spend / ad.conversations).toFixed(2) }}/conv
+              </span>
+              <span class="conv-cpr conv-cpr--none" v-else>Sin conv.</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -527,8 +648,13 @@ onMounted(fetchWorkspace)
     gap: 1rem;
     margin-bottom: 1.5rem;
 
+    @media (min-width: 768px) {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
     @media (min-width: 1024px) {
-      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
       gap: 1.5rem;
       margin-bottom: 2rem;
     }
@@ -553,6 +679,11 @@ onMounted(fetchWorkspace)
       color: $text-secondary;
       font-weight: 600;
       margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+
+      i { font-size: 0.8rem; }
     }
 
     .value {
@@ -563,6 +694,24 @@ onMounted(fetchWorkspace)
       @media (min-width: 768px) {
         font-size: 1.8rem;
       }
+    }
+
+    .sub {
+      font-size: 0.78rem;
+      color: $text-secondary;
+      font-weight: 600;
+      margin-top: 0.2rem;
+
+      &.empty { color: rgba($primary-dark, 0.3); font-weight: 400; }
+    }
+
+    &--conversations {
+      background: linear-gradient(135deg, $white 0%, rgba(59, 130, 246, 0.04) 100%);
+      border-color: rgba(59, 130, 246, 0.12);
+
+      .label i { color: #3B82F6; }
+      .value { color: #3B82F6; }
+      .sub { color: #3B82F6; opacity: 0.7; }
     }
 
     &--hero {
@@ -601,6 +750,239 @@ onMounted(fetchWorkspace)
         }
       }
     }
+  }
+
+  // ── Conversations per Ad section ──────────────────────
+  &__conv-section {
+    background: $white;
+    border-radius: 20px;
+    border: 1px solid rgba($primary-dark, 0.04);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+    overflow: hidden;
+  }
+
+  &__conv-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.06);
+
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: $primary-dark;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+
+      i { color: #3B82F6; }
+    }
+  }
+
+  &__conv-hint {
+    font-size: 0.75rem;
+    color: $text-secondary;
+    font-weight: 500;
+  }
+
+  &__conv-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__conv-row {
+    display: grid;
+    grid-template-columns: 36px 1fr auto auto auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.5rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.04);
+    transition: background 0.15s;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 28px 1fr auto;
+      .conv-bar-wrap { display: none; }
+      .conv-metrics { display: none; }
+    }
+
+    &:last-child { border-bottom: none; }
+
+    &:hover { background: rgba($primary, 0.02); }
+
+    &--top {
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.04) 0%, transparent 100%);
+      border-left: 3px solid #3B82F6;
+      padding-left: calc(1.5rem - 3px);
+    }
+
+    &--zero {
+      opacity: 0.55;
+    }
+  }
+
+  // ── Rank ──
+  .conv-rank {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba($primary-dark, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: $text-secondary;
+    flex-shrink: 0;
+
+    &--gold {
+      background: linear-gradient(135deg, #FCD34D, #F59E0B);
+      color: #7C2D12;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+
+      i { font-size: 0.85rem; }
+    }
+  }
+
+  // ── Ad info ──
+  .conv-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .conv-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .conv-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: $primary-dark;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+  }
+
+  .conv-campaign {
+    font-size: 0.73rem;
+    color: $text-secondary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.15rem;
+  }
+
+  // ── Status badge ──
+  .conv-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 100px;
+    border: 1px solid;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    i { font-size: 0.6rem; }
+
+    &.status--active {
+      color: #059669;
+      background: rgba(5, 150, 105, 0.1);
+      border-color: rgba(5, 150, 105, 0.3);
+      animation: pulse-green 2.5s ease-in-out infinite;
+    }
+
+    &.status--paused {
+      color: #D97706;
+      background: rgba(217, 119, 6, 0.1);
+      border-color: rgba(217, 119, 6, 0.3);
+    }
+
+    &.status--error {
+      color: #DC2626;
+      background: rgba(220, 38, 38, 0.08);
+      border-color: rgba(220, 38, 38, 0.25);
+    }
+
+    &.status--unknown {
+      color: $text-secondary;
+      background: rgba($primary-dark, 0.05);
+      border-color: rgba($primary-dark, 0.15);
+    }
+  }
+
+  // ── Progress bar ──
+  .conv-bar-wrap {
+    width: 120px;
+    height: 6px;
+    background: rgba($primary-dark, 0.07);
+    border-radius: 100px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .conv-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3B82F6, #60A5FA);
+    border-radius: 100px;
+    transition: width 0.6s ease;
+    min-width: 4px;
+  }
+
+  // ── Count ──
+  .conv-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 52px;
+    flex-shrink: 0;
+
+    &__number {
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: #3B82F6;
+      line-height: 1;
+    }
+
+    &__label {
+      font-size: 0.65rem;
+      color: $text-secondary;
+      font-weight: 600;
+    }
+
+    &--zero {
+      .conv-count__number { color: rgba($primary-dark, 0.25); }
+    }
+  }
+
+  // ── Spend + CPR ──
+  .conv-metrics {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+
+  .conv-spend {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: $primary-dark;
+  }
+
+  .conv-cpr {
+    font-size: 0.72rem;
+    color: #3B82F6;
+    font-weight: 600;
+
+    &--none { color: rgba($primary-dark, 0.3); }
   }
 
   &__charts-layout {
@@ -696,8 +1078,13 @@ onMounted(fetchWorkspace)
     grid-template-columns: 1fr;
     gap: 1rem;
 
+    @media (min-width: 768px) {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
     @media (min-width: 1024px) {
-      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
       gap: 1.5rem;
     }
   }
@@ -878,6 +1265,11 @@ onMounted(fetchWorkspace)
   100% {
     transform: translateX(100%);
   }
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2); }
 }
 
 @keyframes fadeIn {
