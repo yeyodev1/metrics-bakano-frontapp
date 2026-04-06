@@ -31,7 +31,7 @@
         </div>
         <div class="kpi-content">
           <p class="kpi-label">Total Facturado</p>
-          <p class="kpi-value">${{ formatAmount(monthData?.totalAmount ?? 0) }}</p>
+          <p class="kpi-value">${{ formatAmount(monthTotals.totalAmount) }}</p>
         </div>
       </div>
       <div class="kpi-card">
@@ -40,20 +40,44 @@
         </div>
         <div class="kpi-content">
           <p class="kpi-label">Inversión Meta</p>
-          <p class="kpi-value">${{ formatAmount(monthData?.totalMetaSpend ?? 0) }}</p>
+          <p class="kpi-value">${{ formatAmount(monthTotals.totalMetaSpend) }}</p>
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-icon-wrap" :class="roasIconClass(monthData?.avgROAS ?? 0)">
+        <div class="kpi-icon-wrap" :class="roasIconClass(monthTotals.avgROAS)">
           <i class="fa-solid fa-arrow-trend-up" />
         </div>
         <div class="kpi-content">
           <p class="kpi-label">ROAS Promedio</p>
-          <p class="kpi-value" :class="roasTextClass(monthData?.avgROAS ?? 0)">
-            {{ monthData?.avgROAS ? monthData.avgROAS.toFixed(2) + 'x' : '—' }}
+          <p class="kpi-value" :class="roasTextClass(monthTotals.avgROAS)">
+            {{ monthTotals.avgROAS ? monthTotals.avgROAS.toFixed(2) + 'x' : '—' }}
           </p>
         </div>
       </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-row">
+      <button
+        class="filter-btn"
+        :class="{ 'filter-btn--active': filterOnlyWithData }"
+        @click="filterOnlyWithData = !filterOnlyWithData"
+      >
+        <i class="fa-solid fa-calendar-check" />
+        Solo días con datos
+      </button>
+      <button
+        v-if="canEnterBilling"
+        class="filter-btn"
+        :class="{ 'filter-btn--active': filterMyEntries }"
+        @click="filterMyEntries = !filterMyEntries"
+      >
+        <i class="fa-solid fa-user" />
+        Solo mis registros
+      </button>
+      <span v-if="filterOnlyWithData || filterMyEntries" class="filter-clear" @click="filterOnlyWithData = false; filterMyEntries = false">
+        <i class="fa-solid fa-xmark" /> Limpiar filtros
+      </span>
     </div>
 
     <!-- Chart -->
@@ -63,7 +87,7 @@
         <h3>Facturación vs Inversión · {{ monthLabel }}</h3>
       </div>
       <div class="chart-wrap">
-        <Bar :data="chartData" :options="chartOptions" />
+        <Line :data="chartData" :options="chartOptions" />
       </div>
     </div>
 
@@ -218,21 +242,23 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Bar } from 'vue-chartjs'
+import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from 'chart.js'
 import { useUserStore } from '@/stores/user'
 import { billingService, type IMonthData, type IDaySummary } from '@/services/billing.service'
 import BillingEntryModal from '@/components/billing/BillingEntryModal.vue'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -251,6 +277,10 @@ const successMsg = ref('')
 const monthData = ref<IMonthData | null>(null)
 const todayDaySummary = ref<IDaySummary | null>(null)
 const myEntryToday = ref<{ _id: string; amount: number } | null>(null)
+
+// Filters
+const filterOnlyWithData = ref(false)
+const filterMyEntries = ref(false)
 
 const showModal = ref(false)
 const modalDate = ref('')
@@ -276,6 +306,15 @@ const monthLabel = computed(() => {
 })
 
 const hasAnyData = computed(() => (monthData.value?.days?.length ?? 0) > 0)
+
+// Backend only returns days array — compute month totals client-side
+const monthTotals = computed(() => {
+  const days = monthData.value?.days ?? []
+  const totalAmount = days.reduce((sum, d) => sum + d.totalAmount, 0)
+  const totalMetaSpend = days.reduce((sum, d) => sum + d.totalMetaSpend, 0)
+  const avgROAS = totalMetaSpend > 0 ? totalAmount / totalMetaSpend : 0
+  return { totalAmount, totalMetaSpend, avgROAS }
+})
 // Any non-internal user with workspace access can enter billing.
 // Internal team members can view but not enter (superadmin is the only exception).
 const canEnterBilling = computed(() =>
@@ -292,7 +331,12 @@ const daysToShow = computed(() => {
       days.unshift({ date: todayStr.value, totalAmount: 0, totalMetaSpend: 0, avgROAS: 0, entries: [], entryCount: 0 })
     }
   }
-  return days.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const sorted = days.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  return sorted.filter(d => {
+    if (filterOnlyWithData.value && d.entryCount === 0) return false
+    if (filterMyEntries.value && !d.entries?.some(e => e.userId === userStore.id || e.userEmail === userStore.email)) return false
+    return true
+  })
 })
 
 const chartData = computed(() => {
@@ -301,21 +345,35 @@ const chartData = computed(() => {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )
   return {
-    labels: sorted.map(d => dayNumber(d.date)),
+    labels: sorted.map(d => `${dayName(d.date)} ${dayNumber(d.date)}`),
     datasets: [
       {
         label: 'Facturación',
         data: sorted.map(d => d.totalAmount),
-        backgroundColor: 'rgba(5, 150, 105, 0.8)',
-        borderRadius: 5,
-        borderSkipped: false,
+        borderColor: '#059669',
+        backgroundColor: 'rgba(5, 150, 105, 0.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#059669',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.4,
+        fill: true,
       },
       {
         label: 'Inversión Meta',
         data: sorted.map(d => d.totalMetaSpend),
-        backgroundColor: 'rgba(59, 130, 246, 0.75)',
-        borderRadius: 5,
-        borderSkipped: false,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.06)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.4,
+        fill: true,
       },
     ],
   }
@@ -324,20 +382,36 @@ const chartData = computed(() => {
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
   plugins: {
-    legend: { position: 'top' as const, labels: { usePointStyle: true, pointStyle: 'circle', padding: 20 } },
+    legend: {
+      position: 'top' as const,
+      labels: { usePointStyle: true, pointStyle: 'circle', padding: 24, font: { weight: '600' } },
+    },
     title: { display: false },
     tooltip: {
+      backgroundColor: '#0f172a',
+      titleColor: '#94a3b8',
+      bodyColor: '#fff',
+      padding: 12,
       callbacks: {
-        label: (ctx: any) => ` $${ctx.parsed.y.toLocaleString('es-EC', { minimumFractionDigits: 2 })}`,
+        label: (ctx: any) => ` ${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('es-EC', { minimumFractionDigits: 2 })}`,
       },
     },
   },
   scales: {
-    x: { grid: { display: false } },
+    x: {
+      grid: { display: false },
+      ticks: { font: { size: 11, weight: '600' as const }, color: '#94a3b8' },
+    },
     y: {
-      grid: { color: 'rgba(0,0,0,0.05)' },
-      ticks: { callback: (val: any) => `$${Number(val).toLocaleString('es-EC')}` },
+      grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+      ticks: {
+        callback: (val: any) => `$${Number(val).toLocaleString('es-EC')}`,
+        font: { size: 11 },
+        color: '#94a3b8',
+      },
+      border: { display: false },
     },
   },
 }
@@ -634,6 +708,60 @@ onMounted(async () => {
   }
 }
 
+// ── Filters ──────────────────────────────────────────────
+.filters-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  i { font-size: 11px; }
+
+  &:hover {
+    border-color: #94a3b8;
+    color: #374151;
+  }
+
+  &--active {
+    background: #0f1117;
+    border-color: #0f1117;
+    color: #fff;
+  }
+}
+
+.filter-clear {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s;
+
+  i { font-size: 10px; }
+
+  &:hover { color: #dc2626; }
+}
+
 // ── Chart ────────────────────────────────────────────────
 .chart-card {
   background: #fff;
@@ -663,7 +791,7 @@ onMounted(async () => {
   }
 }
 
-.chart-wrap { height: 260px; }
+.chart-wrap { height: 280px; }
 
 // ── States ───────────────────────────────────────────────
 .state-box {

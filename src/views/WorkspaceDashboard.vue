@@ -33,6 +33,11 @@ const recentPosts = ref<any[]>([])
 const recentPostsIg = ref<any[]>([])
 const isLoadingOrganic = ref(false)
 
+// Ad table filters
+const searchQuery = ref('')
+const filterStatus = ref<'all' | 'ACTIVE' | 'PAUSED'>('all')
+const sortByField = ref<'spend' | 'roas' | 'conversations' | 'clicks'>('spend')
+
 const aggregatedMetrics = computed(() => {
   if (!adsInsights.value.length) return null
 
@@ -66,6 +71,51 @@ const igSpend = computed(() => {
 const totalPlatformSpend = computed(() => fbSpend.value + igSpend.value)
 const fbSpendPercent = computed(() => totalPlatformSpend.value ? (fbSpend.value / totalPlatformSpend.value) * 100 : 0)
 const igSpendPercent = computed(() => totalPlatformSpend.value ? (igSpend.value / totalPlatformSpend.value) * 100 : 0)
+
+// Ecuador timezone date formatter
+function formatEcuadorDate(dateStr: string, includeTime = false): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'America/Guayaquil',
+  }
+  if (includeTime) {
+    opts.hour = '2-digit'
+    opts.minute = '2-digit'
+  }
+  return new Date(dateStr).toLocaleDateString('es-EC', opts)
+}
+
+// Filtered + sorted ads computed
+const filteredAndSortedAds = computed(() => {
+  let ads = [...adsInsights.value]
+
+  if (filterStatus.value === 'ACTIVE') {
+    ads = ads.filter(ad => ad.effective_status === 'ACTIVE')
+  } else if (filterStatus.value === 'PAUSED') {
+    ads = ads.filter(ad =>
+      ['PAUSED', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED'].includes(ad.effective_status || '')
+    )
+  }
+
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    ads = ads.filter(ad =>
+      (ad.ad_name || '').toLowerCase().includes(q) ||
+      (ad.campaign_name || '').toLowerCase().includes(q)
+    )
+  }
+
+  ads.sort((a, b) => {
+    if (sortByField.value === 'roas') return parseFloat(getPurchaseROAS(b)) - parseFloat(getPurchaseROAS(a))
+    if (sortByField.value === 'conversations') return getAdConversations(b) - getAdConversations(a)
+    if (sortByField.value === 'clicks') return parseInt(b.clicks || '0', 10) - parseInt(a.clicks || '0', 10)
+    return parseFloat(b.spend || '0') - parseFloat(a.spend || '0') // default: spend desc
+  })
+
+  return ads
+})
 
 // Metrics Helpers
 function getPurchaseROAS(ad: any) {
@@ -184,7 +234,7 @@ const chartData = computed<ChartData<'line'>>(() => {
     const sortedDaily = [...dailySpend.value].sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
 
     return {
-      labels: sortedDaily.map(d => new Date(d.date_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })),
+      labels: sortedDaily.map(d => new Date(d.date_start + 'T12:00:00').toLocaleDateString('es-EC', { day: 'numeric', month: 'short', timeZone: 'America/Guayaquil' })),
       datasets: [
         {
           label: 'Inversión Diaria ($)',
@@ -381,19 +431,26 @@ onUnmounted(() => {
           <div class="workspace-dashboard__metrics-title">
             <h2><i class="fa-solid fa-chart-pie" /> Rendimiento de Campañas</h2>
             <div class="workspace-dashboard__date-selector">
-              <button 
-                class="workspace-dashboard__date-btn" 
+              <button
+                class="workspace-dashboard__date-btn"
                 :class="{ 'workspace-dashboard__date-btn--active': datePreset === 'this_month' }"
                 @click="datePreset = 'this_month'; fetchAdsInsights();"
               >
                 Mes Actual
               </button>
-              <button 
-                class="workspace-dashboard__date-btn" 
+              <button
+                class="workspace-dashboard__date-btn"
+                :class="{ 'workspace-dashboard__date-btn--active': datePreset === 'last_7d' }"
+                @click="datePreset = 'last_7d'; fetchAdsInsights();"
+              >
+                7 días
+              </button>
+              <button
+                class="workspace-dashboard__date-btn"
                 :class="{ 'workspace-dashboard__date-btn--active': datePreset === 'last_30d' }"
                 @click="datePreset = 'last_30d'; fetchAdsInsights();"
               >
-                Últimos 30 días
+                30 días
               </button>
             </div>
           </div>
@@ -498,7 +555,59 @@ onUnmounted(() => {
             <div class="workspace-dashboard__ads-header">
               <h2><i class="fa-solid fa-list-ul" /> Desglose por Anuncio</h2>
             </div>
-            
+
+            <!-- Filter bar -->
+            <div class="ads-filter-bar">
+              <div class="ads-filter-bar__search">
+                <i class="fa-solid fa-magnifying-glass" />
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Buscar anuncio o campaña..."
+                  class="ads-filter-bar__input"
+                />
+                <button v-if="searchQuery" class="ads-filter-bar__clear" @click="searchQuery = ''">
+                  <i class="fa-solid fa-xmark" />
+                </button>
+              </div>
+
+              <div class="ads-filter-bar__status">
+                <button
+                  class="ads-filter-btn"
+                  :class="{ 'ads-filter-btn--active': filterStatus === 'all' }"
+                  @click="filterStatus = 'all'"
+                >Todos</button>
+                <button
+                  class="ads-filter-btn ads-filter-btn--green"
+                  :class="{ 'ads-filter-btn--active': filterStatus === 'ACTIVE' }"
+                  @click="filterStatus = filterStatus === 'ACTIVE' ? 'all' : 'ACTIVE'"
+                >
+                  <i class="fa-solid fa-circle-dot" /> Activos
+                </button>
+                <button
+                  class="ads-filter-btn ads-filter-btn--amber"
+                  :class="{ 'ads-filter-btn--active': filterStatus === 'PAUSED' }"
+                  @click="filterStatus = filterStatus === 'PAUSED' ? 'all' : 'PAUSED'"
+                >
+                  <i class="fa-solid fa-circle-pause" /> Pausados
+                </button>
+              </div>
+
+              <div class="ads-filter-bar__sort">
+                <span class="ads-filter-bar__sort-label">Ordenar:</span>
+                <select v-model="sortByField" class="ads-filter-bar__select">
+                  <option value="spend">Inversión</option>
+                  <option value="roas">ROAS</option>
+                  <option value="conversations">Conversaciones</option>
+                  <option value="clicks">Clics</option>
+                </select>
+              </div>
+
+              <span class="ads-filter-bar__count">
+                {{ filteredAndSortedAds.length }} de {{ adsInsights.length }} anuncios
+              </span>
+            </div>
+
             <div class="workspace-dashboard__table-container">
               <table class="workspace-dashboard__ads-table">
                 <thead>
@@ -516,7 +625,7 @@ onUnmounted(() => {
                 </thead>
                 <tbody>
                   <tr
-                    v-for="ad in adsInsights"
+                    v-for="ad in filteredAndSortedAds"
                     :key="ad.ad_id"
                     class="workspace-dashboard__ad-row"
                     :class="rowColorClass(ad)"
@@ -653,7 +762,7 @@ onUnmounted(() => {
                   </div>
                 </td>
                 <td class="workspace-dashboard__ad-numeric">
-                  {{ new Date(post.created_time).toLocaleDateString() }}
+                  {{ formatEcuadorDate(post.created_time) }}
                 </td>
                 <td class="workspace-dashboard__ad-numeric">
                   <strong><i class="fa-solid fa-share"/> {{ post.shares?.count || 0 }}</strong>
@@ -697,7 +806,7 @@ onUnmounted(() => {
                   </div>
                 </td>
                 <td class="workspace-dashboard__ad-numeric">
-                  {{ new Date(post.timestamp).toLocaleDateString() }}
+                  {{ formatEcuadorDate(post.timestamp) }}
                 </td>
                 <td class="workspace-dashboard__ad-numeric">
                   <strong><i class="fa-solid fa-heart" style="color: #E4405F; margin-right: 4px;"/> {{ post.like_count || 0 }}</strong>
@@ -1811,6 +1920,136 @@ onUnmounted(() => {
 
     strong {
       font-size: 1.05rem;
+    }
+  }
+
+  // ── Ads filter bar ────────────────────────────────────
+  .ads-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+
+    &__search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 12px;
+      flex: 1;
+      min-width: 180px;
+      max-width: 280px;
+      transition: border-color 0.15s;
+
+      &:focus-within { border-color: #7c3aed; }
+
+      i { color: #94a3b8; font-size: 12px; }
+    }
+
+    &__input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      color: #374151;
+      background: transparent;
+      font-family: inherit;
+
+      &::placeholder { color: #9ca3af; }
+    }
+
+    &__clear {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 0;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      &:hover { color: #dc2626; }
+    }
+
+    &__status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    &__sort {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    &__sort-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    &__select {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      background: #fff;
+      cursor: pointer;
+      outline: none;
+      font-family: inherit;
+
+      &:focus { border-color: #7c3aed; }
+    }
+
+    &__count {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      white-space: nowrap;
+      margin-left: auto;
+    }
+  }
+
+  .ads-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 20px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    i { font-size: 10px; }
+
+    &--active {
+      background: #0f1117;
+      border-color: #0f1117;
+      color: #fff;
+    }
+
+    &--green {
+      i { color: #059669; }
+      &.ads-filter-btn--active { background: #059669; border-color: #059669; i { color: #fff; } }
+    }
+
+    &--amber {
+      i { color: #d97706; }
+      &.ads-filter-btn--active { background: #d97706; border-color: #d97706; i { color: #fff; } }
     }
   }
 
