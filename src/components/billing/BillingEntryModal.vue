@@ -141,8 +141,46 @@
           </div>
         </Transition>
 
-        <!-- Notes -->
-        <div class="field">
+        <!-- Zero day banner -->
+        <Transition name="slide-down">
+          <div v-if="localAmount === 0" class="zero-day-banner">
+            <div class="zero-day-banner__icon">
+              <i class="fa-solid fa-store-slash" />
+            </div>
+            <div class="zero-day-banner__text">
+              <strong>Día sin ventas — $0.00</strong>
+              <p>Indica el motivo para que el equipo lo tenga registrado.</p>
+            </div>
+          </div>
+        </Transition>
+
+        <!-- Zero reason (required when amount = 0) -->
+        <div v-if="localAmount === 0" class="field">
+          <label class="field-label">
+            <i class="fa-solid fa-circle-exclamation" style="color:#dc2626" /> Razón del día sin ventas
+            <span class="required-tag">Obligatorio</span>
+          </label>
+          <div class="zero-chips">
+            <button
+              v-for="r in ZERO_REASONS"
+              :key="r"
+              type="button"
+              class="zero-chip"
+              :class="{ 'zero-chip--active': zeroReason === r }"
+              @click.prevent="zeroReason = (zeroReason === r ? '' : r)"
+            >{{ r }}</button>
+          </div>
+          <input
+            v-model="zeroReason"
+            type="text"
+            placeholder="O escribe tu propia razón…"
+            class="zero-reason-input"
+            maxlength="150"
+          />
+        </div>
+
+        <!-- Notes (only for sales > 0) -->
+        <div v-if="localAmount > 0" class="field">
           <label class="field-label">
             Notas <span class="optional">(opcional)</span>
           </label>
@@ -207,9 +245,12 @@ const emit = defineEmits<{
   (e: 'confirmed', payload: { amount: number; notes?: string; entryId?: string; date?: string }): void
 }>()
 
+const ZERO_REASONS = ['No abrimos', 'No hubo venta', 'Día festivo / feriado', 'Problemas técnicos']
+
 const localAmount = ref<number>(0)
 const localNotes = ref('')
 const localDate = ref('')
+const zeroReason = ref('')
 const amountFocused = ref(false)
 const calendarOpen = ref(false)
 const calYear = ref(new Date().getFullYear())
@@ -222,7 +263,11 @@ const todayStr = computed(() => {
 
 const isBackfill = computed(() => !!localDate.value && localDate.value < todayStr.value)
 
-const canSave = computed(() => localAmount.value > 0 && !!localDate.value)
+const canSave = computed(() => {
+  if (!localDate.value) return false
+  if (localAmount.value > 0) return true
+  return localAmount.value === 0 && zeroReason.value.trim().length > 0
+})
 
 // ── Calendar helpers ──────────────────────────────────────
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -330,9 +375,12 @@ function handleClose() {
 
 function handleConfirm() {
   if (!canSave.value || props.loading) return
+  const notes = localAmount.value === 0
+    ? zeroReason.value.trim()
+    : (localNotes.value.trim() || undefined)
   emit('confirmed', {
     amount: localAmount.value,
-    notes: localNotes.value.trim() || undefined,
+    notes,
     entryId: props.entryId,
     date: localDate.value,
   })
@@ -340,8 +388,9 @@ function handleConfirm() {
 
 watch(() => props.modelValue, (val) => {
   if (val) {
-    localAmount.value = (props.editMode && props.existingAmount) ? props.existingAmount : 0
-    localNotes.value = (props.editMode && props.existingNotes) ? props.existingNotes : ''
+    localAmount.value = (props.editMode && props.existingAmount != null) ? props.existingAmount : 0
+    localNotes.value = (props.editMode && props.existingNotes && (props.existingAmount ?? 0) > 0) ? props.existingNotes : ''
+    zeroReason.value = (props.editMode && props.existingAmount === 0 && props.existingNotes) ? props.existingNotes : ''
     localDate.value = props.date || todayStr.value
     calendarOpen.value = false
     // Sync calendar view to initial date
@@ -967,5 +1016,115 @@ watch(() => props.modelValue, (val) => {
 .slide-down-enter-from, .slide-down-leave-to {
   opacity: 0;
   transform: translateY(-6px);
+}
+
+// ── Zero day ─────────────────────────────────────────────
+.zero-day-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  border-radius: 10px;
+  padding: 12px 14px;
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    background: #ffedd5;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ea580c;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    flex: 1;
+
+    strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 800;
+      color: #9a3412;
+    }
+
+    p {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: #c2410c;
+      line-height: 1.4;
+    }
+  }
+}
+
+.required-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 20px;
+  padding: 2px 7px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+}
+
+.zero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.zero-chip {
+  border: 1.5px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: #ea580c;
+    color: #ea580c;
+    background: #fff7ed;
+  }
+
+  &--active {
+    background: #ea580c;
+    border-color: #ea580c;
+    color: #fff;
+
+    &:hover {
+      background: #c2410c;
+      border-color: #c2410c;
+      color: #fff;
+    }
+  }
+}
+
+.zero-reason-input {
+  width: 100%;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #374151;
+  outline: none;
+  background: #f9fafb;
+  font-family: inherit;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+
+  &:focus { border-color: #ea580c; background: #fff; }
+  &::placeholder { color: #9ca3af; }
 }
 </style>
