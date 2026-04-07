@@ -4,13 +4,18 @@ import { notificationService } from '@/services/notification.service'
 import { useUserStore } from '@/stores/user'
 import type { AppNotification } from '@/types'
 
+const PAGE_SIZE = 10
+
 export const useNotificationStore = defineStore('notification', () => {
   const unreadCount = ref(0)
   const notifications = ref<AppNotification[]>([])
+  const currentPage = ref(1)
+  const totalPages = ref(1)
+  const total = ref(0)
+  const isLoading = ref(false)
 
   function getWorkspaceFilter(): string | undefined {
     const userStore = useUserStore()
-    // Internal users and superadmins see all workspaces; clients are scoped to their workspace
     if (userStore.isInternal || userStore.role === 'superadmin') return undefined
     return userStore.workspaceId ?? undefined
   }
@@ -19,17 +24,34 @@ export const useNotificationStore = defineStore('notification', () => {
     try {
       unreadCount.value = await notificationService.getUnreadCount(getWorkspaceFilter())
     } catch {
-      // silent — don't break layout if endpoint fails
+      // silent
     }
   }
 
-  async function fetchAll() {
+  async function fetchPage(page = 1) {
+    isLoading.value = true
     try {
-      notifications.value = await notificationService.getMyNotifications(getWorkspaceFilter())
-      unreadCount.value = notifications.value.filter(n => !n.isRead).length
+      const result = await notificationService.getMyNotifications(
+        page,
+        PAGE_SIZE,
+        getWorkspaceFilter()
+      )
+      notifications.value = result.notifications
+      currentPage.value = result.page
+      totalPages.value = result.totalPages
+      total.value = result.total
+      // Sync unread count from current page + keep fetching real count
+      fetchUnreadCount()
     } catch {
       // silent
+    } finally {
+      isLoading.value = false
     }
+  }
+
+  // Alias used by AppLayout badge polling
+  async function fetchAll() {
+    return fetchPage(1)
   }
 
   async function markRead(id: string) {
@@ -59,6 +81,12 @@ export const useNotificationStore = defineStore('notification', () => {
       const n = notifications.value.find(n => n._id === id)
       if (n && !n.isRead) unreadCount.value = Math.max(0, unreadCount.value - 1)
       notifications.value = notifications.value.filter(n => n._id !== id)
+      total.value = Math.max(0, total.value - 1)
+      totalPages.value = Math.max(1, Math.ceil(total.value / PAGE_SIZE))
+      // If current page is now empty and not page 1, go back
+      if (notifications.value.length === 0 && currentPage.value > 1) {
+        await fetchPage(currentPage.value - 1)
+      }
     } catch {
       // silent
     }
@@ -67,8 +95,13 @@ export const useNotificationStore = defineStore('notification', () => {
   return {
     unreadCount,
     notifications,
+    currentPage,
+    totalPages,
+    total,
+    isLoading,
     fetchUnreadCount,
     fetchAll,
+    fetchPage,
     markRead,
     markAllRead,
     deleteOne,
