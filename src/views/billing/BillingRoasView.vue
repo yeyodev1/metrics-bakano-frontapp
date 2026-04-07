@@ -97,103 +97,98 @@
       <p>Cargando datos...</p>
     </div>
 
-    <!-- Empty state -->
-    <div v-else-if="!hasAnyData" class="state-box empty">
-      <div class="empty-icon-wrap">
-        <i class="fa-solid fa-chart-column" />
+    <!-- Pending banner -->
+    <Transition name="slide-down">
+      <div v-if="!loading && pendingDays.length > 0" class="pending-banner">
+        <div class="pending-banner__icon">
+          <i class="fa-solid fa-triangle-exclamation" />
+        </div>
+        <div class="pending-banner__text">
+          <strong>{{ pendingDays.length }} {{ pendingDays.length === 1 ? 'día sin registrar' : 'días sin registrar' }}</strong>
+          <span>este mes · completa tu historial de facturación</span>
+        </div>
+        <div class="pending-banner__dates">
+          <span v-for="d in pendingDays.slice(0, 5)" :key="d.date" class="pending-date-chip">
+            {{ dayNumber(d.date) }} {{ dayName(d.date) }}
+          </span>
+          <span v-if="pendingDays.length > 5" class="pending-date-more">+{{ pendingDays.length - 5 }} más</span>
+        </div>
       </div>
-      <h3>Sin datos este mes</h3>
-      <p>Aún no hay facturación registrada para <strong>{{ monthLabel }}</strong>.</p>
-      <p v-if="isCurrentMonth && canEnterBilling" class="empty-hint">
-        <i class="fa-solid fa-circle-info" /> Sé el primero en registrar la facturación de hoy.
-      </p>
-    </div>
+    </Transition>
 
-    <!-- Days list -->
-    <div v-else class="days-list">
+    <!-- Days list (all days of month, shown when not loading) -->
+    <div v-if="!loading" class="days-list">
       <div
         v-for="day in daysToShow"
         :key="day.date"
         class="day-card"
-        :class="{ 'day-today': isToday(day.date) }"
+        :class="{
+          'day-today': isToday(day.date),
+          'day-has-data': day.entryCount > 0,
+          'day-pending': canRegisterOnDay(day),
+          'day-empty': day.entryCount === 0 && !canRegisterOnDay(day),
+        }"
       >
-        <div class="day-header">
-          <div class="day-date-wrap">
-            <div class="day-date-block">
-              <span class="day-number">{{ dayNumber(day.date) }}</span>
-              <span class="day-name">{{ dayName(day.date) }}</span>
-            </div>
-            <span v-if="isToday(day.date)" class="today-badge">
-              <i class="fa-solid fa-circle-dot" /> Hoy
+        <!-- Day strip: date + summary amounts + ROAS -->
+        <div class="day-strip">
+          <div class="day-strip__date">
+            <span class="day-number">{{ dayNumber(day.date) }}</span>
+            <span class="day-name">{{ dayName(day.date) }}</span>
+            <span v-if="isToday(day.date)" class="today-badge">Hoy</span>
+          </div>
+
+          <div v-if="day.entryCount > 0" class="day-strip__amounts">
+            <span class="amount-billed">
+              <i class="fa-solid fa-dollar-sign" />
+              ${{ formatAmount(day.totalAmount) }}
+            </span>
+            <span v-if="day.totalMetaSpend > 0" class="amount-meta">
+              <i class="fa-brands fa-meta" />
+              ${{ formatAmount(day.totalMetaSpend) }}
             </span>
           </div>
-          <div class="day-roas-pill" :class="roasPillClass(day.avgROAS)">
-            <i class="fa-solid fa-arrow-trend-up" />
-            {{ day.avgROAS > 0 ? 'ROAS ' + day.avgROAS.toFixed(2) + 'x' : 'Sin ROAS' }}
+
+          <div class="day-strip__roas" :class="roasPillClass(day.avgROAS)">
+            {{ day.avgROAS > 0 ? day.avgROAS.toFixed(2) + 'x' : '—' }}
           </div>
         </div>
 
-        <div v-if="day.entryCount > 0" class="day-metrics">
-          <div class="metric">
-            <span class="metric-label">
-              <i class="fa-solid fa-dollar-sign" /> Facturado
-            </span>
-            <span class="metric-value green">${{ formatAmount(day.totalAmount) }}</span>
-          </div>
-          <div class="metric-divider" />
-          <div class="metric">
-            <span class="metric-label">
-              <i class="fa-brands fa-meta" /> Inversión
-            </span>
-            <span class="metric-value blue">${{ formatAmount(day.totalMetaSpend) }}</span>
-          </div>
-          <div class="metric-divider" />
-          <div class="metric">
-            <span class="metric-label">
-              <i class="fa-solid fa-users" /> Entradas
-            </span>
-            <span class="metric-value">{{ day.entryCount }}</span>
-          </div>
-        </div>
-
-        <!-- Who entered -->
+        <!-- Entries -->
         <div v-if="day.entries?.length" class="entry-list">
           <div
             v-for="entry in day.entries"
             :key="entry._id"
             class="entry-row"
-            :class="{ 'entry-row--mine': (entry.userId === userStore.id) || (entry.userEmail === userStore.email) }"
+            :class="{ 'entry-row--mine': isMyEntry(entry) }"
           >
-            <div class="entry-row__left">
-              <div class="entry-avatar">{{ entry.userName.charAt(0).toUpperCase() }}</div>
-              <div class="entry-row__info">
-                <span class="entry-user">{{ entry.userName }}</span>
-                <span v-if="(entry.userId === userStore.id) || (entry.userEmail === userStore.email)" class="entry-mine-tag">Tu registro</span>
-              </div>
-            </div>
-            <div class="entry-row__right">
-              <span class="entry-amount">${{ formatAmount(entry.amount) }}</span>
-              <button
-                v-if="canEditEntry(entry, day.date)"
-                class="entry-edit-btn"
-                @click.stop="openEditModal(entry, dateStr(day.date), day.totalAmount)"
-              >
-                <i class="fa-solid fa-pen-to-square" />
-                Editar
-              </button>
-            </div>
+            <div class="entry-avatar">{{ entry.userName.charAt(0).toUpperCase() }}</div>
+            <span class="entry-name">{{ shortName(entry.userName) }}</span>
+            <span v-if="isMyEntry(entry)" class="entry-mine-tag">yo</span>
+            <span class="entry-amount">${{ formatAmount(entry.amount) }}</span>
+            <button
+              v-if="canEditEntry(entry, day.date)"
+              class="entry-edit-btn"
+              @click.stop="openEditModal(entry, dateStr(day.date), day.totalAmount)"
+            >
+              <i class="fa-solid fa-pen-to-square" /> Editar
+            </button>
           </div>
         </div>
 
-        <!-- Register button -->
-        <div v-if="canRegisterOnDay(day.date)" class="day-action">
-          <button class="btn-register" @click="openModal(day.date, day.totalAmount)">
-            <i class="fa-solid fa-plus" /> Registrar facturación
+        <!-- Pending CTA (no entry yet and user can register) -->
+        <div v-if="canRegisterOnDay(day)" class="day-pending-cta" :class="{ 'day-pending-cta--today': isToday(day.date) }">
+          <div class="day-pending-cta__left">
+            <i class="fa-solid fa-circle-exclamation" />
+            <span>{{ isToday(day.date) ? 'Aún no registraste hoy' : 'Facturación pendiente' }}</span>
+          </div>
+          <button class="btn-register-pending" @click="openModal(dateStr(day.date), day.totalAmount)">
+            <i class="fa-solid fa-plus" />
+            {{ isToday(day.date) ? 'Registrar ahora' : 'Completar' }}
           </button>
         </div>
 
         <div v-else-if="day.entryCount === 0" class="no-data-row">
-          <i class="fa-solid fa-minus" /> Sin datos registrados
+          <i class="fa-solid fa-lock" /> Sin acceso / Sin datos
         </div>
       </div>
     </div>
@@ -217,6 +212,7 @@
       :entry-id="modalEntryId"
       :existing-amount="modalExistingAmount"
       :existing-notes="modalExistingNotes"
+      :calendar-entry-map="calendarEntryMap"
       @confirmed="handleEntry"
     />
 
@@ -307,6 +303,23 @@ const monthLabel = computed(() => {
 
 const hasAnyData = computed(() => (monthData.value?.days?.length ?? 0) > 0)
 
+// Calendar data: which dates have entries and from whom
+const calendarEntryMap = computed(() => {
+  const map: Record<string, { hasMyEntry: boolean; total: number; entryCount: number }> = {}
+  for (const day of (monthData.value?.days ?? [])) {
+    const key = dateStr(day.date)
+    const hasMyEntry = day.entries?.some((e: any) => isMyEntry(e)) ?? false
+    map[key] = { hasMyEntry, total: day.totalAmount, entryCount: day.entryCount }
+  }
+  return map
+})
+
+// Days the current user still needs to fill
+const pendingDays = computed(() => {
+  if (!canEnterBilling.value) return []
+  return daysToShow.value.filter(d => canRegisterOnDay(d))
+})
+
 // Backend only returns days array — compute month totals client-side
 const monthTotals = computed(() => {
   const days = monthData.value?.days ?? []
@@ -324,19 +337,30 @@ const todayHasMyEntry = computed(() => !!myEntryToday.value)
 
 const daysToShow = computed(() => {
   if (!monthData.value) return []
-  const days = [...(monthData.value.days ?? [])]
-  if (isCurrentMonth.value) {
-    const todayInList = days.find(d => dateStr(d.date) === todayStr.value)
-    if (!todayInList) {
-      days.unshift({ date: todayStr.value, totalAmount: 0, totalMetaSpend: 0, avgROAS: 0, entries: [], entryCount: 0 })
-    }
+  const existingMap = new Map<string, any>()
+  for (const d of (monthData.value.days ?? [])) {
+    existingMap.set(dateStr(d.date), d)
   }
-  const sorted = days.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  return sorted.filter(d => {
-    if (filterOnlyWithData.value && d.entryCount === 0) return false
-    if (filterMyEntries.value && !d.entries?.some(e => e.userId === userStore.id || e.userEmail === userStore.email)) return false
-    return true
-  })
+
+  // Build all days: current month → up to today; past months → full month
+  const year = currentYear.value
+  const month = currentMonth.value
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const lastDay = isCurrentMonth.value ? new Date().getDate() : daysInMonth
+
+  const all = []
+  for (let d = 1; d <= lastDay; d++) {
+    const key = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    all.push(existingMap.get(key) ?? { date: key, totalAmount: 0, totalMetaSpend: 0, avgROAS: 0, entries: [], entryCount: 0 })
+  }
+
+  return all
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter(d => {
+      if (filterOnlyWithData.value && d.entryCount === 0) return false
+      if (filterMyEntries.value && !d.entries?.some((e: any) => isMyEntry(e))) return false
+      return true
+    })
 })
 
 const chartData = computed(() => {
@@ -473,12 +497,27 @@ function openEditModal(entry: { _id: string; amount: number; notes?: string }, d
   showModal.value = true
 }
 
-// Can register a NEW entry only on today (if not already entered)
-function canRegisterOnDay(date: string): boolean {
+function isMyEntry(entry: any): boolean {
+  return (!!userStore.id && entry.userId === userStore.id) ||
+         (!!userStore.email && entry.userEmail === userStore.email)
+}
+
+function shortName(name: string): string {
+  const parts = name.trim().split(' ')
+  if (parts.length === 1) return name
+  return `${parts[0]} ${parts[1].charAt(0)}.`
+}
+
+// Can register a NEW entry on any past/today day if user hasn't entered yet
+function canRegisterOnDay(day: { date: string; entries?: any[] }): boolean {
   if (!canEnterBilling.value) return false
-  if (userStore.role === 'superadmin') return true
-  if (dateStr(date) !== todayStr.value) return false
-  return !todayHasMyEntry.value
+  // No future dates
+  const dayTime = new Date(dateStr(day.date) + 'T12:00:00').getTime()
+  const todayTime = new Date(todayStr.value + 'T12:00:00').getTime()
+  if (dayTime > todayTime) return false
+  // Already has my entry?
+  if (day.entries?.some((e: any) => isMyEntry(e))) return false
+  return true
 }
 
 // Can edit OWN entry within 7 days
@@ -496,15 +535,16 @@ function canEditEntry(entry: { userId?: string; userEmail?: string }, entryDate:
   return diffDays <= 7
 }
 
-async function handleEntry(payload: { amount: number; notes?: string; entryId?: string }) {
+async function handleEntry(payload: { amount: number; notes?: string; entryId?: string; date?: string }) {
   submitting.value = true
   try {
     if (payload.entryId) {
       await billingService.updateEntry(workspaceId.value, payload.entryId, { amount: payload.amount, notes: payload.notes })
       successMsg.value = '✓ Facturación actualizada correctamente'
     } else {
-      await billingService.createEntry(workspaceId.value, { amount: payload.amount, notes: payload.notes })
-      successMsg.value = '✓ Facturación registrada correctamente'
+      const entryDate = payload.date || modalDate.value
+      await billingService.createEntry(workspaceId.value, { amount: payload.amount, notes: payload.notes, date: entryDate })
+      successMsg.value = isToday(entryDate) ? '✓ Facturación de hoy registrada' : `✓ Facturación del ${entryDate} registrada`
     }
     showModal.value = false
     setTimeout(() => (successMsg.value = ''), 4000)
@@ -553,9 +593,13 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .billing-view {
-  padding: 28px 32px 80px;
+  padding: 16px 16px 80px;
   max-width: 1100px;
   width: 100%;
+
+  @media (min-width: 640px) {
+    padding: 28px 32px 80px;
+  }
 }
 
 // ── Header ───────────────────────────────────────────────
@@ -563,8 +607,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 28px;
-  gap: 16px;
+  margin-bottom: 20px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -647,59 +691,71 @@ onMounted(async () => {
 // ── KPI Cards ────────────────────────────────────────────
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  grid-template-columns: 1fr;           // mobile: 1 col
+  gap: 10px;
   margin-bottom: 20px;
 
-  @media (max-width: 640px) { grid-template-columns: 1fr; }
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(3, 1fr); // tablet+: 3 cols
+  }
 }
 
 .kpi-card {
   background: #fff;
   border: 1.5px solid #e2e8f0;
   border-radius: 14px;
-  padding: 18px 20px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   transition: box-shadow 0.2s;
+  min-width: 0;
 
   &:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
 }
 
 .kpi-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 15px;
   flex-shrink: 0;
 
-  &.kpi-icon--green { background: #d1fae5; color: #059669; }
-  &.kpi-icon--blue  { background: #dbeafe; color: #3b82f6; }
+  &.kpi-icon--green  { background: #d1fae5; color: #059669; }
+  &.kpi-icon--blue   { background: #dbeafe; color: #3b82f6; }
   &.kpi-icon--yellow { background: #fef3c7; color: #d97706; }
-  &.kpi-icon--red   { background: #fee2e2; color: #dc2626; }
-  &.kpi-icon--gray  { background: #f1f5f9; color: #94a3b8; }
+  &.kpi-icon--red    { background: #fee2e2; color: #dc2626; }
+  &.kpi-icon--gray   { background: #f1f5f9; color: #94a3b8; }
 }
 
 .kpi-content {
+  min-width: 0;
+  flex: 1;
+
   .kpi-label {
-    margin: 0 0 3px;
-    font-size: 11px;
+    margin: 0 0 2px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .kpi-value {
     margin: 0;
-    font-size: 21px;
+    font-size: 18px;
     font-weight: 800;
     color: #0f172a;
     letter-spacing: -0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     &.roas-good   { color: #059669; }
     &.roas-medium { color: #d97706; }
@@ -843,196 +899,231 @@ onMounted(async () => {
   }
 }
 
+// ── Pending banner ────────────────────────────────────────
+.pending-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  &__icon {
+    width: 38px;
+    height: 38px;
+    background: #fef3c7;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #d97706;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 120px;
+
+    strong {
+      font-size: 14px;
+      font-weight: 800;
+      color: #92400e;
+    }
+
+    span {
+      font-size: 12px;
+      color: #b45309;
+    }
+  }
+
+  &__dates {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+}
+
+.pending-date-chip {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid #fde68a;
+  white-space: nowrap;
+}
+
+.pending-date-more {
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+}
+
 // ── Days List ────────────────────────────────────────────
 .days-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-bottom: 24px;
 }
 
 .day-card {
   background: #fff;
   border: 1.5px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 16px 20px;
-  transition: box-shadow 0.2s;
-
-  &:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
 
   &.day-today {
     border-color: #0f1117;
     box-shadow: 0 0 0 3px rgba(15, 17, 23, 0.06);
   }
-}
 
-.day-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
+  &.day-pending {
+    border-color: #fde68a;
+    background: #fffdf5;
 
-.day-date-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.day-date-block {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-
-  .day-number {
-    font-size: 24px;
-    font-weight: 800;
-    color: #0f172a;
-    line-height: 1;
+    &.day-today {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+    }
   }
 
-  .day-name {
+  &.day-empty {
+    background: #fafafa;
+    border-color: #f1f5f9;
+  }
+}
+
+// ── Day strip ─────────────────────────────────────────────
+.day-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+
+  &__date {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+
+  &__amounts {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__roas {
     font-size: 12px;
-    font-weight: 600;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    &.pill-good   { background: #d1fae5; color: #065f46; }
+    &.pill-medium { background: #fef3c7; color: #92400e; }
+    &.pill-bad    { background: #fee2e2; color: #991b1b; }
+    &.pill-none   { background: #f1f5f9; color: #94a3b8; }
   }
+}
+
+.day-number {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.day-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .today-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   background: #0f1117;
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 20px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-
-  i { font-size: 8px; }
+  margin-left: 2px;
 }
 
-.day-roas-pill {
+.amount-billed {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #059669;
+
+  i { font-size: 11px; }
+}
+
+.amount-meta {
   display: flex;
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 20px;
+  font-weight: 600;
+  color: #94a3b8;
 
   i { font-size: 11px; }
-
-  &.pill-good   { background: #d1fae5; color: #065f46; }
-  &.pill-medium { background: #fef3c7; color: #92400e; }
-  &.pill-bad    { background: #fee2e2; color: #991b1b; }
-  &.pill-none   { background: #f1f5f9; color: #64748b; }
 }
 
-.day-metrics {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  margin-bottom: 12px;
-  background: #f8fafc;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-}
-
-.metric {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 14px;
-
-  .metric-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #94a3b8;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-
-    i { font-size: 9px; }
-  }
-
-  .metric-value {
-    font-size: 15px;
-    font-weight: 800;
-    color: #0f172a;
-
-    &.green { color: #059669; }
-    &.blue  { color: #3b82f6; }
-  }
-}
-
-.metric-divider {
-  width: 1px;
-  height: 36px;
-  background: #e2e8f0;
-  flex-shrink: 0;
-}
-
+// ── Entry rows ────────────────────────────────────────────
 .entry-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 0;
+  border-top: 1px solid #f1f5f9;
 }
 
 .entry-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 10px 12px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  padding: 9px 16px;
+  border-bottom: 1px solid #f8fafc;
+  transition: background 0.1s;
+
+  &:last-child { border-bottom: none; }
+
+  &:hover { background: #f8fafc; }
 
   &--mine {
-    border-color: #bfdbfe;
-    background: #eff6ff;
-  }
-
-  &__left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  &__info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  &__right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
+    background: #f0f7ff;
+    &:hover { background: #e8f2ff; }
   }
 }
 
 .entry-avatar {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #0f1117;
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -1040,21 +1131,27 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-.entry-user {
+.entry-name {
+  flex: 1;
   font-size: 13px;
   font-weight: 600;
   color: #374151;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .entry-mine-tag {
   font-size: 10px;
   font-weight: 700;
   color: #3b82f6;
+  background: #dbeafe;
+  padding: 1px 6px;
+  border-radius: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
 }
 
 .entry-amount {
@@ -1062,17 +1159,75 @@ onMounted(async () => {
   font-weight: 800;
   color: #059669;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .entry-edit-btn {
   display: flex;
   align-items: center;
+  gap: 4px;
+  background: none;
+  color: #3b82f6;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  i { font-size: 10px; }
+
+  &:hover {
+    background: #3b82f6;
+    color: #fff;
+    border-color: #3b82f6;
+  }
+}
+
+// ── Day pending CTA ───────────────────────────────────────
+.day-pending-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #fef9ec;
+  border-top: 1px solid #fde68a;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #92400e;
+
+    i { color: #f59e0b; font-size: 13px; }
+  }
+
+  &--today {
+    background: #fffbeb;
+    border-top-color: #f59e0b;
+
+    .day-pending-cta__left {
+      color: #78350f;
+      font-weight: 700;
+    }
+  }
+}
+
+.btn-register-pending {
+  display: flex;
+  align-items: center;
   gap: 5px;
-  background: #1e40af;
+  padding: 6px 14px;
+  background: #f59e0b;
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: 7px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -1080,36 +1235,11 @@ onMounted(async () => {
   white-space: nowrap;
   flex-shrink: 0;
 
-  i { font-size: 11px; }
+  i { font-size: 10px; }
 
   &:hover {
-    background: #1d4ed8;
+    background: #d97706;
     transform: translateY(-1px);
-  }
-}
-
-.day-action { margin-top: 4px; }
-
-.btn-register {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  background: #f8fafc;
-  border: 1.5px dashed #cbd5e1;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  i { font-size: 11px; }
-
-  &:hover {
-    border-color: #0f1117;
-    background: #fff;
-    color: #0f1117;
   }
 }
 
@@ -1117,9 +1247,10 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  color: #cbd5e1;
-  font-style: italic;
+  font-size: 11px;
+  color: #d1d5db;
+  padding: 8px 16px;
+  border-top: 1px solid #f8fafc;
 
   i { font-size: 10px; }
 }

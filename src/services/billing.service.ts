@@ -32,7 +32,7 @@ export interface IMonthData {
 }
 
 class BillingService extends APIBase {
-  async createEntry(workspaceId: string, data: { amount: number; notes?: string }) {
+  async createEntry(workspaceId: string, data: { amount: number; notes?: string; date?: string }) {
     const res = await this.post<{ entry: IDailyBillingEntry; daySummary: IDaySummary }>(
       `billing/${workspaceId}`,
       data
