@@ -1,15 +1,26 @@
 import APIBase from './httpBase'
-import type {
-  AppNotification,
-  NotificationListResponse,
-  UnreadCountResponse,
-} from '@/types'
+import type { AppNotification, UnreadCountResponse } from '@/types'
+
+export interface PaginatedNotificationsResponse {
+  notifications: AppNotification[]
+  total: number
+  page: number
+  totalPages: number
+}
 
 class NotificationService extends APIBase {
-  async getMyNotifications(workspaceId?: string): Promise<AppNotification[]> {
-    const qs = workspaceId ? `?workspaceId=${workspaceId}` : ''
-    const res = await this.get<NotificationListResponse>(`notifications${qs}`)
-    return res.data.notifications
+  async getMyNotifications(
+    page = 1,
+    limit = 10,
+    workspaceId?: string
+  ): Promise<PaginatedNotificationsResponse> {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    })
+    if (workspaceId) params.set('workspaceId', workspaceId)
+    const res = await this.get<PaginatedNotificationsResponse>(`notifications?${params}`)
+    return res.data
   }
 
   async getUnreadCount(workspaceId?: string): Promise<number> {

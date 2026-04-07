@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notification'
 import type { AppNotification, NotificationType } from '@/types'
@@ -7,30 +7,10 @@ import type { AppNotification, NotificationType } from '@/types'
 const store = useNotificationStore()
 const router = useRouter()
 
-const PAGE_SIZE = 10
-const currentPage = ref(1)
+// ── Load page 1 on mount ──────────────────────────────────────
+onMounted(() => store.fetchPage(1))
 
-// ── Load ──────────────────────────────────────────────────────
-store.fetchAll()
-
-// Reset to page 1 when notifications change
-watch(() => store.notifications.length, () => { currentPage.value = 1 })
-
-// ── Sorted flat list ──────────────────────────────────────────
-const sortedNotifications = computed(() =>
-  [...store.notifications].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  )
-)
-
-const totalPages = computed(() => Math.ceil(sortedNotifications.value.length / PAGE_SIZE))
-
-const pageNotifications = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE
-  return sortedNotifications.value.slice(start, start + PAGE_SIZE)
-})
-
-// ── Group the current page ────────────────────────────────────
+// ── Group current page (already sorted by backend DESC) ───────
 const grouped = computed(() => {
   const now = new Date()
   const today = now.toDateString()
@@ -47,7 +27,7 @@ const grouped = computed(() => {
     { label: 'Antes', items: [] },
   ]
 
-  for (const n of pageNotifications.value) {
+  for (const n of store.notifications) {
     const d = new Date(n.createdAt)
     const dStr = d.toDateString()
     if (dStr === today) groups[0].items.push(n)
@@ -59,7 +39,7 @@ const grouped = computed(() => {
   return groups.filter(g => g.items.length > 0)
 })
 
-const hasUnread = computed(() => store.notifications.some(n => !n.isRead))
+const hasUnread = computed(() => store.unreadCount > 0)
 
 // ── Notification metadata ─────────────────────────────────────
 const typeIcon: Record<NotificationType, string> = {
@@ -123,8 +103,8 @@ function relativeTime(dateStr: string): string {
 }
 
 function visiblePages(): (number | '...')[] {
-  const total = totalPages.value
-  const current = currentPage.value
+  const total = store.totalPages
+  const current = store.currentPage
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
 
   const pages: (number | '...')[] = [1]
@@ -135,6 +115,11 @@ function visiblePages(): (number | '...')[] {
   if (current < total - 2) pages.push('...')
   pages.push(total)
   return pages
+}
+
+async function goToPage(p: number) {
+  await store.fetchPage(p)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 </script>
 
@@ -167,8 +152,14 @@ function visiblePages(): (number | '...')[] {
       </button>
     </div>
 
+    <!-- Loading state -->
+    <div v-if="store.isLoading && store.notifications.length === 0" class="notif-empty">
+      <div class="notif-empty__icon"><i class="fa-solid fa-circle-notch fa-spin" /></div>
+      <p>Cargando notificaciones…</p>
+    </div>
+
     <!-- Empty state -->
-    <div v-if="store.notifications.length === 0" class="notif-empty">
+    <div v-else-if="!store.isLoading && store.total === 0" class="notif-empty">
       <div class="notif-empty__icon"><i class="fa-solid fa-bell-slash" /></div>
       <h3>Sin notificaciones</h3>
       <p>Aquí verás avisos de clientes asignados, videos publicados y más.</p>
@@ -178,10 +169,10 @@ function visiblePages(): (number | '...')[] {
       <!-- Count + pagination info -->
       <div class="notif-meta">
         <span class="notif-meta__count">
-          {{ sortedNotifications.length }} notificación{{ sortedNotifications.length !== 1 ? 'es' : '' }}
+          {{ store.total }} notificación{{ store.total !== 1 ? 'es' : '' }}
         </span>
-        <span v-if="totalPages > 1" class="notif-meta__page">
-          Página {{ currentPage }} de {{ totalPages }}
+        <span v-if="store.totalPages > 1" class="notif-meta__page">
+          Página {{ store.currentPage }} de {{ store.totalPages }}
         </span>
       </div>
 
@@ -251,11 +242,11 @@ function visiblePages(): (number | '...')[] {
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="notif-pagination">
+      <div v-if="store.totalPages > 1" class="notif-pagination">
         <button
           class="page-btn page-btn--nav"
-          :disabled="currentPage === 1"
-          @click="currentPage--"
+          :disabled="store.currentPage === 1 || store.isLoading"
+          @click="goToPage(store.currentPage - 1)"
         >
           <i class="fa-solid fa-chevron-left" />
         </button>
@@ -265,15 +256,16 @@ function visiblePages(): (number | '...')[] {
           <button
             v-else
             class="page-btn"
-            :class="{ 'page-btn--active': p === currentPage }"
-            @click="currentPage = p as number"
+            :class="{ 'page-btn--active': p === store.currentPage }"
+            :disabled="store.isLoading"
+            @click="goToPage(p as number)"
           >{{ p }}</button>
         </template>
 
         <button
           class="page-btn page-btn--nav"
-          :disabled="currentPage === totalPages"
-          @click="currentPage++"
+          :disabled="store.currentPage === store.totalPages || store.isLoading"
+          @click="goToPage(store.currentPage + 1)"
         >
           <i class="fa-solid fa-chevron-right" />
         </button>
