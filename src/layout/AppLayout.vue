@@ -35,6 +35,7 @@ const INTERNAL_ROLE_LABELS: Record<string, string> = {
   copywriter: 'Copywriter',
   analista: 'Analista',
   desarrollador: 'Desarrollador',
+  trafficker: 'Trafficker',
 }
 
 const userRoleLabel = computed(() => {
@@ -52,7 +53,7 @@ const filteredDropdownWorkspaces = computed(() => {
   return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
@@ -320,6 +321,17 @@ router.afterEach(() => {
           <i class="fa-solid fa-handshake" aria-hidden="true" />
           <span>Reuniones</span>
           <span class="app-layout__nav-global-tag">GLOBAL</span>
+        </RouterLink>
+
+        <!-- Trafficker panel — trafficker + project_manager + superadmin -->
+        <RouterLink
+          v-if="(userStore.isInternal && ['trafficker', 'project_manager'].includes(userStore.internalRole || '')) || userStore.role === 'superadmin'"
+          class="app-layout__nav-item app-layout__nav-item--trafficker"
+          :to="{ name: 'TraffickerDashboard' }"
+        >
+          <i class="fa-solid fa-bullseye-arrow" aria-hidden="true" />
+          <span>Panel Trafficker</span>
+          <span class="app-layout__nav-global-tag">ADS</span>
         </RouterLink>
 
         <!-- Team KPIs — superadmin and project_manager only -->
@@ -988,6 +1000,27 @@ router.afterEach(() => {
       background: rgba(52, 211, 153, 0.15) !important;
       color: #34d399 !important;
       transform: none;
+    }
+  }
+
+  &__nav-item--trafficker {
+    background: rgba(#d97706, 0.06);
+    border: 1px solid rgba(#d97706, 0.18);
+    color: #92400e !important;
+
+    i { color: #d97706 !important; }
+
+    .app-layout__nav-global-tag {
+      color: #d97706;
+      background: rgba(#d97706, 0.12);
+      border-color: rgba(#d97706, 0.25);
+    }
+
+    &.router-link-active,
+    &:hover {
+      background: rgba(#d97706, 0.12) !important;
+      border-color: rgba(#d97706, 0.35) !important;
+      color: #78350f !important;
     }
   }
 
