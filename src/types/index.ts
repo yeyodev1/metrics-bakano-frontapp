@@ -311,6 +311,7 @@ export type NotificationType =
   | 'new_client_assigned'
   | 'video_status_changed'
   | 'video_planning_resent'
+  | 'billing_reminder'
 
 export interface AppNotification {
   _id: string

@@ -68,13 +68,38 @@
       </div>
       <div class="trf__strip-divider" />
       <div class="trf__strip-item">
-        <span class="trf__strip-label">En objetivo ≥4x</span>
-        <span class="trf__strip-val trf__strip-val--green">{{ onTarget }}</span>
+        <span class="trf__strip-label">Sin facturación</span>
+        <span class="trf__strip-val" :class="cardsWithoutBilling.length > 0 ? 'trf__strip-val--red' : 'trf__strip-val--green'">
+          {{ cardsWithoutBilling.length }}
+        </span>
       </div>
       <div class="trf__strip-divider" />
       <div class="trf__strip-item">
-        <span class="trf__strip-label">Críticos &lt;1x</span>
-        <span class="trf__strip-val trf__strip-val--red">{{ critical }}</span>
+        <span class="trf__strip-label">En objetivo ≥4x</span>
+        <span class="trf__strip-val trf__strip-val--green">{{ onTarget }}</span>
+      </div>
+
+      <!-- Recordar a todos -->
+      <div class="trf__strip-divider" />
+      <div class="trf__strip-item">
+        <button
+          v-if="!remindAllDone"
+          class="trf__remind-all-btn"
+          :class="{ 'trf__remind-all-btn--active': remindAll.active }"
+          :disabled="remindAll.active || cardsWithoutBilling.length === 0"
+          @click="sendReminderToAll"
+        >
+          <i :class="remindAll.active ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-bell'" />
+          <span v-if="remindAll.active">
+            Enviando {{ remindAll.done }} / {{ remindAll.total }}…
+          </span>
+          <span v-else>
+            Recordar a todos <span v-if="cardsWithoutBilling.length" class="trf__remind-all-count">{{ cardsWithoutBilling.length }}</span>
+          </span>
+        </button>
+        <div v-else class="trf__remind-all-done">
+          <i class="fa-solid fa-check" /> Enviado a {{ remindAll.total - remindAll.errors }} entornos
+        </div>
       </div>
     </div>
 
@@ -107,8 +132,36 @@
       <p>Contacta al superadmin para que te asigne entornos de clientes.</p>
     </div>
 
+    <!-- Filter tabs -->
+    <div v-if="!isLoading && cards.length > 0" class="trf__filter-tabs">
+      <button
+        class="trf__filter-tab"
+        :class="{ 'trf__filter-tab--active': filterMode === 'all' }"
+        @click="filterMode = 'all'"
+      >
+        <i class="fa-solid fa-layer-group" /> Todos
+        <span class="trf__filter-tab-count">{{ cards.length }}</span>
+      </button>
+      <button
+        class="trf__filter-tab"
+        :class="{ 'trf__filter-tab--active': filterMode === 'con_pauta' }"
+        @click="filterMode = 'con_pauta'"
+      >
+        <i class="fa-brands fa-meta" /> Con pauta
+        <span class="trf__filter-tab-count">{{ cards.filter(c => c.spend > 0).length }}</span>
+      </button>
+      <button
+        class="trf__filter-tab"
+        :class="{ 'trf__filter-tab--active': filterMode === 'sin_pauta' }"
+        @click="filterMode = 'sin_pauta'"
+      >
+        <i class="fa-solid fa-minus" /> Sin pauta
+        <span class="trf__filter-tab-count">{{ cards.filter(c => c.spend === 0).length }}</span>
+      </button>
+    </div>
+
     <!-- Grouped view -->
-    <div v-else class="trf__groups">
+    <div v-if="!isLoading && cards.length > 0" class="trf__groups">
       <div
         v-for="group in groups"
         :key="group.id"
@@ -147,20 +200,32 @@
             :class="cardClass(card.roas)"
             @click="go(card.id)"
           >
-            <!-- Top row: name + ROAS badge -->
+            <!-- Top row: name + status badges -->
             <div class="trf-card__top">
               <div class="trf-card__name-wrap">
                 <div class="trf-card__avatar">{{ card.name[0]?.toUpperCase() }}</div>
                 <div>
                   <p class="trf-card__name">{{ card.name }}</p>
-                  <p class="trf-card__status" :class="statusClass(card.roas)">
-                    <i :class="statusIcon(card.roas)" />
-                    {{ statusLabel(card.roas) }}
-                  </p>
+                  <!-- Billing + Ads badges -->
+                  <div class="trf-card__badges">
+                    <span class="trf-card__badge" :class="card.revenue > 0 ? 'trf-card__badge--ok' : 'trf-card__badge--missing'">
+                      <i :class="card.revenue > 0 ? 'fa-solid fa-check' : 'fa-solid fa-xmark'" />
+                      Facturación
+                    </span>
+                    <span class="trf-card__badge" :class="card.spend > 0 ? 'trf-card__badge--ok' : 'trf-card__badge--neutral'">
+                      <i :class="card.spend > 0 ? 'fa-brands fa-meta' : 'fa-solid fa-minus'" />
+                      Pauta
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div class="trf-card__roas" :class="roasBadge(card.roas)">
-                {{ card.roas > 0 ? card.roas.toFixed(2) + 'x' : '—' }}
+              <div class="trf-card__roas-wrap">
+                <div class="trf-card__roas" :class="roasBadge(card.roas)">
+                  {{ card.roas > 0 ? card.roas.toFixed(2) + 'x' : '—' }}
+                </div>
+                <span class="trf-card__roas-label" :class="roasLabelClass(card.roas)">
+                  {{ roasLabel(card.roas) }}
+                </span>
               </div>
             </div>
 
@@ -220,6 +285,25 @@
               >
                 <i class="fa-brands fa-meta" /> Meta Ads
               </RouterLink>
+              <button
+                class="trf-card__action trf-card__action--remind"
+                :class="{
+                  'trf-card__action--reminding': remindingSet.has(card.id),
+                  'trf-card__action--reminded': remindedSet.has(card.id),
+                }"
+                :disabled="remindingSet.has(card.id) || remindedSet.has(card.id)"
+                @click="sendReminder(card.id)"
+                :title="remindedSet.has(card.id) ? 'Recordatorio enviado' : 'Enviar recordatorio de facturación a colaboradores'"
+              >
+                <i
+                  :class="remindedSet.has(card.id)
+                    ? 'fa-solid fa-check'
+                    : remindingSet.has(card.id)
+                      ? 'fa-solid fa-spinner fa-spin'
+                      : 'fa-solid fa-bell'"
+                />
+                {{ remindedSet.has(card.id) ? 'Enviado' : remindingSet.has(card.id) ? 'Enviando…' : 'Recordar' }}
+              </button>
             </div>
           </div>
         </div>
@@ -236,6 +320,8 @@ import { useRouter, RouterLink } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { workspaceService } from '@/services/workspace.service'
 import { billingService } from '@/services/billing.service'
+import { notificationService } from '@/services/notification.service'
+import { metaService } from '@/services/meta.service'
 
 interface Card {
   id: string
@@ -244,10 +330,34 @@ interface Card {
   roas: number
   revenue: number
   spend: number
+  ts?: number
 }
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// ── Billing reminder ──────────────────────────────────────
+const remindingSet = ref(new Set<string>())  // workspaceIds being sent right now
+const remindedSet  = ref(new Set<string>())  // workspaceIds that just got sent (success flash)
+
+async function sendReminder(id: string) {
+  if (remindingSet.value.has(id) || remindedSet.value.has(id)) return
+  remindingSet.value = new Set(remindingSet.value).add(id)
+  try {
+    await notificationService.sendBillingReminder(id)
+    remindingSet.value.delete(id)
+    remindingSet.value = new Set(remindingSet.value)
+    remindedSet.value = new Set(remindedSet.value).add(id)
+    // Reset success state after 3 s
+    setTimeout(() => {
+      remindedSet.value.delete(id)
+      remindedSet.value = new Set(remindedSet.value)
+    }, 3000)
+  } catch {
+    remindingSet.value.delete(id)
+    remindingSet.value = new Set(remindingSet.value)
+  }
+}
 
 const isLoading = ref(false)
 const cards = ref<Card[]>([])
@@ -288,49 +398,130 @@ function selectMonth(year: number, month: number) {
   load()
 }
 
+const byName = (a: Card, b: Card) => a.name.localeCompare(b.name)
+
 const byRoasAsc = (a: Card, b: Card) => {
-  if (!a.roas && !b.roas) return a.name.localeCompare(b.name)
+  if (!a.roas && !b.roas) return byName(a, b)
   if (!a.roas) return 1
   if (!b.roas) return -1
   return a.roas - b.roas
 }
 
-const groups = computed(() => [
-  {
-    id: 'urgente',
-    label: 'Urgente',
-    desc: 'ROAS < 1x — Necesita intervención inmediata',
-    icon: 'fa-solid fa-circle-xmark',
-    color: 'red',
-    cards: cards.value.filter(c => c.roas > 0 && c.roas < 1).sort(byRoasAsc),
-  },
-  {
-    id: 'atencion',
-    label: 'Atención',
-    desc: 'ROAS 1x – 3.99x — Por debajo del objetivo',
-    icon: 'fa-solid fa-triangle-exclamation',
-    color: 'orange',
-    cards: cards.value.filter(c => c.roas >= 1 && c.roas < 4).sort(byRoasAsc),
-  },
-  {
-    id: 'optimo',
-    label: 'Óptimo',
-    desc: 'ROAS ≥ 4x — En objetivo  🎯',
-    icon: 'fa-solid fa-circle-check',
-    color: 'green',
-    cards: cards.value.filter(c => c.roas >= 4).sort(byRoasAsc),
-  },
-  {
-    id: 'sin_datos',
-    label: 'Sin datos',
-    desc: 'Sin actividad registrada este mes',
-    icon: 'fa-solid fa-circle-minus',
-    color: 'gray',
-    cards: cards.value.filter(c => c.roas === 0).sort((a, b) => a.name.localeCompare(b.name)),
-  },
-].filter(g => g.cards.length > 0))
+// ── Filter tabs ───────────────────────────────────────────
+type FilterMode = 'all' | 'con_pauta' | 'sin_pauta'
+const filterMode = ref<FilterMode>('all')
 
-const expandedGroups = ref(new Set(['urgente', 'atencion', 'optimo', 'sin_datos']))
+const filteredCards = computed(() => {
+  if (filterMode.value === 'con_pauta') return cards.value.filter(c => c.spend > 0)
+  if (filterMode.value === 'sin_pauta') return cards.value.filter(c => c.spend === 0)
+  return cards.value
+})
+
+// ── ROAS label helpers ────────────────────────────────────
+function roasLabel(roas: number) {
+  if (!roas)    return 'Sin datos'
+  if (roas < 1) return 'Crítico'
+  if (roas < 4) return 'En peligro'
+  return 'Óptimo'
+}
+function roasLabelClass(roas: number) {
+  if (!roas)    return 'roas-label--gray'
+  if (roas < 1) return 'roas-label--red'
+  if (roas < 4) return 'roas-label--orange'
+  return 'roas-label--green'
+}
+
+// Billing-first grouping — filtered by current tab
+const groups = computed(() => {
+  const src = filteredCards.value
+  return [
+    {
+      id: 'pauta_sin_factura',
+      label: 'Pauta activa · Sin facturación',
+      desc: 'Ads corriendo pero sin datos de facturación — ROAS incalculable',
+      icon: 'fa-solid fa-circle-xmark',
+      color: 'red',
+      needsReminder: true,
+      cards: src.filter(c => c.spend > 0 && c.revenue === 0).sort(byName),
+    },
+    {
+      id: 'sin_factura',
+      label: 'Sin facturación',
+      desc: 'Pendiente de registrar datos del mes',
+      icon: 'fa-solid fa-triangle-exclamation',
+      color: 'orange',
+      needsReminder: true,
+      cards: src.filter(c => c.spend === 0 && c.revenue === 0).sort(byName),
+    },
+    {
+      id: 'critico',
+      label: 'Crítico · ROAS < 1x',
+      desc: 'Facturación registrada — ROAS por debajo del gasto en ads',
+      icon: 'fa-solid fa-fire',
+      color: 'red',
+      needsReminder: false,
+      cards: src.filter(c => c.revenue > 0 && c.roas > 0 && c.roas < 1).sort(byRoasAsc),
+    },
+    {
+      id: 'peligro',
+      label: 'En peligro · ROAS 1x – 3.99x',
+      desc: 'Por debajo del objetivo de 4x — necesita atención',
+      icon: 'fa-solid fa-triangle-exclamation',
+      color: 'amber',
+      needsReminder: false,
+      cards: src.filter(c => c.roas >= 1 && c.roas < 4).sort(byRoasAsc),
+    },
+    {
+      id: 'optimo',
+      label: 'Óptimo · ROAS ≥ 4x',
+      desc: 'En objetivo — seguir optimizando',
+      icon: 'fa-solid fa-circle-check',
+      color: 'green',
+      needsReminder: false,
+      cards: src.filter(c => c.roas >= 4).sort(byRoasAsc),
+    },
+    {
+      id: 'factura_sin_pauta',
+      label: 'Facturando · Sin pauta activa',
+      desc: 'Facturación al día · Sin gasto Meta este mes',
+      icon: 'fa-solid fa-building-columns',
+      color: 'blue',
+      needsReminder: false,
+      cards: src.filter(c => c.revenue > 0 && c.spend === 0).sort(byName),
+    },
+  ].filter(g => g.cards.length > 0)
+})
+
+const expandedGroups = ref(new Set(['pauta_sin_factura', 'sin_factura', 'critico', 'peligro', 'optimo', 'factura_sin_pauta']))
+
+// ── Remind all (workspaces without billing) ───────────────
+const cardsWithoutBilling = computed(() => filteredCards.value.filter(c => c.revenue === 0))
+
+const remindAll = ref({ active: false, done: 0, total: 0, errors: 0 })
+const remindAllDone = ref(false)
+
+async function sendReminderToAll() {
+  const targets = cardsWithoutBilling.value
+  if (!targets.length || remindAll.value.active) return
+  remindAll.value = { active: true, done: 0, total: targets.length, errors: 0 }
+  remindAllDone.value = false
+  for (const card of targets) {
+    if (remindingSet.value.has(card.id) || remindedSet.value.has(card.id)) {
+      remindAll.value.done++
+      continue
+    }
+    try {
+      await notificationService.sendBillingReminder(card.id)
+      remindedSet.value = new Set(remindedSet.value).add(card.id)
+    } catch {
+      remindAll.value.errors++
+    }
+    remindAll.value = { ...remindAll.value, done: remindAll.value.done + 1 }
+  }
+  remindAll.value.active = false
+  remindAllDone.value = true
+  setTimeout(() => { remindAllDone.value = false }, 5000)
+}
 
 function toggleGroup(id: string) {
   if (expandedGroups.value.has(id)) expandedGroups.value.delete(id)
@@ -459,6 +650,37 @@ function nextMonth() {
   load()
 }
 
+// ── Billing + Meta spend cache (5 min TTL) ────────────────
+interface CachedBilling { revenue: number; spend: number; roas: number; ts: number }
+const billingCache = new Map<string, CachedBilling>()
+const CACHE_TTL = 5 * 60 * 1000
+
+async function getCachedBilling(wsId: string, year: number, month: number, hasMetaAds: boolean) {
+  const key = `${wsId}:${year}:${month}`
+  const hit = billingCache.get(key)
+  if (hit && Date.now() - hit.ts < CACHE_TTL) return hit
+
+  // Fetch billing data + real Meta spend in parallel
+  const [billingResult, metaSpendResult] = await Promise.allSettled([
+    billingService.getMonthData(wsId, year, month),
+    hasMetaAds ? metaService.getMonthSpend(wsId, year, month) : Promise.resolve(0),
+  ])
+
+  const days = billingResult.status === 'fulfilled' ? (billingResult.value.days ?? []) : []
+  const revenue = days.reduce((s: number, d: any) => s + (d.totalAmount ?? 0), 0)
+
+  // Prefer real Meta API spend; fall back to manually entered value
+  let spend = metaSpendResult.status === 'fulfilled' ? (metaSpendResult.value ?? 0) : 0
+  if (!spend) {
+    spend = days.reduce((s: number, d: any) => s + (d.totalMetaSpend ?? 0), 0)
+  }
+
+  const roas = spend > 0 ? revenue / spend : 0
+  const entry: CachedBilling = { revenue, spend, roas, ts: Date.now() }
+  billingCache.set(key, entry)
+  return entry
+}
+
 async function fetchAllWorkspaces() {
   const all: any[] = []
   let page = 1
@@ -474,24 +696,37 @@ async function fetchAllWorkspaces() {
 
 async function load() {
   isLoading.value = true
-  cards.value = []
   try {
     const workspaces = await fetchAllWorkspaces()
-    const results = await Promise.all(
+
+    // ① Show cached data instantly (no skeleton for returning visits)
+    const fromCache = workspaces.map((ws: any) => {
+      const key = `${ws._id}:${currentYear.value}:${currentMonth.value}`
+      const hit = billingCache.get(key)
+      if (hit && Date.now() - hit.ts < CACHE_TTL) {
+        return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), ...hit } as Card
+      }
+      return null
+    }).filter(Boolean) as Card[]
+
+    if (fromCache.length === workspaces.length) {
+      cards.value = fromCache
+      isLoading.value = false
+    }
+
+    // ② Fetch fresh: billing + real Meta spend in parallel per workspace
+    const fresh = await Promise.all(
       workspaces.map(async (ws: any) => {
+        const hasMetaAds = !!(ws.metaAds?.adAccountId)
         try {
-          const b = await billingService.getMonthData(ws._id, currentYear.value, currentMonth.value)
-          const days = b.days ?? []
-          const revenue = days.reduce((s, d) => s + (d.totalAmount ?? 0), 0)
-          const spend = days.reduce((s, d) => s + (d.totalMetaSpend ?? 0), 0)
-          const roas = spend > 0 ? revenue / spend : 0
-          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), roas, revenue, spend } as Card
+          const data = await getCachedBilling(ws._id, currentYear.value, currentMonth.value, hasMetaAds)
+          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), ...data } as Card
         } catch {
-          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), roas: 0, revenue: 0, spend: 0 } as Card
+          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), roas: 0, revenue: 0, spend: 0, ts: 0 } as Card
         }
       })
     )
-    cards.value = results
+    cards.value = fresh
   } catch (e) {
     console.error('TraffickerDashboard load error', e)
   } finally {
@@ -836,26 +1071,26 @@ onMounted(load)
     box-shadow: 0 8px 24px rgba(0,0,0,0.1);
   }
 
-  // Color variants
+  // Color variants — vivid left border matches group
   &--green  {
     border-left-color: #16a34a;
-    background: linear-gradient(160deg, #f0fdf4 0%, white 50%);
+    background: linear-gradient(160deg, #f0fdf4 0%, white 55%);
   }
   &--teal   {
     border-left-color: #0891b2;
-    background: linear-gradient(160deg, #ecfeff 0%, white 50%);
+    background: linear-gradient(160deg, #ecfeff 0%, white 55%);
   }
   &--orange {
-    border-left-color: #d97706;
-    background: linear-gradient(160deg, #fffbeb 0%, white 50%);
+    border-left-color: #f97316;
+    background: linear-gradient(160deg, #fff7ed 0%, white 55%);
   }
   &--red    {
-    border-left-color: #dc2626;
-    background: linear-gradient(160deg, #fef2f2 0%, white 50%);
+    border-left-color: #ef4444;
+    background: linear-gradient(160deg, #fef2f2 0%, white 55%);
     animation: pulse-shadow 2.5s ease-in-out infinite;
   }
   &--gray   {
-    border-left-color: #d1d5db;
+    border-left-color: #cbd5e1;
     background: white;
   }
 }
@@ -933,11 +1168,11 @@ onMounted(load)
   flex-shrink: 0;
   line-height: 1;
 
-  &.badge--green  { color: #15803d; background: #dcfce7; }
-  &.badge--teal   { color: #0e7490; background: #cffafe; }
-  &.badge--orange { color: #b45309; background: #fef3c7; }
-  &.badge--red    { color: #991b1b; background: #fee2e2; }
-  &.badge--gray   { color: #6b7280; background: #f3f4f6; }
+  &.badge--green  { color: #fff;    background: #16a34a; }
+  &.badge--teal   { color: #fff;    background: #0891b2; }
+  &.badge--orange { color: #fff;    background: #f97316; }
+  &.badge--red    { color: #fff;    background: #ef4444; }
+  &.badge--gray   { color: #475569; background: #e2e8f0; }
 }
 
 // Metrics
@@ -1020,9 +1255,9 @@ onMounted(load)
 
   &.badge--green  { background: #16a34a; }
   &.badge--teal   { background: #0891b2; }
-  &.badge--orange { background: #d97706; }
-  &.badge--red    { background: #dc2626; }
-  &.badge--gray   { background: #d1d5db; }
+  &.badge--orange { background: #f97316; }
+  &.badge--red    { background: #ef4444; }
+  &.badge--gray   { background: #cbd5e1; }
 }
 
 .trf-card__progress-info {
@@ -1084,6 +1319,28 @@ onMounted(load)
 
     &:hover { background: darken($primary, 8%); }
   }
+
+  &--remind {
+    border-color: rgba(#d97706, 0.3);
+    color: #b45309;
+
+    &:hover:not(:disabled) {
+      background: rgba(#d97706, 0.08);
+      border-color: #d97706;
+    }
+  }
+
+  &--reminding {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &--reminded {
+    background: rgba(#16a34a, 0.08);
+    border-color: #16a34a;
+    color: #15803d;
+    cursor: default;
+  }
 }
 
 // ── Groups ─────────────────────────────────────────────────
@@ -1101,10 +1358,12 @@ onMounted(load)
 
   &:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.07); }
 
-  &--red    { border-color: rgba(#dc2626, 0.22); background: rgba(#dc2626, 0.015); }
-  &--orange { border-color: rgba(#d97706, 0.22); background: rgba(#d97706, 0.015); }
-  &--green  { border-color: rgba(#16a34a, 0.22); background: rgba(#16a34a, 0.015); }
-  &--gray   { border-color: rgba(#9ca3af, 0.2);  background: white; }
+  &--red    { border-color: #ef4444; background: rgba(#ef4444, 0.04); }
+  &--orange { border-color: #f97316; background: rgba(#f97316, 0.04); }
+  &--amber  { border-color: #f59e0b; background: rgba(#f59e0b, 0.04); }
+  &--green  { border-color: #16a34a; background: rgba(#16a34a, 0.04); }
+  &--blue   { border-color: #2563eb; background: rgba(#2563eb, 0.04); }
+  &--gray   { border-color: #e2e8f0; background: white; }
 }
 
 .trf__group-header {
@@ -1137,10 +1396,12 @@ onMounted(load)
   font-size: 17px;
   flex-shrink: 0;
 
-  .trf__group--red &    { background: #fee2e2; color: #dc2626; }
-  .trf__group--orange & { background: #fef3c7; color: #d97706; }
-  .trf__group--green &  { background: #dcfce7; color: #16a34a; }
-  .trf__group--gray &   { background: #f3f4f6; color: #9ca3af; }
+  .trf__group--red &    { background: #ef4444; color: #fff; }
+  .trf__group--orange & { background: #f97316; color: #fff; }
+  .trf__group--amber &  { background: #f59e0b; color: #fff; }
+  .trf__group--green &  { background: #16a34a; color: #fff; }
+  .trf__group--blue &   { background: #2563eb; color: #fff; }
+  .trf__group--gray &   { background: #94a3b8; color: #fff; }
 }
 
 .trf__group-meta {
@@ -1154,6 +1415,12 @@ onMounted(load)
   font-weight: 800;
   color: $primary-dark;
   margin-bottom: 2px;
+
+  .trf__group--red &    { color: #dc2626; }
+  .trf__group--orange & { color: #c2410c; }
+  .trf__group--amber &  { color: #b45309; }
+  .trf__group--green &  { color: #15803d; }
+  .trf__group--blue &   { color: #1d4ed8; }
 }
 
 .trf__group-desc {
@@ -1179,10 +1446,12 @@ onMounted(load)
   padding: 0 9px;
   flex-shrink: 0;
 
-  .trf__group--red &    { background: #fee2e2; color: #dc2626; }
-  .trf__group--orange & { background: #fef3c7; color: #d97706; }
-  .trf__group--green &  { background: #dcfce7; color: #16a34a; }
-  .trf__group--gray &   { background: #f3f4f6; color: #6b7280; }
+  .trf__group--red &    { background: #ef4444; color: #fff; }
+  .trf__group--orange & { background: #f97316; color: #fff; }
+  .trf__group--amber &  { background: #f59e0b; color: #fff; }
+  .trf__group--green &  { background: #16a34a; color: #fff; }
+  .trf__group--blue &   { background: #2563eb; color: #fff; }
+  .trf__group--gray &   { background: #94a3b8; color: #fff; }
 }
 
 .trf__group-caret {
@@ -1203,5 +1472,154 @@ onMounted(load)
   @media (min-width: 480px)  { padding: 0 16px 16px; }
   @media (min-width: 580px)  { grid-template-columns: repeat(2, 1fr); }
   @media (min-width: 1020px) { grid-template-columns: repeat(3, 1fr); }
+}
+
+// ── Filter tabs ────────────────────────────────────────────
+.trf__filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.trf__filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid rgba($primary, 0.15);
+  background: white;
+  color: $text-secondary;
+  transition: all 0.14s;
+
+  i { font-size: 11px; }
+
+  &:hover { background: rgba($primary, 0.05); color: $primary-dark; border-color: rgba($primary, 0.3); }
+
+  &--active {
+    background: $primary;
+    color: white;
+    border-color: $primary;
+
+    .trf__filter-tab-count { background: rgba(255,255,255,0.25); color: #fff; }
+  }
+}
+
+.trf__filter-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 100px;
+  background: rgba($primary, 0.1);
+  color: $primary-dark;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+// ── ROAS label below badge ─────────────────────────────────
+.trf-card__roas-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.trf-card__roas-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+
+  &--red    { color: #dc2626; }
+  &--orange { color: #d97706; }
+  &--green  { color: #16a34a; }
+  &--gray   { color: #9ca3af; }
+}
+
+// ── Card billing/ads badges ────────────────────────────────
+.trf-card__badges {
+  display: flex;
+  gap: 5px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.trf-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 100px;
+  letter-spacing: 0.2px;
+
+  i { font-size: 9px; }
+
+  &--ok      { background: #dcfce7; color: #15803d; }
+  &--missing { background: #fee2e2; color: #dc2626; }
+  &--neutral { background: #f1f5f9; color: #64748b; }
+}
+
+// ── Remind-all button ─────────────────────────────────────
+.trf__remind-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid rgba(#d97706, 0.4);
+  background: rgba(#d97706, 0.06);
+  color: #b45309;
+  transition: all 0.14s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: rgba(#d97706, 0.14);
+    border-color: #d97706;
+  }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  &--active {
+    border-color: $primary;
+    background: rgba($primary, 0.06);
+    color: $primary-dark;
+  }
+}
+
+.trf__remind-all-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #d97706;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.trf__remind-all-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #15803d;
+
+  i { font-size: 11px; }
 }
 </style>

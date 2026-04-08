@@ -50,11 +50,22 @@ class MetaService extends APIBase {
   /**
    * Obtiene las métricas en modo solo lectura de todas las campañas
    */
-  async getAdsInsights(workspaceId: string, adAccountId?: string, datePreset: string = 'this_month') {
-    let query = `?datePreset=${datePreset}`
-    if (adAccountId) query += `&adAccountId=${adAccountId}`
-    const response = await this.get<any>(`meta/${workspaceId}/ads-insights${query}`)
+  async getAdsInsights(workspaceId: string, adAccountId?: string, datePreset: string = 'this_month', since?: string, until?: string) {
+    const params = new URLSearchParams({ datePreset })
+    if (adAccountId) params.set('adAccountId', adAccountId)
+    if (since && until) { params.set('since', since); params.set('until', until) }
+    const response = await this.get<any>(`meta/${workspaceId}/ads-insights?${params}`)
     return response.data
+  }
+
+  /** Convenience: fetch total Meta spend for a specific year/month */
+  async getMonthSpend(workspaceId: string, year: number, month: number): Promise<number> {
+    const since = `${year}-${String(month).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month, 0).getDate()
+    const until = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    const data = await this.getAdsInsights(workspaceId, undefined, 'this_month', since, until)
+    const platforms: Array<{ spend: string }> = data.spendByPlatform ?? []
+    return platforms.reduce((sum, p) => sum + parseFloat(p.spend || '0'), 0)
   }
 
   /**
