@@ -154,6 +154,19 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/notifications/NotificationsView.vue'),
         meta: { title: 'Bakano Ads: Notificaciones', requiresAuth: true },
       },
+      // ── Trafficker ────────────────────────────────────────
+      {
+        path: 'trafficker',
+        name: 'TraffickerDashboard',
+        component: () => import('../views/trafficker/TraffickerDashboard.vue'),
+        meta: { title: 'Bakano Ads: Panel Trafficker', requiresAuth: true, requiresInternal: true },
+      },
+      {
+        path: 'trafficker/:workspaceId',
+        name: 'TraffickerWorkspace',
+        component: () => import('../views/trafficker/TraffickerWorkspaceView.vue'),
+        meta: { title: 'Bakano Ads: Entorno - Trafficker', requiresAuth: true, requiresInternal: true },
+      },
     ],
   },
 
@@ -193,9 +206,11 @@ router.beforeEach((to, _from, next) => {
     try {
       const [, payloadSegment] = token.split('.')
       if (payloadSegment) {
-        const payload = JSON.parse(atob(payloadSegment)) as { role?: string; workspaceId?: string }
+        const payload = JSON.parse(atob(payloadSegment)) as { role?: string; workspaceId?: string; internalRole?: string }
         if (payload.role === 'superadmin') {
           return next({ name: 'AdminWorkspaces' })
+        } else if (payload.internalRole === 'trafficker') {
+          return next({ name: 'TraffickerDashboard' })
         } else {
           const workspaceId = payload.workspaceId || localStorage.getItem('user_workspaceId')
           if (workspaceId) {
