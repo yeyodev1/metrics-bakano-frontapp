@@ -41,6 +41,10 @@ class NotificationService extends APIBase {
   async deleteOne(id: string): Promise<void> {
     await this.delete(`notifications/${id}`)
   }
+
+  async sendBillingReminder(workspaceId: string): Promise<void> {
+    await this.post(`notifications/billing-reminder/${workspaceId}`, {})
+  }
 }
 
 export const notificationService = new NotificationService()
