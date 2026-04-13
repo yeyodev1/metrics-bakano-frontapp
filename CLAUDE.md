@@ -271,3 +271,30 @@ Clients (non-internal, non-superadmin) see an "Agendar Reunión" button in the s
 **Files:**
 - `src/components/common/BookingModal.vue` — self-contained modal with selection + iframe embed
 - `src/layout/AppLayout.vue` — `isBookingModalOpen` ref, booking button (client-only, green accent), `<BookingModal>` mounted at root
+
+### Tumesero WhatsApp Sales Integration (Boloncity only)
+
+Daily sync of WhatsApp ordering sessions from the Tumesero/Kuikers API for Boloncity (`workspaceId: 69bdadc67386136fc3682734`). Data shown inside the billing view (`/app/workspaces/:workspaceId/billing`) below the ROAS section.
+
+**API:**
+- `GET https://www.tumesero.com/api_sesiones_kuikers.php?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&token=TOKEN`
+- Token: `SLKDJ20934831SKDJkjsooK3O399jgrehlhb90764aaqTYH_387JJyu` (expires 2026-07-31)
+- Rate limits: 6 req/hour · 50 req/day (tracked in `TumeseroUsage` MongoDB collection)
+- Hard cap: 100 records per call → use single-day range (`desde=today&hasta=today`)
+- `estado_funnel`: `CON_ORDEN` (sale) | `SIN_ORDEN` (no sale). Revenue fields: `subtotal_neto` (food), `costo_delivery`, `subtotal_desc` (total)
+
+**Cron:** Runs daily at **11PM Ecuador = 04:00 UTC** via `node-cron` in backend `src/crons/tumesero.cron.ts`
+
+**Backend files:**
+- `src/models/salesDailySummary.model.ts` — aggregated daily: totalSessions, totalOrders, conversionRate, totalRevenue, totalBilled, byStore[]
+- `src/models/tumeseroUsage.model.ts` — daily API call counter (enforces 50/day limit)
+- `src/services/tumesero.service.ts` — `fetchSessions()`, `syncDailyData()`, `getMonthSummary()`, `getApiUsage()`
+- `src/controllers/salesSummary.controller.ts` — `getMonthSummary`, `triggerManualSync`, `getApiUsage`
+- `src/routes/salesSummary.router.ts` → `/api/sales-summary/:workspaceId/{month|api-usage|sync}`
+
+**Frontend files:**
+- `src/services/salesSummary.service.ts` — `getMonthData()`, `triggerSync()`, `getApiUsage()`
+- `src/components/billing/SalesDashboardSection.vue` — full dashboard: KPI cards, bar chart, store breakdown table, day detail list, API usage pill, manual sync button
+- `src/views/billing/BillingRoasView.vue` — renders `<SalesDashboardSection>` only when `workspaceId === '69bdadc67386136fc3682734'`
+
+**Manual sync:** Available to superadmin and admin roles via the "Sync ahora" button. Optional `?date=YYYY-MM-DD` query param for backfill.

@@ -1,14 +1,14 @@
 <template>
   <div class="billing-view">
 
-    <!-- Header -->
-    <div class="billing-header">
+    <!-- Header (hidden for Boloncity — SalesDashboardSection has its own header + month nav) -->
+    <div v-if="!isBoloncity" class="billing-header">
       <div class="header-left">
         <div class="header-icon-wrap">
           <i class="fa-solid fa-chart-column" />
         </div>
         <div>
-          <h1>Facturación & ROAS</h1>
+          <h1>{{ isBoloncity ? 'Ventas Online' : 'Facturación & ROAS' }}</h1>
           <p class="header-sub">{{ workspaceName || 'Cargando...' }}</p>
         </div>
       </div>
@@ -22,6 +22,9 @@
         </button>
       </div>
     </div>
+
+    <!-- Manual billing UI (hidden for Boloncity — data comes from Tumesero automatically) -->
+    <template v-if="!isBoloncity">
 
     <!-- KPI Cards -->
     <div class="kpi-grid">
@@ -193,7 +196,16 @@
       </div>
     </div>
 
-    <!-- Sticky CTA for today -->
+    </template><!-- end v-if="!isBoloncity" -->
+
+    <!-- WhatsApp Sales Section (Boloncity only) -->
+    <SalesDashboardSection
+      v-if="workspaceId === '69bdadc67386136fc3682734'"
+      :workspace-id="workspaceId"
+    />
+
+    <!-- Sticky CTA + modal (manual billing only) -->
+    <template v-if="!isBoloncity">
     <div v-if="isCurrentMonth && canEnterBilling && !todayHasMyEntry && !loading" class="today-cta">
       <button class="btn-today-register" @click="openModal(todayStr, todayDaySummary?.totalAmount ?? 0)">
         <i class="fa-solid fa-plus" />
@@ -215,6 +227,7 @@
       :calendar-entry-map="calendarEntryMap"
       @confirmed="handleEntry"
     />
+    </template><!-- end v-if="!isBoloncity" (sticky CTA + modal) -->
 
     <!-- Success toast -->
     <Transition name="toast-fade">
@@ -253,6 +266,7 @@ import {
 import { useUserStore } from '@/stores/user'
 import { billingService, type IMonthData, type IDaySummary } from '@/services/billing.service'
 import BillingEntryModal from '@/components/billing/BillingEntryModal.vue'
+import SalesDashboardSection from '@/components/billing/SalesDashboardSection.vue'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
@@ -330,6 +344,7 @@ const monthTotals = computed(() => {
 })
 // Any non-internal user with workspace access can enter billing.
 // Internal team members can view but not enter (superadmin is the only exception).
+const isBoloncity = computed(() => workspaceId.value === '69bdadc67386136fc3682734')
 const canEnterBilling = computed(() =>
   userStore.role === 'superadmin' || !userStore.isInternal
 )
