@@ -77,6 +77,13 @@ class SalesSummaryService extends APIBase {
     const res = await this.post(`sales-summary/${workspaceId}/sync-range?from=${from}&to=${to}`, {})
     return res.data
   }
+
+  async getRangeData(workspaceId: string, from: string, to: string): Promise<ISalesMonthData> {
+    const res = await this.get<ISalesMonthData>(
+      `sales-summary/${workspaceId}/range?from=${from}&to=${to}`
+    )
+    return res.data
+  }
 }
 
 export const salesSummaryService = new SalesSummaryService()

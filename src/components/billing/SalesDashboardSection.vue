@@ -17,14 +17,20 @@
           </p>
         </div>
       </div>
-      <!-- Month navigation (right) -->
-      <div class="vto-month-nav">
-        <button class="vto-month-nav__btn" @click="prevMonth" :disabled="loading || rangeSyncing">
-          <i class="fa-solid fa-chevron-left" />
-        </button>
-        <span class="vto-month-nav__label">{{ monthLabel }}</span>
-        <button class="vto-month-nav__btn" @click="nextMonth" :disabled="loading || rangeSyncing || isCurrentMonth">
-          <i class="fa-solid fa-chevron-right" />
+      <!-- Month navigation + range toggle (right) -->
+      <div class="vto-banner__right">
+        <div v-if="!rangeMode" class="vto-month-nav">
+          <button class="vto-month-nav__btn" @click="prevMonth" :disabled="loading || rangeSyncing">
+            <i class="fa-solid fa-chevron-left" />
+          </button>
+          <span class="vto-month-nav__label">{{ monthLabel }}</span>
+          <button class="vto-month-nav__btn" @click="nextMonth" :disabled="loading || rangeSyncing || isCurrentMonth">
+            <i class="fa-solid fa-chevron-right" />
+          </button>
+        </div>
+        <button class="vto-range-toggle" :class="{ 'vto-range-toggle--active': rangeMode }" @click="toggleRangeMode">
+          <i class="fa-solid" :class="rangeMode ? 'fa-xmark' : 'fa-sliders'" />
+          <span>{{ rangeMode ? 'Cerrar' : 'Rango' }}</span>
         </button>
       </div>
     </div>
@@ -51,7 +57,7 @@
         <!-- Sync button (always visible) -->
         <button
           class="vto-sync-panel__btn vto-sync-panel__btn--primary"
-          :disabled="syncing || rangeSyncing || noCallsLeft"
+          :disabled="syncing || rangeSyncing"
           @click="handleSync"
         >
           <i class="fa-solid" :class="syncing ? 'fa-spinner fa-spin' : 'fa-arrow-down-to-bracket'" />
@@ -61,19 +67,15 @@
         <!-- Full month button -->
         <button
           class="vto-sync-panel__btn vto-sync-panel__btn--outline"
-          :disabled="syncing || rangeSyncing || noCallsLeft"
+          :disabled="syncing || rangeSyncing"
           @click="handleRangeSync"
         >
           <i class="fa-solid" :class="rangeSyncing ? 'fa-spinner fa-spin' : 'fa-calendar-check'" />
           <span v-if="rangeSyncing && rangeProgress">{{ rangeProgress.done }}/{{ rangeProgress.total }}...</span>
-          <span v-else>Todo {{ monthLabel }}</span>
+          <span v-else>{{ hasData ? 'Actualizar' : 'Traer' }} {{ monthLabel }}</span>
         </button>
 
-        <!-- Quota pill -->
-        <span class="vto-syncbar__quota" :class="quotaBadgeClass">
-          <i class="fa-solid fa-circle-nodes" />
-          {{ apiUsage ? apiUsage.callsRemainingToday : '—' }}
-        </span>
+
       </div>
 
       <!-- Calendar dropdown with transition -->
@@ -90,6 +92,96 @@
       </Transition>
     </div>
 
+    <!-- ══ RANGE BAR ════════════════════════════════════════════════════════════ -->
+    <div v-if="rangeMode" class="vto-range-bar">
+      <!-- From picker -->
+      <div class="vto-range-bar__picker">
+        <span class="vto-range-bar__label"><i class="fa-solid fa-calendar" /> Desde</span>
+        <div class="vto-range-bar__cal-wrap">
+          <button
+            class="vto-syncbar__trigger vto-syncbar__trigger--sm"
+            :class="{ 'vto-syncbar__trigger--open': rangeFromOpen }"
+            @click="rangeFromOpen = !rangeFromOpen; rangeToOpen = false"
+          >
+            <i class="fa-solid fa-calendar-days" />
+            <span>{{ rangeFromFormatted }}</span>
+            <i class="fa-solid fa-chevron-down vto-syncbar__trigger-arrow" :class="{ 'vto-syncbar__trigger-arrow--up': rangeFromOpen }" />
+          </button>
+          <Transition name="vto-cal">
+            <div v-if="rangeFromOpen" class="vto-syncbar__dropdown">
+              <div class="vto-range-cal-nav">
+                <button class="vto-range-cal-nav__btn" @click="prevRangeFromMonth"><i class="fa-solid fa-chevron-left" /></button>
+                <span class="vto-range-cal-nav__label">{{ rangeFromMonthLabel }}</span>
+                <button class="vto-range-cal-nav__btn" @click="nextRangeFromMonth"><i class="fa-solid fa-chevron-right" /></button>
+              </div>
+              <SalesDayCalendar
+                v-model="rangeFrom"
+                :year="rangeFromYear"
+                :month="rangeFromMonth"
+                :days="rangeFromDays"
+                @update:model-value="onRangeFromSelected"
+              />
+            </div>
+          </Transition>
+        </div>
+      </div>
+
+      <i class="fa-solid fa-arrow-right vto-range-bar__arrow" />
+
+      <!-- To picker -->
+      <div class="vto-range-bar__picker">
+        <span class="vto-range-bar__label"><i class="fa-solid fa-calendar-check" /> Hasta</span>
+        <div class="vto-range-bar__cal-wrap">
+          <button
+            class="vto-syncbar__trigger vto-syncbar__trigger--sm"
+            :class="{ 'vto-syncbar__trigger--open': rangeToOpen }"
+            @click="rangeToOpen = !rangeToOpen; rangeFromOpen = false"
+          >
+            <i class="fa-solid fa-calendar-days" />
+            <span>{{ rangeToFormatted }}</span>
+            <i class="fa-solid fa-chevron-down vto-syncbar__trigger-arrow" :class="{ 'vto-syncbar__trigger-arrow--up': rangeToOpen }" />
+          </button>
+          <Transition name="vto-cal">
+            <div v-if="rangeToOpen" class="vto-syncbar__dropdown">
+              <div class="vto-range-cal-nav">
+                <button class="vto-range-cal-nav__btn" @click="prevRangeToMonth"><i class="fa-solid fa-chevron-left" /></button>
+                <span class="vto-range-cal-nav__label">{{ rangeToMonthLabel }}</span>
+                <button class="vto-range-cal-nav__btn" @click="nextRangeToMonth"><i class="fa-solid fa-chevron-right" /></button>
+              </div>
+              <SalesDayCalendar
+                v-model="rangeTo"
+                :year="rangeToYear"
+                :month="rangeToMonth"
+                :days="rangeToDays"
+                @update:model-value="rangeToOpen = false"
+              />
+            </div>
+          </Transition>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="vto-range-bar__actions">
+        <button
+          class="vto-sync-panel__btn vto-sync-panel__btn--outline"
+          :disabled="rangeSyncing || !rangeFrom || !rangeTo || rangeFrom > rangeTo"
+          @click="handleCustomRangeSync"
+        >
+          <i class="fa-solid" :class="rangeSyncing && rangeProgress ? 'fa-spinner fa-spin' : 'fa-rotate'" />
+          <span v-if="rangeSyncing && rangeProgress">{{ rangeProgress.done }}/{{ rangeProgress.total }}</span>
+          <span v-else>Sincronizar</span>
+        </button>
+        <button
+          class="vto-sync-panel__btn vto-sync-panel__btn--primary"
+          :disabled="rangeLoading || !rangeFrom || !rangeTo || rangeFrom > rangeTo"
+          @click="loadRangeData"
+        >
+          <i class="fa-solid" :class="rangeLoading ? 'fa-spinner fa-spin' : 'fa-magnifying-glass'" />
+          {{ rangeLoading ? 'Cargando...' : 'Ver datos' }}
+        </button>
+      </div>
+    </div>
+
     <!-- ══ SYNC TOAST ═══════════════════════════════════════════════════════════ -->
     <Transition name="vto-slide">
       <div v-if="syncMessage" class="vto-toast" :class="syncMessageType === 'error' ? 'vto-toast--err' : 'vto-toast--ok'">
@@ -99,7 +191,7 @@
     </Transition>
 
     <!-- ══ SKELETON ══════════════════════════════════════════════════════════════ -->
-    <div v-if="loading" class="vto-skeleton-wrap">
+    <div v-if="loading || rangeLoading" class="vto-skeleton-wrap">
       <div class="vto-skeleton vto-skeleton--wide" />
       <div class="vto-skeleton-row">
         <div class="vto-skeleton vto-skeleton--card" v-for="n in 3" :key="n" />
@@ -123,7 +215,7 @@
     </div>
 
     <!-- ══ EMPTY STATE ══════════════════════════════════════════════════════════ -->
-    <div v-else-if="!loading && !loadError && !hasData" class="vto-empty">
+    <div v-else-if="!loading && !loadError && !hasData && !rangeMode" class="vto-empty">
       <div class="vto-empty__graphic">
         <i class="fa-brands fa-whatsapp" />
       </div>
@@ -137,9 +229,30 @@
         <div class="vto-backfill__row">
           <div class="vto-backfill__date-wrap">
             <label class="vto-backfill__label"><i class="fa-solid fa-calendar-day" /> Un día</label>
-            <input type="date" class="vto-backfill__input" v-model="backfillDate" :max="todayStr" />
+            <div class="vto-backfill__cal-wrap">
+              <button
+                class="vto-syncbar__trigger vto-syncbar__trigger--sm"
+                :class="{ 'vto-syncbar__trigger--open': emptyCalOpen, 'vto-syncbar__trigger--past': backfillDate !== todayStr }"
+                @click="emptyCalOpen = !emptyCalOpen"
+              >
+                <i class="fa-solid fa-calendar-days" />
+                <span>{{ backfillDateFormatted }}</span>
+                <i class="fa-solid fa-chevron-down vto-syncbar__trigger-arrow" :class="{ 'vto-syncbar__trigger-arrow--up': emptyCalOpen }" />
+              </button>
+              <Transition name="vto-cal">
+                <div v-if="emptyCalOpen" class="vto-syncbar__dropdown">
+                  <SalesDayCalendar
+                    v-model="backfillDate"
+                    :year="currentYear"
+                    :month="currentMonth"
+                    :days="monthData?.days ?? []"
+                    @update:model-value="emptyCalOpen = false"
+                  />
+                </div>
+              </Transition>
+            </div>
           </div>
-          <button class="vto-sync-main" :disabled="syncing || rangeSyncing || noCallsLeft" @click="handleSync">
+          <button class="vto-sync-main" :disabled="syncing || rangeSyncing" @click="handleSync">
             <i class="fa-solid" :class="syncing ? 'fa-spinner fa-spin' : 'fa-arrow-down-to-bracket'" />
             {{ syncing ? 'Trayendo...' : (backfillDate && backfillDate !== todayStr ? 'Traer ese día' : 'Traer hoy') }}
           </button>
@@ -147,23 +260,56 @@
         <!-- Full month sync -->
         <div class="vto-backfill__row vto-backfill__divider">
           <span class="vto-backfill__or">o</span>
-          <button class="vto-sync-range" :disabled="syncing || rangeSyncing || noCallsLeft" @click="handleRangeSync">
+          <button class="vto-sync-range" :disabled="syncing || rangeSyncing" @click="handleRangeSync">
             <i class="fa-solid" :class="rangeSyncing ? 'fa-spinner fa-spin' : 'fa-calendar-check'" />
             <span v-if="rangeSyncing && rangeProgress">Sincronizando {{ rangeProgress.done }}/{{ rangeProgress.total }} días...</span>
             <span v-else>Traer todo {{ monthLabel }}</span>
           </button>
         </div>
-        <p v-if="noCallsLeft" class="vto-empty__limit">
-          <i class="fa-solid fa-lock" /> Límite diario de actualizaciones alcanzado. Disponible mañana.
-        </p>
       </div>
     </div>
 
+    <!-- ══ RANGE PROMPT ══════════════════════════════════════════════════════════ -->
+    <Transition v-else-if="rangeMode && !rangeLoading && !rangeData" name="vto-fade-up" appear>
+      <div class="vto-range-prompt">
+        <div class="vto-range-prompt__icon">
+          <i class="fa-solid fa-chart-column" />
+        </div>
+        <h3 class="vto-range-prompt__title">Visualiza tus ventas por rango</h3>
+        <p class="vto-range-prompt__sub">Sigue estos pasos para ver el resumen del período que necesitas</p>
+        <div class="vto-range-prompt__steps">
+          <div class="vto-range-prompt__step">
+            <span class="vto-range-prompt__step-num">1</span>
+            <div class="vto-range-prompt__step-body">
+              <strong>Elige las fechas</strong>
+              <span>Usa los selectores <em>Desde</em> y <em>Hasta</em> de arriba</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-arrow-right vto-range-prompt__step-arrow" />
+          <div class="vto-range-prompt__step">
+            <span class="vto-range-prompt__step-num">2</span>
+            <div class="vto-range-prompt__step-body">
+              <strong>Sincroniza</strong>
+              <span>Solo si algún día aún no está en la base de datos</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-arrow-right vto-range-prompt__step-arrow" />
+          <div class="vto-range-prompt__step vto-range-prompt__step--cta">
+            <span class="vto-range-prompt__step-num vto-range-prompt__step-num--green">3</span>
+            <div class="vto-range-prompt__step-body">
+              <strong>Pulsa "Ver datos"</strong>
+              <span>Visualiza el resumen del período elegido</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- ══ DATA ══════════════════════════════════════════════════════════════════ -->
-    <template v-else-if="!loading && !loadError && monthData">
+    <template v-else-if="!(loading || rangeLoading) && !loadError && displayData">
 
       <!-- ── HOY PANEL (solo mes actual) ───────────────────────────────────────── -->
-      <div v-if="isCurrentMonth && todayData" class="vto-today">
+      <div v-if="isCurrentMonth && todayData && !rangeMode" class="vto-today">
         <div class="vto-today__header">
           <span class="vto-today__badge">HOY</span>
           <span class="vto-today__date">{{ todayFullDate }}</span>
@@ -171,9 +317,9 @@
             <button
               v-if="canSync"
               class="vto-sync-main"
-              :disabled="syncing || noCallsLeft"
+              :disabled="syncing"
               @click="handleSync"
-              :title="noCallsLeft ? 'Límite diario alcanzado' : 'Actualizar con datos de ahora mismo'"
+              title="Actualizar con datos de ahora mismo"
             >
               <i class="fa-solid" :class="syncing ? 'fa-spinner fa-spin' : 'fa-rotate'" />
               {{ syncing ? 'Actualizando...' : 'Actualizar ahora' }}
@@ -217,22 +363,37 @@
       </div>
 
       <!-- Sync button when no today data but current month -->
-      <div v-else-if="isCurrentMonth && canSync" class="vto-sync-bar">
+      <div v-else-if="isCurrentMonth && canSync && !rangeMode" class="vto-sync-bar">
         <div class="vto-sync-bar__info">
           <i class="fa-solid fa-circle-info" />
           <span>Sin datos de hoy todavía — ¿traemos las ventas ahora?</span>
         </div>
         <div class="vto-backfill__row vto-backfill__row--inline">
-          <input
-            type="date"
-            class="vto-backfill__input"
-            v-model="backfillDate"
-            :max="todayStr"
-            title="Dejar vacío = hoy"
-          />
+          <div class="vto-backfill__cal-wrap">
+            <button
+              class="vto-syncbar__trigger vto-syncbar__trigger--sm"
+              :class="{ 'vto-syncbar__trigger--open': todayCalOpen, 'vto-syncbar__trigger--past': backfillDate !== todayStr }"
+              @click="todayCalOpen = !todayCalOpen"
+            >
+              <i class="fa-solid fa-calendar-days" />
+              <span>{{ backfillDateFormatted }}</span>
+              <i class="fa-solid fa-chevron-down vto-syncbar__trigger-arrow" :class="{ 'vto-syncbar__trigger-arrow--up': todayCalOpen }" />
+            </button>
+            <Transition name="vto-cal">
+              <div v-if="todayCalOpen" class="vto-syncbar__dropdown">
+                <SalesDayCalendar
+                  v-model="backfillDate"
+                  :year="currentYear"
+                  :month="currentMonth"
+                  :days="displayData?.days ?? []"
+                  @update:model-value="todayCalOpen = false"
+                />
+              </div>
+            </Transition>
+          </div>
           <button
             class="vto-sync-main"
-            :disabled="syncing || noCallsLeft"
+            :disabled="syncing"
             @click="handleSync"
           >
             <i class="fa-solid" :class="syncing ? 'fa-spinner fa-spin' : 'fa-arrow-down-to-bracket'" />
@@ -244,7 +405,7 @@
       <!-- ── MES COMPLETO: KPIs ─────────────────────────────────────────────── -->
       <div class="vto-section-title">
         <i class="fa-solid fa-chart-pie" />
-        Resumen de {{ monthLabel }}
+        {{ rangeMode ? `Resumen: ${rangeFromFormatted} – ${rangeToFormatted}` : `Resumen de ${monthLabel}` }}
       </div>
 
       <div class="vto-kpi-grid">
@@ -254,13 +415,13 @@
             <span class="vto-kpi__label">Pedidos del mes</span>
             <div class="vto-kpi__icon vto-kpi__icon--purple"><i class="fa-solid fa-cart-shopping" /></div>
           </div>
-          <p class="vto-kpi__value">{{ monthData.totalOrders.toLocaleString('es-EC') }}</p>
-          <p class="vto-kpi__sub">de {{ monthData.totalSessions.toLocaleString('es-EC') }} chats recibidos</p>
+          <p class="vto-kpi__value">{{ (displayData?.totalOrders ?? 0).toLocaleString('es-EC') }}</p>
+          <p class="vto-kpi__sub">de {{ (displayData?.totalSessions ?? 0).toLocaleString('es-EC') }} chats recibidos</p>
           <!-- Mini progress bar -->
           <div class="vto-kpi__bar-track">
             <div
               class="vto-kpi__bar-fill vto-kpi__bar-fill--purple"
-              :style="{ width: `${Math.min(100, (monthData.totalOrders / Math.max(monthData.totalSessions, 1)) * 100)}%` }"
+              :style="{ width: `${Math.min(100, ((displayData?.totalOrders ?? 0) / Math.max(displayData?.totalSessions ?? 1, 1)) * 100)}%` }"
             />
           </div>
         </div>
@@ -271,13 +432,13 @@
             <span class="vto-kpi__label">Tasa de cierre</span>
             <div class="vto-kpi__icon" :class="convMonthIcon"><i class="fa-solid fa-percent" /></div>
           </div>
-          <p class="vto-kpi__value" :class="convMonthText">{{ monthData.monthConversionRate.toFixed(1) }}%</p>
-          <p class="vto-kpi__sub">{{ conversionLabel(monthData.monthConversionRate) }}</p>
+          <p class="vto-kpi__value" :class="convMonthText">{{ (displayData?.monthConversionRate ?? 0).toFixed(1) }}%</p>
+          <p class="vto-kpi__sub">{{ conversionLabel(displayData?.monthConversionRate ?? 0) }}</p>
           <div class="vto-kpi__bar-track">
             <div
               class="vto-kpi__bar-fill"
               :class="convMonthBarClass"
-              :style="{ width: `${Math.min(100, monthData.monthConversionRate)}%` }"
+              :style="{ width: `${Math.min(100, displayData?.monthConversionRate ?? 0)}%` }"
             />
           </div>
         </div>
@@ -288,8 +449,8 @@
             <span class="vto-kpi__label">Ingresos netos</span>
             <div class="vto-kpi__icon vto-kpi__icon--green"><i class="fa-solid fa-dollar-sign" /></div>
           </div>
-          <p class="vto-kpi__value">${{ formatMoney(monthData.totalRevenue) }}</p>
-          <p class="vto-kpi__sub">+ ${{ formatMoney(monthData.totalBilled - monthData.totalRevenue) }} en delivery</p>
+          <p class="vto-kpi__value">${{ formatMoney(displayData?.totalRevenue ?? 0) }}</p>
+          <p class="vto-kpi__sub">+ ${{ formatMoney((displayData?.totalBilled ?? 0) - (displayData?.totalRevenue ?? 0)) }} en delivery</p>
           <div class="vto-kpi__bar-track">
             <div class="vto-kpi__bar-fill vto-kpi__bar-fill--green" style="width: 100%" />
           </div>
@@ -406,7 +567,7 @@
               </div>
               <i class="fa-solid fa-chevron-right vto-funnel-arrow" />
               <div class="vto-funnel-step">
-                <i class="fa-solid fa-cart-shopping" style="color: #7c3aed" />
+                <i class="fa-solid fa-cart-shopping" style="color: #85529c" />
                 <span>{{ day.totalOrders }}</span>
                 <small>pedidos</small>
               </div>
@@ -437,6 +598,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   salesSummaryService,
   type ISalesMonthData,
+  type ISalesDaySummary,
   type IApiUsage,
   type IStoreSummary,
 } from '../../services/salesSummary.service'
@@ -479,8 +641,26 @@ const apiUsage  = ref<IApiUsage | null>(null)
 const syncMessage     = ref('')
 const syncMessageType = ref<'ok' | 'error'>('ok')
 const loadError = ref<{ message: string; status?: number; endpoint?: string } | null>(null)
-const backfillDate = ref(new Date().toISOString().slice(0, 10))  // default = today
-const calendarOpen = ref(false)
+const backfillDate  = ref(new Date().toISOString().slice(0, 10))  // default = today
+const calendarOpen  = ref(false)
+const emptyCalOpen  = ref(false)
+const todayCalOpen  = ref(false)
+
+// ── Range filter mode ──────────────────────────────────────────────────────────
+const rangeMode      = ref(false)
+const _todayIso      = new Date().toISOString().slice(0, 10)
+const rangeFrom      = ref(_todayIso)
+const rangeTo        = ref(_todayIso)
+const rangeFromOpen  = ref(false)
+const rangeToOpen    = ref(false)
+const rangeFromYear  = ref(_now.getFullYear())
+const rangeFromMonth = ref(_now.getMonth() + 1)
+const rangeToYear    = ref(_now.getFullYear())
+const rangeToMonth   = ref(_now.getMonth() + 1)
+const rangeData      = ref<ISalesMonthData | null>(null)
+const rangeLoading   = ref(false)
+const rangeFromDays  = ref<ISalesDaySummary[]>([])
+const rangeToDays    = ref<ISalesDaySummary[]>([])
 
 const backfillDateFormatted = computed(() => {
   if (!backfillDate.value) return '—'
@@ -496,7 +676,9 @@ const rangeProgress = ref<{ done: number; total: number } | null>(null)
 let syncTimer: ReturnType<typeof setTimeout> | null = null
 
 // ── Computed ───────────────────────────────────────────────────────────────────
-const hasData = computed(() => (monthData.value?.days?.length ?? 0) > 0)
+const displayData = computed(() => rangeMode.value ? rangeData.value : monthData.value)
+
+const hasData = computed(() => (displayData.value?.days?.length ?? 0) > 0)
 
 const isCurrentMonth = computed(() => {
   const now = new Date()
@@ -523,33 +705,32 @@ const todayFullDate = computed(() => {
 })
 
 const lastSyncedAt = computed(() => {
-  if (!monthData.value?.days?.length) return null
-  const sorted = [...monthData.value.days].sort(
+  // In range mode without data loaded yet, fall back to monthData so banner never shows "Sin datos aún" spuriously
+  const days = displayData.value?.days?.length
+    ? displayData.value.days
+    : (rangeMode.value ? (monthData.value?.days ?? []) : [])
+  if (!days.length) return null
+  const sorted = [...days].sort(
     (a, b) => new Date(b.syncedAt ?? '').getTime() - new Date(a.syncedAt ?? '').getTime()
   )
-  const first = sorted[0]
-  return first?.syncedAt ?? null
+  return sorted[0]?.syncedAt ?? null
 })
 
-const noCallsLeft = computed(() =>
-  apiUsage.value !== null && apiUsage.value.callsRemainingToday === 0
-)
-
 const daysWithData = computed(() =>
-  (monthData.value?.days ?? [])
+  (displayData.value?.days ?? [])
     .filter(d => d.totalSessions > 0)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 12)
 )
 
 const chartDays = computed(() =>
-  (monthData.value?.days ?? []).filter(d => d.totalSessions > 0)
+  (displayData.value?.days ?? []).filter(d => d.totalSessions > 0)
 )
 
 const allStores = computed((): IStoreSummary[] => {
-  if (!monthData.value?.days) return []
+  if (!displayData.value?.days) return []
   const map = new Map<string, IStoreSummary>()
-  for (const day of monthData.value.days) {
+  for (const day of displayData.value.days) {
     for (const store of day.byStore) {
       const ex = map.get(store.storeName)
       if (ex) {
@@ -590,19 +771,12 @@ function conversionLabel(rate: number): string {
   return 'Rendimiento bajo — revisar atención'
 }
 
-const convMonthIcon  = computed(() => convIcon(monthData.value?.monthConversionRate ?? 0))
-const convMonthText  = computed(() => convText(monthData.value?.monthConversionRate ?? 0))
-const convMonthBarClass = computed(() => convBar(monthData.value?.monthConversionRate ?? 0))
+const convMonthIcon  = computed(() => convIcon(displayData.value?.monthConversionRate ?? 0))
+const convMonthText  = computed(() => convText(displayData.value?.monthConversionRate ?? 0))
+const convMonthBarClass = computed(() => convBar(displayData.value?.monthConversionRate ?? 0))
 
 const convTodayIcon  = computed(() => convIcon(todayData.value?.conversionRate ?? 0).replace('vto-kpi__icon--', 'vto-today__metric-icon--'))
 const convTodayText  = computed(() => convText(todayData.value?.conversionRate ?? 0))
-
-const quotaBadgeClass = computed(() => {
-  const rem = apiUsage.value?.callsRemainingToday ?? 999
-  if (rem <= 5)  return 'vto-banner__quota--red'
-  if (rem <= 15) return 'vto-banner__quota--amber'
-  return 'vto-banner__quota--green'
-})
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function barHeight(orders: number): number {
@@ -725,25 +899,146 @@ async function handleRangeSync() {
   }
 }
 
-onMounted(loadData)
+// ── Range helpers ──────────────────────────────────────────────────────────────
+function toggleRangeMode() {
+  rangeMode.value = !rangeMode.value
+  rangeData.value = null
+  rangeFromOpen.value = false
+  rangeToOpen.value = false
+}
+
+async function loadRangeData() {
+  if (rangeLoading.value) return
+  rangeLoading.value = true
+  loadError.value = null
+  try {
+    const data = await salesSummaryService.getRangeData(props.workspaceId, rangeFrom.value, rangeTo.value)
+    rangeData.value = data
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Error al cargar el rango'
+    syncMessage.value = msg
+    syncMessageType.value = 'error'
+    if (syncTimer) clearTimeout(syncTimer)
+    syncTimer = setTimeout(() => { syncMessage.value = '' }, 7000)
+  } finally {
+    rangeLoading.value = false
+  }
+}
+
+async function handleCustomRangeSync() {
+  if (rangeSyncing.value) return
+  rangeSyncing.value = true
+  syncMessage.value = ''
+  if (syncTimer) clearTimeout(syncTimer)
+  const start = new Date(rangeFrom.value), end = new Date(rangeTo.value)
+  const totalDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  rangeProgress.value = { done: 0, total: totalDays }
+  try {
+    const result = await salesSummaryService.syncRange(props.workspaceId, rangeFrom.value, rangeTo.value)
+    const synced = result.results.filter(r => r.synced).length
+    rangeProgress.value = { done: synced, total: totalDays }
+    syncMessage.value = `✓ ${synced} de ${totalDays} días sincronizados`
+    syncMessageType.value = 'ok'
+    await loadData()
+    if (rangeMode.value) await loadRangeData()
+  } catch (err: any) {
+    syncMessage.value = err?.response?.data?.message || 'Error al sincronizar rango.'
+    syncMessageType.value = 'error'
+  } finally {
+    rangeSyncing.value = false
+    syncTimer = setTimeout(() => { syncMessage.value = ''; rangeProgress.value = null }, 8000)
+  }
+}
+
+function prevRangeFromMonth() {
+  if (rangeFromMonth.value === 1) { rangeFromYear.value--; rangeFromMonth.value = 12 }
+  else rangeFromMonth.value--
+}
+function nextRangeFromMonth() {
+  const now = new Date()
+  if (rangeFromYear.value === now.getFullYear() && rangeFromMonth.value >= now.getMonth() + 1) return
+  if (rangeFromMonth.value === 12) { rangeFromYear.value++; rangeFromMonth.value = 1 }
+  else rangeFromMonth.value++
+}
+function prevRangeToMonth() {
+  if (rangeToMonth.value === 1) { rangeToYear.value--; rangeToMonth.value = 12 }
+  else rangeToMonth.value--
+}
+function nextRangeToMonth() {
+  const now = new Date()
+  if (rangeToYear.value === now.getFullYear() && rangeToMonth.value >= now.getMonth() + 1) return
+  if (rangeToMonth.value === 12) { rangeToYear.value++; rangeToMonth.value = 1 }
+  else rangeToMonth.value++
+}
+function onRangeFromSelected(date: string) {
+  rangeFrom.value = date
+  rangeFromOpen.value = false
+  if (rangeTo.value < date) {
+    rangeTo.value = date
+    rangeToYear.value = rangeFromYear.value
+    rangeToMonth.value = rangeFromMonth.value
+  }
+}
+
+const rangeFromMonthLabel = computed(() => {
+  const d = new Date(rangeFromYear.value, rangeFromMonth.value - 1, 1)
+  return d.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' })
+})
+const rangeToMonthLabel = computed(() => {
+  const d = new Date(rangeToYear.value, rangeToMonth.value - 1, 1)
+  return d.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' })
+})
+const rangeFromFormatted = computed(() => {
+  if (!rangeFrom.value) return '—'
+  const [y, m, d] = rangeFrom.value.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-EC', { day: 'numeric', month: 'short' })
+})
+const rangeToFormatted = computed(() => {
+  if (!rangeTo.value) return '—'
+  const [y, m, d] = rangeTo.value.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-EC', { day: 'numeric', month: 'short' })
+})
+
+async function loadRangePickerDays(year: number, month: number): Promise<ISalesDaySummary[]> {
+  try {
+    const data = await salesSummaryService.getMonthData(workspaceId, year, month)
+    return data.days ?? []
+  } catch { return [] }
+}
+
+onMounted(async () => {
+  await loadData()
+  rangeFromDays.value = await loadRangePickerDays(rangeFromYear.value, rangeFromMonth.value)
+  rangeToDays.value   = await loadRangePickerDays(rangeToYear.value, rangeToMonth.value)
+})
 watch([currentYear, currentMonth], loadData)
+watch([rangeFromYear, rangeFromMonth], async ([y, m]) => {
+  rangeFromDays.value = await loadRangePickerDays(y, m)
+})
+watch([rangeToYear, rangeToMonth], async ([y, m]) => {
+  rangeToDays.value = await loadRangePickerDays(y, m)
+})
 </script>
 
 <style lang="scss" scoped>
 // ────────────────────────────────────────────────────────────────────────────
-// TOKENS
+// TOKENS — Brand palette
 // ────────────────────────────────────────────────────────────────────────────
-$wa:     #25d366;
-$purple: #7c3aed;
-$purple-dark: #5b21b6;
-$green:  #059669;
-$amber:  #d97706;
-$red:    #dc2626;
-$surface: var(--color-surface, #fff);
-$border:  var(--color-border, #e5e7eb);
-$text:    var(--color-text-primary, #111827);
-$muted:   var(--color-text-muted, #6b7280);
-$radius:  0.875rem;
+$wa:          #25d366;
+$purple:      $secondary;         // #85529c — brand secondary
+$purple-dark: #5a2d6e;            // darkened brand secondary
+$green:       $BAKANO-GREEN;      // #3bb77e — brand green
+$amber:       $alert-warning;     // #f59e0b
+$red:         $alert-error;       // #ef4444
+$surface:     var(--color-surface, #fff);
+$border:      var(--color-border, #e5e7eb);
+$text:        $primary-dark;      // #191423 — brand dark
+$muted:       var(--color-text-muted, #6b7280);
+$radius:      0.875rem;
+// Derived tints
+$purple-tint:   rgba($secondary, 0.06);
+$purple-mid:    rgba($secondary, 0.12);
+$purple-border: rgba($secondary, 0.28);
 
 // Shared color classes
 .vto--green { color: $green  !important; }
@@ -754,7 +1049,7 @@ $radius:  0.875rem;
 .vto-root {
   margin-top: 2.5rem;
   padding-top: 2rem;
-  border-top: 2px solid rgba(124, 58, 237, 0.15);
+  border-top: 2px solid rgba($secondary, 0.15);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -767,8 +1062,8 @@ $radius:  0.875rem;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-  border: 1.5px solid #c4b5fd;
+  background: linear-gradient(135deg, $purple-tint, $purple-mid);
+  border: 1.5px solid $purple-border;
   border-radius: $radius;
   padding: 1rem 1.375rem;
 
@@ -801,7 +1096,7 @@ $radius:  0.875rem;
 
   &__sub {
     font-size: 0.75rem;
-    color: #6d28d9;
+    color: $muted;
     margin: 0;
     display: flex;
     align-items: center;
@@ -866,11 +1161,11 @@ $radius:  0.875rem;
 
     i:first-child { color: $purple; font-size: 0.9rem; }
 
-    &:hover { border-color: $purple; background: #f5f3ff; }
+    &:hover { border-color: $purple; background: $purple-tint; }
 
     &--open {
       border-color: $purple;
-      background: #f5f3ff;
+      background: $purple-tint;
       box-shadow: 0 0 0 3px rgba($purple, 0.12);
     }
 
@@ -878,8 +1173,8 @@ $radius:  0.875rem;
       border-color: #f59e0b;
       background: #fffbeb;
 
-      i:first-child { color: #d97706; }
-      &:hover { border-color: #d97706; }
+      i:first-child { color: $amber; }
+      &:hover { border-color: $amber; }
     }
   }
 
@@ -1046,8 +1341,8 @@ $radius:  0.875rem;
     font-size: 0.8125rem;
     font-weight: 600;
     color: $purple-dark;
-    background: #f5f3ff;
-    border: 1.5px solid #c4b5fd;
+    background: $purple-tint;
+    border: 1.5px solid $purple-border;
     border-radius: 6px;
     padding: 0.3rem 0.75rem;
     text-transform: capitalize;
@@ -1107,8 +1402,8 @@ $radius:  0.875rem;
   transition: border-color 0.2s, background 0.2s;
 
   &--today {
-    border-color: #c4b5fd;
-    background: #f5f3ff;
+    border-color: $purple-border;
+    background: $purple-tint;
   }
 
   &--past {
@@ -1131,11 +1426,11 @@ $radius:  0.875rem;
     letter-spacing: 0.06em;
     padding: 2px 7px;
     border-radius: 4px;
-    background: #7c3aed;
+    background: $purple;
     color: #fff;
 
     .vto-sync-action--past & {
-      background: #d97706;
+      background: $amber;
     }
   }
 
@@ -1148,7 +1443,7 @@ $radius:  0.875rem;
 
   &__existing {
     font-size: 0.8125rem;
-    color: #059669;
+    color: $green;
     font-weight: 500;
   }
 
@@ -1170,7 +1465,7 @@ $radius:  0.875rem;
   align-items: center;
   gap: 0.5rem;
   background: rgba(255,255,255,0.7);
-  border: 1.5px solid #c4b5fd;
+  border: 1.5px solid $purple-border;
   border-radius: 10px;
   padding: 0.25rem 0.5rem;
 
@@ -1279,11 +1574,11 @@ $radius:  0.875rem;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 4px 12px rgba($purple, 0.3);
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(124, 58, 237, 0.45);
+    box-shadow: 0 6px 18px rgba($purple, 0.4);
   }
   &:active:not(:disabled) { transform: translateY(0); }
   &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
@@ -1415,7 +1710,7 @@ $radius:  0.875rem;
 
   &--today {
     border-color: $purple;
-    background: #f5f3ff;
+    background: $purple-tint;
     color: $purple-dark;
 
     .vto-date-chip__badge { background: $purple; color: #fff; }
@@ -1476,7 +1771,7 @@ $radius:  0.875rem;
 
   &__icon {
     font-size: 1.25rem;
-    color: #dc2626;
+    color: $red;
     margin-top: 2px;
     flex-shrink: 0;
   }
@@ -1507,7 +1802,7 @@ $radius:  0.875rem;
   }
 
   &__badge {
-    background: #dc2626;
+    background: $red;
     color: #fff;
     font-size: 0.6875rem;
     font-weight: 700;
@@ -1529,7 +1824,7 @@ $radius:  0.875rem;
   &__retry {
     flex-shrink: 0;
     padding: 0.5rem 1rem;
-    background: #dc2626;
+    background: $red;
     color: #fff;
     border: none;
     border-radius: 8px;
@@ -1602,7 +1897,7 @@ $radius:  0.875rem;
   gap: 1rem;
   flex-wrap: wrap;
   background: #faf5ff;
-  border: 1.5px solid #c4b5fd;
+  border: 1.5px solid $purple-border;
   border-radius: $radius;
   padding: 1rem 1.25rem;
 
@@ -2096,4 +2391,255 @@ $radius:  0.875rem;
   &--good { color: $green; }
   &--mid  { color: $amber; }
 }
+
+// ── Banner right section ───────────────────────────────────────────────────────
+.vto-banner__right {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+// ── Range toggle ──────────────────────────────────────────────────────────────
+.vto-range-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 6px;
+  border: 1.5px solid $border;
+  background: #fff;
+  color: $muted;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover { border-color: $purple; color: $purple; background: $purple-tint; }
+
+  &--active {
+    background: $purple;
+    border-color: $purple;
+    color: #fff;
+    &:hover { background: $purple-dark; border-color: $purple-dark; }
+  }
+}
+
+// ── Range bar ─────────────────────────────────────────────────────────────────
+.vto-range-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.875rem 1rem;
+  background: $purple-tint;
+  border: 1.5px solid $purple-border;
+  border-radius: $radius;
+
+  &__arrow {
+    color: $purple;
+    font-size: 0.875rem;
+    padding-bottom: 0.375rem;
+  }
+
+  &__picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    position: relative;
+  }
+
+  &__label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $muted;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    i { color: $purple; }
+  }
+
+  &__cal-wrap { position: relative; }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.125rem;
+  }
+}
+
+// ── Range cal nav ─────────────────────────────────────────────────────────────
+.vto-range-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid $border;
+  background: #fff;
+
+  &__label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: $purple-dark;
+    text-transform: capitalize;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 4px;
+    border: 1px solid $border;
+    background: #fff;
+    cursor: pointer;
+    color: $muted;
+    font-size: 0.75rem;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover:not(:disabled) { background: $purple-tint; border-color: $purple; color: $purple; }
+    &:disabled { opacity: 0.3; cursor: not-allowed; }
+  }
+}
+
+// ── Range prompt ──────────────────────────────────────────────────────────────
+// ── Fade-up transition ───────────────────────────────────────────────────────
+.vto-fade-up-enter-active {
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vto-fade-up-enter-from {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.vto-range-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+
+  &__icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, $purple-tint, $purple-mid);
+    border: 1.5px solid $purple-border;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: $purple;
+  }
+
+  &__title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: $text;
+    margin: 0;
+  }
+
+  &__sub {
+    font-size: 0.875rem;
+    color: $muted;
+    margin: 0;
+    max-width: 380px;
+  }
+
+  &__steps {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+
+  &__step-arrow {
+    color: $border;
+    font-size: 0.75rem;
+
+    @media (max-width: 640px) { display: none; }
+  }
+
+  &__step {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    background: #fff;
+    border: 1.5px solid $border;
+    border-radius: $radius;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    min-width: 160px;
+    max-width: 200px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &:hover {
+      border-color: $purple-border;
+      box-shadow: 0 2px 8px rgba($purple, 0.08);
+    }
+
+    &--cta {
+      border-color: rgba($green, 0.3);
+      &:hover { border-color: $green; box-shadow: 0 2px 8px rgba($green, 0.12); }
+    }
+  }
+
+  &__step-num {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: $purple-mid;
+    color: $purple;
+    font-size: 0.75rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--green {
+      background: rgba($green, 0.12);
+      color: $green;
+    }
+  }
+
+  &__step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+
+    strong {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: $text;
+    }
+
+    span {
+      font-size: 0.75rem;
+      color: $muted;
+      line-height: 1.35;
+    }
+
+    em { font-style: italic; color: $purple; }
+  }
+}
+
+// ── Compact trigger variant ───────────────────────────────────────────────────
+.vto-syncbar__trigger--sm {
+  min-width: 140px;
+  height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+// ── backfill cal wrap ─────────────────────────────────────────────────────────
+.vto-backfill__cal-wrap { position: relative; }
 </style>
