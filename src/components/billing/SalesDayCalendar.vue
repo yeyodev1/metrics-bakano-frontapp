@@ -33,7 +33,8 @@
         @click="!cell.isFuture && emit('update:modelValue', cell.date)"
       >
         <span class="sdc__num">{{ cell.num }}</span>
-        <span v-if="cell.data" class="sdc__revenue">${{ formatK(cell.data.totalRevenue) }}</span>
+        <span v-if="cell.data && cell.data.totalSessions > 0" class="sdc__dot sdc__dot--sales" :title="`${cell.data.totalOrders} pedidos · $${formatK(cell.data.totalRevenue)}`" />
+        <span v-else-if="cell.data && cell.data.totalSessions === 0" class="sdc__dot sdc__dot--zero" />
         <span v-else-if="!cell.isFuture" class="sdc__empty-dot" />
       </div>
     </div>
@@ -126,12 +127,12 @@ function formatK(n: number): string {
 </script>
 
 <style lang="scss" scoped>
-$purple:      #7c3aed;
-$purple-dark: #5b21b6;
-$green:       #059669;
+$purple:      $secondary;      // #85529c — brand secondary
+$purple-dark: #5a2d6e;
+$green:       $BAKANO-GREEN;   // #3bb77e — brand green
 $muted:       #6b7280;
 $border:      #e5e7eb;
-$text:        #111827;
+$text:        $primary-dark;   // #191423 — brand dark
 $radius:      0.75rem;
 
 .sdc {
@@ -162,14 +163,14 @@ $radius:      0.75rem;
     font-size: 0.75rem;
     font-weight: 600;
     color: $purple;
-    background: #f5f3ff;
+    background: rgba($purple, 0.07);
     border: 1px solid #c4b5fd;
     border-radius: 6px;
     padding: 0.25rem 0.625rem;
     cursor: pointer;
     transition: background 0.15s;
 
-    &:hover { background: #ede9fe; }
+    &:hover { background: rgba($purple, 0.12); }
   }
 
   &__weekdays {
@@ -213,7 +214,8 @@ $radius:      0.75rem;
     }
 
     &--has-data:not(.sdc__cell--selected):hover {
-      background: #f5f3ff;
+      background: rgba($green, 0.1);
+      .sdc__dot--sales { transform: scale(1.4); }
     }
 
     &--no-data:not(.sdc__cell--selected):not(.sdc__cell--future):hover {
@@ -221,7 +223,7 @@ $radius:      0.75rem;
     }
 
     &--today:not(.sdc__cell--selected) {
-      background: #ede9fe;
+      background: rgba($purple, 0.12);
       .sdc__num { color: $purple; font-weight: 800; }
     }
 
@@ -241,19 +243,30 @@ $radius:      0.75rem;
     line-height: 1;
   }
 
-  &__revenue {
-    font-size: 0.5625rem;
-    font-weight: 700;
-    color: $green;
-    margin-top: 1px;
-    line-height: 1;
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 2px;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+
+    &--sales {
+      background: $green;
+      box-shadow: 0 0 0 2px rgba($green, 0.2);
+    }
+
+    &--zero {
+      background: #d1d5db;
+    }
   }
 
   &__empty-dot {
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: #d1d5db;
+    border: 1.5px solid #d1d5db;
+    background: transparent;
     margin-top: 2px;
   }
 
