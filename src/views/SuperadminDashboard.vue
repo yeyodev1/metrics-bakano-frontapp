@@ -85,6 +85,42 @@ const newWorkspaceName = ref('')
 const isSavingWorkspace = ref(false)
 const workspaceError = ref('')
 
+// ── Create workspace wizard ─────────────────────────────────
+const createWizardStep = ref(1)
+const wizardInternalSearch = ref('')
+const wizardInternalList = ref<WorkspaceUser[]>([])
+const wizardSelectedInternal = ref<WorkspaceUser[]>([])
+const isLoadingWizardInternal = ref(false)
+const wizardClientMode = ref<'new' | 'existing'>('new')
+const wizardClientSearch = ref('')
+const wizardClientResults = ref<WorkspaceUser[]>([])
+const wizardSelectedExistingClient = ref<WorkspaceUser | null>(null)
+const isSearchingClient = ref(false)
+const wizardNewClient = ref({ name: '', email: '', password: '', sendWelcomeEmail: true })
+const wizardSendBrandProfileInvite = ref(true)
+
+// ── Role config for display ──────────────────────────────────
+const ROLE_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
+  director:          { icon: 'fa-solid fa-crown',          color: '#e6285c', label: 'Director' },
+  estratega:         { icon: 'fa-solid fa-chess-knight',   color: '#7c3aed', label: 'Estratega' },
+  project_manager:   { icon: 'fa-solid fa-clipboard-list', color: '#2563eb', label: 'PM' },
+  content_manager:   { icon: 'fa-solid fa-pen-nib',        color: '#d97706', label: 'Content' },
+  account_manager:   { icon: 'fa-solid fa-handshake',      color: '#059669', label: 'Account' },
+  community_manager: { icon: 'fa-solid fa-comments',       color: '#db2777', label: 'Community' },
+  editor:            { icon: 'fa-solid fa-film',            color: '#7c3aed', label: 'Editor' },
+  productor:         { icon: 'fa-solid fa-clapperboard',   color: '#b45309', label: 'Productor' },
+  disenador:         { icon: 'fa-solid fa-pen-ruler',      color: '#0891b2', label: 'Diseñador' },
+  copywriter:        { icon: 'fa-solid fa-i-cursor',       color: '#6d28d9', label: 'Copywriter' },
+  analista:          { icon: 'fa-solid fa-chart-line',     color: '#047857', label: 'Analista' },
+  desarrollador:     { icon: 'fa-solid fa-code',           color: '#1d4ed8', label: 'Dev' },
+  trafficker:        { icon: 'fa-solid fa-bullseye',       color: '#dc2626', label: 'Trafficker' },
+}
+
+function getRoleConfig(role: string | undefined) {
+  if (!role) return { icon: 'fa-solid fa-user', color: '#6b7280', label: '—' }
+  return ROLE_CONFIG[role] ?? { icon: 'fa-solid fa-user', color: '#6b7280', label: role }
+}
+
 // ── Superadmin Management State ────────────────────────────
 const superadmins = ref<any[]>([])
 const isLoadingSuperadmins = ref(false)
@@ -198,19 +234,129 @@ async function selectWorkspace(workspace: Workspace): Promise<void> {
   }
 }
 
-// ── Create workspace ───────────────────────────────────────
+// ── Create workspace wizard ─────────────────────────────────
 function openCreateWorkspace(): void {
   newWorkspaceName.value = ''
   workspaceError.value = ''
+  createWizardStep.value = 1
+  wizardInternalSearch.value = ''
+  wizardInternalList.value = []
+  wizardSelectedInternal.value = []
+  wizardClientMode.value = 'new'
+  wizardClientSearch.value = ''
+  wizardClientResults.value = []
+  wizardSelectedExistingClient.value = null
+  wizardNewClient.value = { name: '', email: '', password: '', sendWelcomeEmail: true }
+  wizardSendBrandProfileInvite.value = true
   showCreateWorkspace.value = true
 }
 
-async function handleCreateWorkspace(): Promise<void> {
-  if (!newWorkspaceName.value.trim() || isSavingWorkspace.value) return
-  isSavingWorkspace.value = true
-  workspaceError.value = ''
+async function wizardLoadInternalUsers(): Promise<void> {
+  if (wizardInternalList.value.length && !wizardInternalSearch.value) return
+  isLoadingWizardInternal.value = true
   try {
+    const { users } = await workspaceService.listAllCollaborators(wizardInternalSearch.value || undefined)
+    wizardInternalList.value = (users as WorkspaceUser[]).filter(u => u.isInternal)
+  } catch {
+    toast.error('Error cargando equipo interno.')
+  } finally {
+    isLoadingWizardInternal.value = false
+  }
+}
+
+function wizardToggleInternal(user: WorkspaceUser): void {
+  const idx = wizardSelectedInternal.value.findIndex(u => u._id === user._id)
+  if (idx >= 0) {
+    wizardSelectedInternal.value.splice(idx, 1)
+  } else {
+    wizardSelectedInternal.value.push(user)
+  }
+}
+
+async function wizardSearchExistingClient(): Promise<void> {
+  if (!wizardClientSearch.value.trim()) return
+  isSearchingClient.value = true
+  try {
+    const { users } = await workspaceService.listAllCollaborators(wizardClientSearch.value)
+    wizardClientResults.value = (users as WorkspaceUser[]).filter(u => !u.isInternal)
+  } catch {
+    toast.error('Error buscando cliente.')
+  } finally {
+    isSearchingClient.value = false
+  }
+}
+
+async function wizardNextStep(): Promise<void> {
+  workspaceError.value = ''
+  if (createWizardStep.value === 1) {
+    if (!newWorkspaceName.value.trim()) {
+      workspaceError.value = 'El nombre del entorno es requerido.'
+      return
+    }
+    await wizardLoadInternalUsers()
+    createWizardStep.value = 2
+  } else if (createWizardStep.value === 2) {
+    if (wizardSelectedInternal.value.length === 0) {
+      workspaceError.value = 'Debes asignar al menos un miembro del equipo interno.'
+      return
+    }
+    createWizardStep.value = 3
+  }
+}
+
+async function handleCreateWorkspace(): Promise<void> {
+  workspaceError.value = ''
+  if (wizardClientMode.value === 'new') {
+    if (!wizardNewClient.value.email.trim() || !wizardNewClient.value.password.trim()) {
+      workspaceError.value = 'El email y contraseña del cliente son requeridos.'
+      return
+    }
+    if (wizardNewClient.value.password.length < 8) {
+      workspaceError.value = 'La contraseña debe tener al menos 8 caracteres.'
+      return
+    }
+  } else if (!wizardSelectedExistingClient.value) {
+    workspaceError.value = 'Selecciona un cliente existente o crea uno nuevo.'
+    return
+  }
+
+  isSavingWorkspace.value = true
+  try {
+    // Step 1: Create workspace
     const { workspace } = await workspaceService.createWorkspace(newWorkspaceName.value.trim())
+    const newWsId = workspace._id
+
+    // Step 2: Assign internal team (upsert each user with new workspace access)
+    await Promise.allSettled(
+      wizardSelectedInternal.value.map(u =>
+        workspaceService.createGlobalUser({
+          email: u.email,
+          workspaces: [{ workspaceId: newWsId, role: 'colaborador' }],
+        })
+      )
+    )
+
+    // Step 3: Create or assign client
+    if (wizardClientMode.value === 'new') {
+      await workspaceService.createUser(newWsId, {
+        name: wizardNewClient.value.name,
+        email: wizardNewClient.value.email,
+        password: wizardNewClient.value.password,
+        role: 'admin',
+        sendWelcomeEmail: wizardNewClient.value.sendWelcomeEmail,
+      } as any)
+    } else if (wizardSelectedExistingClient.value) {
+      await workspaceService.createGlobalUser({
+        email: wizardSelectedExistingClient.value.email,
+        workspaces: [{ workspaceId: newWsId, role: 'admin' }],
+      })
+    }
+
+    // Step 4: Send brand profile invite if requested
+    if (wizardSendBrandProfileInvite.value) {
+      workspaceService.sendBrandProfileInvite(newWsId).catch(() => {})
+    }
+
     workspaces.value.unshift(workspace)
     showCreateWorkspace.value = false
     toast.success(`Entorno "${workspace.name}" creado con éxito.`)
@@ -219,12 +365,40 @@ async function handleCreateWorkspace(): Promise<void> {
     const e = err as ApiError
     if (e.status === 409) {
       workspaceError.value = 'Ya existe un entorno con ese nombre.'
+      createWizardStep.value = 1
     } else {
       toast.error('Ocurrió un error al crear el entorno.')
     }
   } finally {
     isSavingWorkspace.value = false
   }
+}
+
+function getBrandProfileCompletion(ws: any): number {
+  const bp = ws.brandProfile
+  if (!bp) return 0
+  const required = [
+    bp.descripcion?.trim(), bp.tipoNegocio, bp.publicoObjetivo?.trim(),
+    bp.propuestaValor?.trim(), bp.tono?.trim(), bp.productosServicios?.trim(),
+    bp.problemaResuelto?.trim(), bp.trafficDirection, bp.trafficLink?.trim(),
+  ]
+  return Math.round(required.filter(Boolean).length / required.length * 100)
+}
+
+function getBpBadgeClass(ws: any): string {
+  const score = getBrandProfileCompletion(ws)
+  if (score === 100) return 'superadmin-dashboard__ws-bp--complete'
+  if (score > 0) return 'superadmin-dashboard__ws-bp--partial'
+  if (ws.brandProfileInviteSentAt) return 'superadmin-dashboard__ws-bp--invited'
+  return 'superadmin-dashboard__ws-bp--none'
+}
+
+function getBpLabel(ws: any): string {
+  const score = getBrandProfileCompletion(ws)
+  if (score === 100) return 'Perfil completo'
+  if (score > 0) return `Perfil ${score}%`
+  if (ws.brandProfileInviteSentAt) return 'Invitado'
+  return 'Sin perfil'
 }
 
 // ── User Management (Create/Edit/Delete) ───────────────────
@@ -628,6 +802,10 @@ onMounted(fetchWorkspaces)
                 </span>
                 <span v-if="ws.adminId">{{ ws.adminId.email }}</span>
                 <span v-else class="superadmin-dashboard__ws-meta-empty">Sin admin asignado</span>
+              </span>
+              <span :class="['superadmin-dashboard__ws-bp', getBpBadgeClass(ws)]">
+                <i :class="getBrandProfileCompletion(ws) === 100 ? 'fa-solid fa-circle-check' : getBrandProfileCompletion(ws) > 0 ? 'fa-solid fa-circle-half-stroke' : ws.brandProfileInviteSentAt ? 'fa-solid fa-envelope' : 'fa-regular fa-circle'" />
+                {{ getBpLabel(ws) }}
               </span>
             </div>
           </li>
@@ -1292,30 +1470,214 @@ onMounted(fetchWorkspaces)
       </div>
     </div>
 
-    <!-- Modal: Create Workspace -->
+    <!-- Modal: Create Workspace (3-step wizard) -->
     <Transition name="modal">
       <div v-if="showCreateWorkspace" class="superadmin-dashboard__overlay" @click.self="showCreateWorkspace = false">
-        <div class="superadmin-dashboard__modal">
+        <div class="superadmin-dashboard__modal superadmin-dashboard__modal--wizard">
+
+          <!-- Header -->
           <div class="superadmin-dashboard__modal-header">
-            <h3>Nuevo Entorno</h3>
+            <div>
+              <h3>Nuevo Entorno</h3>
+              <p class="superadmin-dashboard__wizard-subtitle">Paso {{ createWizardStep }} de 3</p>
+            </div>
             <button class="superadmin-dashboard__close-btn" @click="showCreateWorkspace = false">
               <i class="fa-solid fa-xmark" />
             </button>
           </div>
-          <form @submit.prevent="handleCreateWorkspace">
-            <div class="superadmin-dashboard__form-group">
-              <label>Nombre del Entorno</label>
-              <input v-model="newWorkspaceName" type="text" placeholder="Ej: Bakano Marketing" required />
+
+          <!-- Step indicator -->
+          <!-- Step indicator -->
+          <div class="superadmin-dashboard__wizard-steps">
+            <template v-for="n in 3" :key="n">
+              <div :class="['superadmin-dashboard__wizard-step', { 'is-active': createWizardStep === n, 'is-done': createWizardStep > n }]">
+                <span class="superadmin-dashboard__wizard-step-dot">
+                  <i v-if="createWizardStep > n" class="fa-solid fa-check" />
+                  <span v-else>{{ n }}</span>
+                </span>
+                <span class="superadmin-dashboard__wizard-step-label">{{ n === 1 ? 'Nombre' : n === 2 ? 'Equipo' : 'Cliente' }}</span>
+              </div>
+              <div v-if="n < 3" class="superadmin-dashboard__wizard-step-line" :class="{ 'is-done': createWizardStep > n }" />
+            </template>
+          </div>
+
+          <!-- ── Animated step bodies ── -->
+          <Transition name="wiz-slide" mode="out-in">
+
+            <!-- Step 1: Nombre -->
+            <div v-if="createWizardStep === 1" key="step1" class="superadmin-dashboard__wizard-body">
+              <div class="superadmin-dashboard__form-group">
+                <label>Nombre del Entorno</label>
+                <input v-model="newWorkspaceName" type="text" placeholder="Ej: Bakano Marketing" autofocus @keydown.enter.prevent="wizardNextStep" />
+              </div>
+              <p v-if="workspaceError" class="superadmin-dashboard__error">{{ workspaceError }}</p>
+              <div class="superadmin-dashboard__modal-footer">
+                <button type="button" class="superadmin-dashboard__btn-ghost" @click="showCreateWorkspace = false">Cancelar</button>
+                <button type="button" class="superadmin-dashboard__btn-primary" :disabled="!newWorkspaceName.trim()" @click="wizardNextStep">
+                  Siguiente <i class="fa-solid fa-arrow-right" />
+                </button>
+              </div>
             </div>
-            <p v-if="workspaceError" class="superadmin-dashboard__error">{{ workspaceError }}</p>
-            <div class="superadmin-dashboard__modal-footer">
-              <button type="button" class="superadmin-dashboard__btn-ghost" @click="showCreateWorkspace = false">Cancelar</button>
-              <button type="submit" class="superadmin-dashboard__btn-primary" :disabled="isSavingWorkspace">
-                <span v-if="!isSavingWorkspace">Crear</span>
-                <span v-else class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
-              </button>
+
+            <!-- Step 2: Equipo interno -->
+            <div v-else-if="createWizardStep === 2" key="step2" class="superadmin-dashboard__wizard-body">
+              <div class="superadmin-dashboard__wizard-hint">
+                <i class="fa-solid fa-circle-info" />
+                <span>Selecciona los miembros del equipo Bakano que trabajarán en este entorno. Es <strong>obligatorio</strong> asignar al menos uno.</span>
+              </div>
+              <div class="superadmin-dashboard__form-group">
+                <label>Buscar en equipo interno</label>
+                <div class="superadmin-dashboard__wizard-search-row">
+                  <input v-model="wizardInternalSearch" type="text" placeholder="Nombre o email..." @input="wizardLoadInternalUsers" />
+                  <span v-if="isLoadingWizardInternal" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+                </div>
+              </div>
+              <!-- Results list -->
+              <div class="superadmin-dashboard__wizard-list">
+                <button
+                  v-for="u in wizardInternalList.filter(u => !wizardSelectedInternal.find(s => s._id === u._id))"
+                  :key="u._id"
+                  type="button"
+                  class="superadmin-dashboard__wizard-user-row"
+                  @click="wizardToggleInternal(u)"
+                >
+                  <span
+                    class="superadmin-dashboard__wizard-avatar"
+                    :style="{ background: getRoleConfig(u.internalRole).color + '22', color: getRoleConfig(u.internalRole).color }"
+                  >{{ (u.name || u.email).charAt(0).toUpperCase() }}</span>
+                  <span class="superadmin-dashboard__wizard-user-info">
+                    <strong>{{ u.name || 'Sin nombre' }}</strong>
+                    <span class="superadmin-dashboard__wizard-role-badge" :style="{ background: getRoleConfig(u.internalRole).color + '18', color: getRoleConfig(u.internalRole).color }">
+                      <i :class="getRoleConfig(u.internalRole).icon" />
+                      {{ getRoleConfig(u.internalRole).label }}
+                    </span>
+                  </span>
+                  <i class="fa-solid fa-plus superadmin-dashboard__wizard-add-icon" />
+                </button>
+                <p v-if="wizardInternalList.length === 0 && !isLoadingWizardInternal" class="superadmin-dashboard__wizard-empty">
+                  Escribe para buscar usuarios internos.
+                </p>
+              </div>
+              <!-- Selected chips -->
+              <div v-if="wizardSelectedInternal.length" class="superadmin-dashboard__wizard-chips">
+                <span
+                  v-for="u in wizardSelectedInternal"
+                  :key="u._id"
+                  class="superadmin-dashboard__wizard-chip"
+                  :style="{ background: getRoleConfig(u.internalRole).color + '15', borderColor: getRoleConfig(u.internalRole).color + '40' }"
+                >
+                  <i :class="getRoleConfig(u.internalRole).icon" :style="{ color: getRoleConfig(u.internalRole).color }" />
+                  <span>{{ u.name || u.email }}</span>
+                  <button type="button" @click="wizardToggleInternal(u)"><i class="fa-solid fa-xmark" /></button>
+                </span>
+              </div>
+              <p v-if="workspaceError" class="superadmin-dashboard__error">{{ workspaceError }}</p>
+              <div class="superadmin-dashboard__modal-footer">
+                <button type="button" class="superadmin-dashboard__btn-ghost" @click="createWizardStep = 1">
+                  <i class="fa-solid fa-arrow-left" /> Atrás
+                </button>
+                <button type="button" class="superadmin-dashboard__btn-primary" @click="wizardNextStep">
+                  Siguiente <i class="fa-solid fa-arrow-right" />
+                </button>
+              </div>
             </div>
-          </form>
+
+            <!-- Step 3: Cliente -->
+            <div v-else key="step3" class="superadmin-dashboard__wizard-body">
+              <!-- Mode toggle -->
+              <div class="superadmin-dashboard__wizard-mode-toggle">
+                <button
+                  type="button"
+                  :class="['superadmin-dashboard__wizard-mode-btn', { 'is-active': wizardClientMode === 'new' }]"
+                  @click="wizardClientMode = 'new'"
+                ><i class="fa-solid fa-user-plus" /> Nuevo cliente</button>
+                <button
+                  type="button"
+                  :class="['superadmin-dashboard__wizard-mode-btn', { 'is-active': wizardClientMode === 'existing' }]"
+                  @click="wizardClientMode = 'existing'"
+                ><i class="fa-solid fa-magnifying-glass" /> Ya existe</button>
+              </div>
+
+              <!-- New client form -->
+              <template v-if="wizardClientMode === 'new'">
+                <div class="superadmin-dashboard__form-group">
+                  <label>Nombre completo (opcional)</label>
+                  <input v-model="wizardNewClient.name" type="text" placeholder="Ej: Juan Pérez" />
+                </div>
+                <div class="superadmin-dashboard__form-group">
+                  <label>Email <span class="superadmin-dashboard__required">*</span></label>
+                  <input v-model="wizardNewClient.email" type="email" placeholder="cliente@empresa.com" />
+                </div>
+                <div class="superadmin-dashboard__form-group">
+                  <label>Contraseña <span class="superadmin-dashboard__required">*</span></label>
+                  <input v-model="wizardNewClient.password" type="password" placeholder="Mínimo 8 caracteres" minlength="8" />
+                </div>
+                <label class="superadmin-dashboard__wizard-checkbox">
+                  <input v-model="wizardNewClient.sendWelcomeEmail" type="checkbox" />
+                  Enviar email con credenciales de acceso
+                </label>
+              </template>
+
+              <!-- Existing client search -->
+              <template v-else>
+                <div class="superadmin-dashboard__form-group">
+                  <label>Buscar cliente por nombre o email</label>
+                  <div class="superadmin-dashboard__wizard-search-row">
+                    <input v-model="wizardClientSearch" type="text" placeholder="Nombre o email..." @keydown.enter.prevent="wizardSearchExistingClient" />
+                    <button type="button" class="superadmin-dashboard__btn-primary superadmin-dashboard__btn-primary--sm" :disabled="isSearchingClient" @click="wizardSearchExistingClient">
+                      <span v-if="!isSearchingClient"><i class="fa-solid fa-magnifying-glass" /></span>
+                      <span v-else class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+                    </button>
+                  </div>
+                </div>
+                <div class="superadmin-dashboard__wizard-list">
+                  <button
+                    v-for="u in wizardClientResults"
+                    :key="u._id"
+                    type="button"
+                    :class="['superadmin-dashboard__wizard-user-row', { 'is-selected': wizardSelectedExistingClient?._id === u._id }]"
+                    @click="wizardSelectedExistingClient = u"
+                  >
+                    <span class="superadmin-dashboard__wizard-avatar superadmin-dashboard__wizard-avatar--client">
+                      {{ (u.name || u.email).charAt(0).toUpperCase() }}
+                    </span>
+                    <span class="superadmin-dashboard__wizard-user-info">
+                      <strong>{{ u.name || 'Sin nombre' }}</strong>
+                      <small>{{ u.email }}</small>
+                    </span>
+                    <i :class="wizardSelectedExistingClient?._id === u._id ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'" />
+                  </button>
+                  <p v-if="wizardClientResults.length === 0 && wizardClientSearch && !isSearchingClient" class="superadmin-dashboard__wizard-empty">
+                    Sin resultados. Prueba con otro término.
+                  </p>
+                </div>
+              </template>
+
+              <!-- Brand profile invite -->
+              <div class="superadmin-dashboard__wizard-invite-box">
+                <label class="superadmin-dashboard__wizard-checkbox">
+                  <input v-model="wizardSendBrandProfileInvite" type="checkbox" />
+                  <span>
+                    <strong>Enviar invitación de Perfil de Marca</strong>
+                    <small>El cliente recibirá un email para llenar su perfil directamente. Esto es clave para crear contenido que venda.</small>
+                  </span>
+                </label>
+              </div>
+
+              <p v-if="workspaceError" class="superadmin-dashboard__error">{{ workspaceError }}</p>
+              <div class="superadmin-dashboard__modal-footer">
+                <button type="button" class="superadmin-dashboard__btn-ghost" @click="createWizardStep = 2">
+                  <i class="fa-solid fa-arrow-left" /> Atrás
+                </button>
+                <button type="button" class="superadmin-dashboard__btn-primary" :disabled="isSavingWorkspace" @click="handleCreateWorkspace">
+                  <span v-if="!isSavingWorkspace"><i class="fa-solid fa-rocket" /> Crear entorno</span>
+                  <span v-else class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+                </button>
+              </div>
+            </div>
+
+          </Transition>
+
         </div>
       </div>
     </Transition>
@@ -2458,6 +2820,347 @@ onMounted(fetchWorkspaces)
     color: $alert-error;
     font-size: 0.85rem;
     margin: 0;
+  }
+
+  &__required {
+    color: $alert-error;
+  }
+
+  // ── Create workspace wizard ────────────────────────────────
+  &__modal--wizard {
+    width: 560px;
+    max-width: 96vw;
+  }
+
+  &__wizard-subtitle {
+    margin: 2px 0 0;
+    font-size: 0.8rem;
+    color: $text-secondary;
+    font-weight: 400;
+  }
+
+  &__wizard-steps {
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem 1.25rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.06);
+    margin-bottom: 1.25rem;
+  }
+
+  &__wizard-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: $text-secondary;
+    flex-shrink: 0;
+    width: 64px;
+
+    &.is-active {
+      color: #a855f7;
+      font-weight: 700;
+      .superadmin-dashboard__wizard-step-dot {
+        background: #a855f7;
+        color: #fff;
+        box-shadow: 0 0 0 4px rgba(#a855f7, 0.15);
+      }
+    }
+
+    &.is-done {
+      color: #16a34a;
+      .superadmin-dashboard__wizard-step-dot { background: #22c55e; color: #fff; }
+      .superadmin-dashboard__wizard-step-label { color: #16a34a; }
+    }
+  }
+
+  &__wizard-step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba($primary-dark, 0.08);
+    color: $text-secondary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    transition: all 0.25s ease;
+  }
+
+  &__wizard-step-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+    transition: color 0.25s;
+  }
+
+  &__wizard-step-line {
+    flex: 1;
+    height: 2px;
+    background: rgba($primary-dark, 0.1);
+    margin: 0 0.25rem;
+    margin-bottom: 1.1rem;
+    border-radius: 99px;
+    transition: background 0.35s ease;
+
+    &.is-done { background: #22c55e; }
+  }
+
+  // ── Slide transition between steps ───────────────────────────
+  .wiz-slide-enter-active,
+  .wiz-slide-leave-active { transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
+  .wiz-slide-enter-from { opacity: 0; transform: translateX(18px); }
+  .wiz-slide-leave-to  { opacity: 0; transform: translateX(-18px); }
+
+  &__wizard-body {
+    padding: 0 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  &__wizard-hint {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    background: rgba(#a855f7, 0.05);
+    border: 1px solid rgba(#a855f7, 0.12);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: $primary-dark;
+    line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+
+    i { color: #a855f7; margin-top: 2px; flex-shrink: 0; }
+    span { flex: 1; }
+  }
+
+  &__wizard-search-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+
+    input { flex: 1; }
+  }
+
+  &__wizard-list {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid rgba($primary-dark, 0.08);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__wizard-user-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+    width: 100%;
+
+    &:last-child { border-bottom: none; }
+    &:hover { background: rgba($primary-dark, 0.025); }
+
+    &.is-selected {
+      background: rgba(#a855f7, 0.05);
+      > i:last-child { color: #a855f7; }
+    }
+
+    > i:last-child { margin-left: auto; color: $text-secondary; font-size: 0.85rem; flex-shrink: 0; }
+  }
+
+  &__wizard-add-icon {
+    margin-left: auto;
+    color: rgba($primary-dark, 0.2) !important;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    transition: color 0.15s;
+
+    .superadmin-dashboard__wizard-user-row:hover & { color: $primary !important; }
+  }
+
+  &__wizard-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    transition: all 0.2s;
+
+    &--client {
+      background: rgba($primary, 0.1);
+      color: $primary;
+    }
+  }
+
+  &__wizard-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+
+    strong { font-size: 0.875rem; color: $primary-dark; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    small { font-size: 0.75rem; color: $text-secondary; }
+  }
+
+  &__wizard-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: fit-content;
+
+    i { font-size: 0.62rem; }
+  }
+
+  &__wizard-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  &__wizard-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.55rem 0.25rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: $primary-dark;
+
+    > i:first-child { font-size: 0.65rem; }
+
+    button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: rgba($primary-dark, 0.4);
+      padding: 0;
+      line-height: 1;
+      font-size: 0.72rem;
+      margin-left: 0.1rem;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s;
+
+      &:hover { color: #ef4444; }
+    }
+  }
+
+  &__wizard-empty {
+    padding: 0.75rem;
+    color: $text-secondary;
+    font-size: 0.85rem;
+    text-align: center;
+    margin: 0;
+  }
+
+  &__wizard-mode-toggle {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  &__wizard-mode-btn {
+    flex: 1;
+    padding: 0.6rem;
+    border: 1.5px solid rgba($primary-dark, 0.12);
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $text-secondary;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+
+    &.is-active {
+      border-color: #a855f7;
+      background: rgba(#a855f7, 0.06);
+      color: #a855f7;
+    }
+  }
+
+  &__wizard-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    color: $primary-dark;
+
+    input[type='checkbox'] { margin-top: 3px; flex-shrink: 0; }
+
+    span {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    small { color: $text-secondary; font-size: 0.78rem; line-height: 1.4; }
+  }
+
+  &__wizard-invite-box {
+    padding: 0.875rem 1rem;
+    background: linear-gradient(135deg, rgba(#a855f7, 0.04), rgba(#a855f7, 0.02));
+    border: 1.5px solid rgba(#a855f7, 0.15);
+    border-radius: 10px;
+  }
+
+  // ── Brand profile completion badge on workspace card ──────
+  &__ws-bp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.12rem 0.45rem;
+    border-radius: 20px;
+    margin-top: 2px;
+
+    &--none {
+      background: rgba($primary-dark, 0.06);
+      color: $text-secondary;
+    }
+
+    &--invited {
+      background: rgba(234, 179, 8, 0.1);
+      color: #92400e;
+    }
+
+    &--partial {
+      background: rgba(234, 179, 8, 0.12);
+      color: #92400e;
+    }
+
+    &--complete {
+      background: rgba(#22c55e, 0.1);
+      color: darken(#22c55e, 15%);
+    }
   }
 
   // ── Tabs ──────────────────────────────────────────────────

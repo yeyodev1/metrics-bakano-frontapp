@@ -75,10 +75,15 @@ async function handleSubmit(): Promise<void> {
     }
 
     // Role-based redirect
+    const isClientUser = !(user.isInternal ?? jwtIsInternal) && user.role !== 'superadmin'
     if (user.role === 'superadmin') {
       router.push({ name: 'AdminWorkspaces' })
     } else if (targetWorkspaceId) {
-      router.push({ name: 'AppDashboard', params: { workspaceId: targetWorkspaceId } })
+      if (isClientUser) {
+        router.push({ name: 'ClientOnboarding', params: { workspaceId: targetWorkspaceId } })
+      } else {
+        router.push({ name: 'AppDashboard', params: { workspaceId: targetWorkspaceId } })
+      }
     } else {
       router.push({ name: 'Home' })
     }

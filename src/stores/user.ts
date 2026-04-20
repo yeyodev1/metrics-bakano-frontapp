@@ -11,6 +11,7 @@ export interface UserState {
   isInternal: boolean
   isAuthenticated: boolean
   pendingSurveysCount: number
+  brandProfileCompleted: boolean
 }
 
 export const useUserStore = defineStore('user', {
@@ -25,6 +26,7 @@ export const useUserStore = defineStore('user', {
     isInternal: false,
     isAuthenticated: false,
     pendingSurveysCount: 0,
+    brandProfileCompleted: false,
   }),
 
   actions: {
@@ -41,6 +43,7 @@ export const useUserStore = defineStore('user', {
       this.workspaceId = localStorage.getItem('user_workspaceId')
       this.isInternal = localStorage.getItem('user_isInternal') === 'true'
       this.internalRole = localStorage.getItem('user_internalRole')
+      this.brandProfileCompleted = localStorage.getItem('user_brandProfileCompleted') === 'true'
 
       // Fallback: decode internalRole from JWT if localStorage is missing it
       if (!this.internalRole) {
@@ -115,6 +118,14 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('user_workspaces')
         localStorage.removeItem('user_isInternal')
         localStorage.removeItem('user_internalRole')
+        localStorage.removeItem('user_brandProfileCompleted')
+      } catch { /* localStorage unavailable */ }
+    },
+
+    setBrandProfileCompleted(val: boolean) {
+      this.brandProfileCompleted = val
+      try {
+        localStorage.setItem('user_brandProfileCompleted', String(val))
       } catch { /* localStorage unavailable */ }
     },
   },

@@ -91,6 +91,11 @@ class WorkspaceService extends APIBase {
   async resendInvite(userId: string, password: string): Promise<void> {
     await this.post(`workspaces/global-users/${userId}/resend-invite`, { password })
   }
+
+  async sendBrandProfileInvite(workspaceId: string): Promise<{ sentTo: string[] }> {
+    const res = await this.post<{ sentTo: string[] }>(`workspaces/${workspaceId}/send-brand-profile-invite`, {})
+    return res.data
+  }
 }
 
 export const workspaceService = new WorkspaceService()
