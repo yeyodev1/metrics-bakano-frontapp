@@ -460,6 +460,19 @@ router.afterEach(() => {
     </aside>
 
     <main class="app-layout__main">
+      <div
+        v-if="!userStore.isInternal && userStore.role !== 'superadmin' && !userStore.brandProfileCompleted"
+        class="app-layout__onboarding-banner"
+      >
+        <i class="fa-solid fa-circle-exclamation" />
+        <div class="app-layout__onboarding-banner-text">
+          <strong>Completa tu perfil de marca</strong>
+          <span>Para activar todas las funcionalidades de la plataforma, necesitas completar la información de tu negocio.</span>
+        </div>
+        <RouterLink :to="`/onboarding/${userStore.workspaceId}`" class="app-layout__onboarding-btn">
+          Completar ahora
+        </RouterLink>
+      </div>
       <RouterView :key="$route.fullPath" />
     </main>
 
@@ -1152,5 +1165,54 @@ router.afterEach(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.app-layout__onboarding-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fffbeb;
+  border: 1.5px solid #fcd34d;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin: 16px 16px 0;
+
+  > i {
+    font-size: 22px;
+    color: #d97706;
+    flex-shrink: 0;
+  }
+}
+
+.app-layout__onboarding-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    font-size: 14px;
+    font-weight: 700;
+    color: #92400e;
+  }
+
+  span {
+    font-size: 13px;
+    color: #b45309;
+  }
+}
+
+.app-layout__onboarding-btn {
+  flex-shrink: 0;
+  background: #d97706;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover { background: #b45309; }
 }
 </style>

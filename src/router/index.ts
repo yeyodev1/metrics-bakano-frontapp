@@ -229,11 +229,6 @@ router.beforeEach((to, _from, next) => {
         } else {
           const workspaceId = payload.workspaceId || localStorage.getItem('user_workspaceId')
           if (workspaceId) {
-            const isClient = !payload.internalRole && payload.role !== 'superadmin'
-            const brandProfileCompleted = localStorage.getItem('user_brandProfileCompleted') === 'true'
-            if (isClient && !brandProfileCompleted) {
-              return next({ name: 'ClientOnboarding', params: { workspaceId } })
-            }
             return next({ name: 'AppDashboard', params: { workspaceId } })
           }
         }
@@ -264,19 +259,6 @@ router.beforeEach((to, _from, next) => {
     const role = localStorage.getItem('user_role')
     if (!isInternal && role !== 'superadmin') {
       return next({ name: 'AuthLogin', replace: true })
-    }
-  }
-
-  // Lock non-internal clients to onboarding until brand profile is completed
-  if (hasToken && to.name !== 'ClientOnboarding' && to.name !== 'AuthLogin') {
-    const isInternal = localStorage.getItem('user_isInternal') === 'true'
-    const role = localStorage.getItem('user_role')
-    const brandProfileCompleted = localStorage.getItem('user_brandProfileCompleted') === 'true'
-    if (!isInternal && role !== 'superadmin' && !brandProfileCompleted) {
-      const workspaceId = localStorage.getItem('user_workspaceId')
-      if (workspaceId) {
-        return next({ name: 'ClientOnboarding', params: { workspaceId }, replace: true })
-      }
     }
   }
 
