@@ -218,7 +218,10 @@
             <!-- Top row: name + status badges -->
             <div class="trf-card__top">
               <div class="trf-card__name-wrap">
-                <div class="trf-card__avatar">{{ card.name[0]?.toUpperCase() }}</div>
+                <div class="trf-card__avatar">
+                  <img v-if="card.pageId" :src="`https://graph.facebook.com/${card.pageId}/picture?type=normal`" :alt="card.name" class="trf-card__avatar-img" @error="($event.target as HTMLImageElement).style.display='none'" />
+                  <span v-else>{{ card.name[0]?.toUpperCase() }}</span>
+                </div>
                 <div>
                   <p class="trf-card__name">{{ card.name }}</p>
                   <!-- Billing + Ads badges -->
@@ -354,6 +357,7 @@ const BOLONCITY_WS_ID = '69bdadc67386136fc3682734'
 interface Card {
   id: string
   name: string
+  pageId?: string
   metaConnected: boolean
   roas: number
   revenue: number
@@ -761,7 +765,7 @@ async function load(search?: string) {
       const key = `${ws._id}:${currentYear.value}:${currentMonth.value}`
       const hit = billingCache.get(key)
       if (hit && Date.now() - hit.ts < CACHE_TTL) {
-        return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), ...hit } as Card
+        return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), ...hit } as Card
       }
       return null
     }).filter(Boolean) as Card[]
@@ -776,9 +780,9 @@ async function load(search?: string) {
       workspaces.map(async (ws: any) => {
         try {
           const data = await getCachedBilling(ws._id, currentYear.value, currentMonth.value)
-          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), ...data } as Card
+          return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), ...data } as Card
         } catch {
-          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), roas: 0, revenue: 0, onlineRevenue: 0, spend: 0, ts: 0 } as Card
+          return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), roas: 0, revenue: 0, onlineRevenue: 0, spend: 0, ts: 0 } as Card
         }
       })
     )
@@ -1196,6 +1200,15 @@ onMounted(() => load())
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+
+  &-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    display: block;
+  }
 }
 
 .trf-card__name {
