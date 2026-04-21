@@ -256,16 +256,14 @@
                   <span class="trf-card__metric-val">${{ fmt(card.revenue) }}</span>
                 </div>
               </div>
-              <template v-if="card.onlineRevenue > 0">
-                <div class="trf-card__metric-sep" />
-                <div class="trf-card__metric trf-card__metric--online">
-                  <div class="trf-card__metric-icon"><i class="fa-solid fa-globe" /></div>
-                  <div>
-                    <span class="trf-card__metric-label">Online</span>
-                    <span class="trf-card__metric-val">${{ fmt(card.onlineRevenue) }}</span>
-                  </div>
+              <div class="trf-card__metric-sep" />
+              <div class="trf-card__metric trf-card__metric--online">
+                <div class="trf-card__metric-icon"><i class="fa-solid fa-globe" /></div>
+                <div>
+                  <span class="trf-card__metric-label">Online</span>
+                  <span class="trf-card__metric-val">${{ fmt(card.onlineRevenue) }}</span>
                 </div>
-              </template>
+              </div>
               <div class="trf-card__metric-sep" />
               <div class="trf-card__metric trf-card__metric--spend">
                 <div class="trf-card__metric-icon"><i class="fa-brands fa-meta" /></div>
@@ -1562,18 +1560,13 @@ onMounted(() => load())
   &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
 
   > .trf-card {
-    flex: 0 0 280px;
+    flex: 0 0 300px;
     scroll-snap-align: start;
   }
 
-  @media (min-width: 480px)  { padding: 0 16px 16px; > .trf-card { flex: 0 0 300px; } }
-  @media (min-width: 580px)  {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    overflow-x: unset;
-    > .trf-card { flex: unset; }
-  }
-  @media (min-width: 1020px) { grid-template-columns: repeat(3, 1fr); }
+  @media (min-width: 480px)  { padding: 0 16px 16px; > .trf-card { flex: 0 0 320px; } }
+  @media (min-width: 768px)  { > .trf-card { flex: 0 0 340px; } }
+  @media (min-width: 1020px) { > .trf-card { flex: 0 0 360px; } }
 }
 
 // ── Filter tabs ────────────────────────────────────────────
