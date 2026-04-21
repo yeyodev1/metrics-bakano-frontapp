@@ -247,6 +247,12 @@
               </div>
             </div>
 
+            <!-- Missing billing warning -->
+            <div v-if="card.revenue === 0" class="trf-card__billing-alert">
+              <i class="fa-solid fa-triangle-exclamation" />
+              <span>Facturación pendiente — debe ser registrada</span>
+            </div>
+
             <!-- Metrics row -->
             <div class="trf-card__metrics">
               <div class="trf-card__metric trf-card__metric--revenue">
@@ -1545,28 +1551,14 @@ onMounted(() => load())
 }
 
 .trf__group-grid {
-  display: flex;
-  flex-direction: row;
-  overflow-x: auto;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
   padding: 0 12px 14px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,0.12) transparent;
 
-  &::-webkit-scrollbar { height: 4px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
-
-  > .trf-card {
-    flex: 0 0 300px;
-    scroll-snap-align: start;
-  }
-
-  @media (min-width: 480px)  { padding: 0 16px 16px; > .trf-card { flex: 0 0 320px; } }
-  @media (min-width: 768px)  { > .trf-card { flex: 0 0 340px; } }
-  @media (min-width: 1020px) { > .trf-card { flex: 0 0 360px; } }
+  @media (min-width: 480px)  { padding: 0 16px 16px; }
+  @media (min-width: 768px)  { grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 1200px) { grid-template-columns: repeat(3, 1fr); }
 }
 
 // ── Filter tabs ────────────────────────────────────────────
@@ -1691,6 +1683,21 @@ onMounted(() => load())
   &--orange { color: #d97706; }
   &--green  { color: #16a34a; }
   &--gray   { color: #9ca3af; }
+}
+
+.trf-card__billing-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c2410c;
+
+  i { font-size: 14px; flex-shrink: 0; }
 }
 
 // ── Card billing/ads badges ────────────────────────────────

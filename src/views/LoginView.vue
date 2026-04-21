@@ -79,11 +79,7 @@ async function handleSubmit(): Promise<void> {
     if (user.role === 'superadmin') {
       router.push({ name: 'AdminWorkspaces' })
     } else if (targetWorkspaceId) {
-      if (isClientUser) {
-        router.push({ name: 'ClientOnboarding', params: { workspaceId: targetWorkspaceId } })
-      } else {
-        router.push({ name: 'AppDashboard', params: { workspaceId: targetWorkspaceId } })
-      }
+      router.push({ name: 'AppDashboard', params: { workspaceId: targetWorkspaceId } })
     } else {
       router.push({ name: 'Home' })
     }
