@@ -16,6 +16,7 @@ const notificationStore = useNotificationStore()
 const confirm = useConfirm()
 
 const workspaces = ref<Workspace[]>([])
+const workspacesLoaded = ref(false)
 const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
 const wsSearch = ref('')
@@ -71,12 +72,22 @@ const activeWorkspace = computed(() => {
   return workspaces.value.find(w => w._id === currentWorkspaceId.value)
 })
 
+const isWorkspaceDeactivated = computed(() => {
+  if (!workspacesLoaded.value) return false
+  if (userStore.isInternal || userStore.role === 'superadmin') return false
+  const wsId = route.params.workspaceId as string
+  if (!wsId) return false
+  return !workspaces.value.some(w => w._id === wsId)
+})
+
 async function fetchWorkspaces() {
   try {
     const res = await workspaceService.listWorkspaces()
     workspaces.value = res.workspaces
   } catch (e) {
     console.error('Error fetching workspaces for sidebar', e)
+  } finally {
+    workspacesLoaded.value = true
   }
 }
 
@@ -473,7 +484,35 @@ router.afterEach(() => {
           Completar ahora
         </RouterLink>
       </div>
-      <RouterView :key="$route.fullPath" />
+      <div v-if="isWorkspaceDeactivated" class="app-layout__deactivated">
+        <div class="app-layout__deactivated-card">
+          <div class="app-layout__deactivated-icon">🚧</div>
+          <h2 class="app-layout__deactivated-title">¡Ups! Este entorno está desactivado</h2>
+          <p class="app-layout__deactivated-body">
+            Tu entorno ha sido temporalmente desactivado.<br>
+            Si crees que algo está mal, comunícate con soporte.
+          </p>
+          <div class="app-layout__deactivated-actions">
+            <a
+              href="https://wa.me/593963681303"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="app-layout__deactivated-btn app-layout__deactivated-btn--whatsapp"
+            >
+              <i class="fa-brands fa-whatsapp" />
+              Escríbenos por WhatsApp
+            </a>
+            <a
+              href="mailto:dreyes@bakano.ec"
+              class="app-layout__deactivated-btn app-layout__deactivated-btn--email"
+            >
+              <i class="fa-solid fa-envelope" />
+              dreyes@bakano.ec
+            </a>
+          </div>
+        </div>
+      </div>
+      <RouterView v-else :key="$route.fullPath" />
     </main>
 
     <!-- Booking modal (client-only) -->
@@ -1214,5 +1253,79 @@ router.afterEach(() => {
   white-space: nowrap;
 
   &:hover { background: #b45309; }
+}
+
+.app-layout__deactivated {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  min-height: 100%;
+}
+
+.app-layout__deactivated-card {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  background: #fff;
+  border: 1.5px solid rgba(239, 68, 68, 0.15);
+  border-radius: 20px;
+  padding: 40px 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.app-layout__deactivated-icon {
+  font-size: 52px;
+  line-height: 1;
+  margin-bottom: 20px;
+}
+
+.app-layout__deactivated-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 12px;
+  line-height: 1.3;
+}
+
+.app-layout__deactivated-body {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0 0 28px;
+}
+
+.app-layout__deactivated-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.app-layout__deactivated-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  width: 100%;
+  justify-content: center;
+  transition: opacity 0.15s;
+
+  &:hover { opacity: 0.85; }
+
+  &--whatsapp {
+    background: #25d366;
+    color: #fff;
+  }
+
+  &--email {
+    background: rgba(#0f172a, 0.06);
+    color: #0f172a;
+  }
 }
 </style>
