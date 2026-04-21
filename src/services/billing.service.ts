@@ -8,6 +8,7 @@ export interface IDailyBillingEntry {
   userEmail: string
   date: string
   amount: number
+  onlineRevenue?: number
   metaSpend: number
   roas: number
   notes?: string
@@ -18,6 +19,7 @@ export interface IDailyBillingEntry {
 export interface IDaySummary {
   date: string
   totalAmount: number
+  totalOnlineRevenue: number
   totalMetaSpend: number
   avgROAS: number
   entries: IDailyBillingEntry[]
@@ -27,12 +29,13 @@ export interface IDaySummary {
 export interface IMonthData {
   days: IDaySummary[]
   totalAmount: number
+  totalOnlineRevenue: number
   totalMetaSpend: number
   avgROAS: number
 }
 
 class BillingService extends APIBase {
-  async createEntry(workspaceId: string, data: { amount: number; notes?: string; date?: string }) {
+  async createEntry(workspaceId: string, data: { amount: number; notes?: string; date?: string; onlineRevenue?: number }) {
     const res = await this.post<{ entry: IDailyBillingEntry; daySummary: IDaySummary }>(
       `billing/${workspaceId}`,
       data
@@ -62,7 +65,7 @@ class BillingService extends APIBase {
   async updateEntry(
     workspaceId: string,
     entryId: string,
-    data: { amount: number; notes?: string }
+    data: { amount: number; notes?: string; onlineRevenue?: number }
   ) {
     const res = await this.put<{ entry: IDailyBillingEntry; daySummary: IDaySummary }>(
       `billing/${workspaceId}/entry/${entryId}`,

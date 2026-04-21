@@ -89,6 +89,7 @@ export interface Workspace {
     lastSyncedAt: string
   }
   brandProfile?: BrandProfile
+  brandProfileInviteSentAt?: string
   userRole?: 'admin' | 'colaborador'
   createdAt: string
   updatedAt: string

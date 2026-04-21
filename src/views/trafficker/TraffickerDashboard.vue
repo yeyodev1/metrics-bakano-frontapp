@@ -132,6 +132,21 @@
       <p>Contacta al superadmin para que te asigne entornos de clientes.</p>
     </div>
 
+    <!-- Search -->
+    <div v-if="!isLoading && cards.length > 0" class="trf__search-wrap">
+      <i class="fa-solid fa-magnifying-glass trf__search-icon" />
+      <input
+        v-model="searchQuery"
+        class="trf__search-input"
+        type="search"
+        placeholder="Buscar cliente..."
+        autocomplete="off"
+      />
+      <button v-if="searchQuery" class="trf__search-clear" @click="searchQuery = ''">
+        <i class="fa-solid fa-xmark" />
+      </button>
+    </div>
+
     <!-- Filter tabs -->
     <div v-if="!isLoading && cards.length > 0" class="trf__filter-tabs">
       <button
@@ -203,7 +218,10 @@
             <!-- Top row: name + status badges -->
             <div class="trf-card__top">
               <div class="trf-card__name-wrap">
-                <div class="trf-card__avatar">{{ card.name[0]?.toUpperCase() }}</div>
+                <div class="trf-card__avatar">
+                  <img v-if="card.pageId" :src="`https://graph.facebook.com/${card.pageId}/picture?type=normal`" :alt="card.name" class="trf-card__avatar-img" @error="($event.target as HTMLImageElement).style.display='none'" />
+                  <span v-else>{{ card.name[0]?.toUpperCase() }}</span>
+                </div>
                 <div>
                   <p class="trf-card__name">{{ card.name }}</p>
                   <!-- Billing + Ads badges -->
@@ -238,6 +256,16 @@
                   <span class="trf-card__metric-val">${{ fmt(card.revenue) }}</span>
                 </div>
               </div>
+              <template v-if="card.onlineRevenue > 0">
+                <div class="trf-card__metric-sep" />
+                <div class="trf-card__metric trf-card__metric--online">
+                  <div class="trf-card__metric-icon"><i class="fa-solid fa-globe" /></div>
+                  <div>
+                    <span class="trf-card__metric-label">Online</span>
+                    <span class="trf-card__metric-val">${{ fmt(card.onlineRevenue) }}</span>
+                  </div>
+                </div>
+              </template>
               <div class="trf-card__metric-sep" />
               <div class="trf-card__metric trf-card__metric--spend">
                 <div class="trf-card__metric-icon"><i class="fa-brands fa-meta" /></div>
@@ -315,20 +343,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { workspaceService } from '@/services/workspace.service'
 import { billingService } from '@/services/billing.service'
-import { notificationService } from '@/services/notification.service'
+import { salesSummaryService } from '@/services/salesSummary.service'
 import { metaService } from '@/services/meta.service'
+import { notificationService } from '@/services/notification.service'
+
+const BOLONCITY_WS_ID = '69bdadc67386136fc3682734'
 
 interface Card {
   id: string
   name: string
+  pageId?: string
   metaConnected: boolean
   roas: number
   revenue: number
+  onlineRevenue: number
   spend: number
   ts?: number
 }
@@ -410,12 +443,35 @@ const byRoasAsc = (a: Card, b: Card) => {
 // ── Filter tabs ───────────────────────────────────────────
 type FilterMode = 'all' | 'con_pauta' | 'sin_pauta'
 const filterMode = ref<FilterMode>('all')
+const searchQuery = ref('')
 
 const filteredCards = computed(() => {
-  if (filterMode.value === 'con_pauta') return cards.value.filter(c => c.spend > 0)
-  if (filterMode.value === 'sin_pauta') return cards.value.filter(c => c.spend === 0)
-  return cards.value
+  const src = cards.value
+  if (filterMode.value === 'con_pauta') return src.filter(c => c.spend > 0)
+  if (filterMode.value === 'sin_pauta') return src.filter(c => c.spend === 0)
+  return src
 })
+
+// ── Meta spend background cache ───────────────────────────
+const metaSpendCache = new Map<string, number>()
+
+async function loadMetaSpend(wsId: string, adAccountId: string, year: number, month: number) {
+  const key = `meta:${wsId}:${year}:${month}`
+  if (metaSpendCache.has(key)) return
+  try {
+    const spend = await metaService.getMonthSpend(wsId, year, month)
+    if (spend <= 0) return
+    metaSpendCache.set(key, spend)
+    const idx = cards.value.findIndex(c => c.id === wsId)
+    if (idx === -1) return
+    const card = cards.value[idx]
+    const roas = card.revenue > 0 ? card.revenue / spend : 0
+    cards.value = [...cards.value.slice(0, idx), { ...card, spend, roas }, ...cards.value.slice(idx + 1)]
+    const bKey = `${wsId}:${year}:${month}`
+    const hit = billingCache.get(bKey)
+    if (hit) billingCache.set(bKey, { ...hit, spend, roas })
+  } catch { /* silent — workspace may lack adAccountId */ }
+}
 
 // ── ROAS label helpers ────────────────────────────────────
 function roasLabel(roas: number) {
@@ -651,42 +707,47 @@ function nextMonth() {
 }
 
 // ── Billing + Meta spend cache (5 min TTL) ────────────────
-interface CachedBilling { revenue: number; spend: number; roas: number; ts: number }
+interface CachedBilling { revenue: number; onlineRevenue: number; spend: number; roas: number; ts: number }
 const billingCache = new Map<string, CachedBilling>()
 const CACHE_TTL = 5 * 60 * 1000
 
-async function getCachedBilling(wsId: string, year: number, month: number, hasMetaAds: boolean) {
+async function getCachedBilling(wsId: string, year: number, month: number) {
   const key = `${wsId}:${year}:${month}`
   const hit = billingCache.get(key)
   if (hit && Date.now() - hit.ts < CACHE_TTL) return hit
 
-  // Fetch billing data + real Meta spend in parallel
-  const [billingResult, metaSpendResult] = await Promise.allSettled([
-    billingService.getMonthData(wsId, year, month),
-    hasMetaAds ? metaService.getMonthSpend(wsId, year, month) : Promise.resolve(0),
-  ])
+  let revenue = 0, onlineRevenue = 0, spend = 0, roas = 0
+  try {
+    if (wsId === BOLONCITY_WS_ID) {
+      const [salesData, billingData] = await Promise.all([
+        salesSummaryService.getMonthData(wsId, year, month),
+        billingService.getMonthData(wsId, year, month),
+      ])
+      revenue = salesData.totalBilled ?? 0
+      spend = (billingData.days ?? []).reduce((s: number, d: any) => s + (d.totalMetaSpend ?? 0), 0)
+      onlineRevenue = (billingData.days ?? []).reduce((s: number, d: any) => s + (d.totalOnlineRevenue ?? 0), 0)
+      roas = spend > 0 ? revenue / spend : 0
+    } else {
+      const data = await billingService.getMonthData(wsId, year, month)
+      const days = data.days ?? []
+      revenue = days.reduce((s: number, d: any) => s + (d.totalAmount ?? 0), 0)
+      onlineRevenue = days.reduce((s: number, d: any) => s + (d.totalOnlineRevenue ?? 0), 0)
+      spend = days.reduce((s: number, d: any) => s + (d.totalMetaSpend ?? 0), 0)
+      roas = spend > 0 ? revenue / spend : 0
+    }
+  } catch {}
 
-  const days = billingResult.status === 'fulfilled' ? (billingResult.value.days ?? []) : []
-  const revenue = days.reduce((s: number, d: any) => s + (d.totalAmount ?? 0), 0)
-
-  // Prefer real Meta API spend; fall back to manually entered value
-  let spend = metaSpendResult.status === 'fulfilled' ? (metaSpendResult.value ?? 0) : 0
-  if (!spend) {
-    spend = days.reduce((s: number, d: any) => s + (d.totalMetaSpend ?? 0), 0)
-  }
-
-  const roas = spend > 0 ? revenue / spend : 0
-  const entry: CachedBilling = { revenue, spend, roas, ts: Date.now() }
+  const entry: CachedBilling = { revenue, onlineRevenue, spend, roas, ts: Date.now() }
   billingCache.set(key, entry)
   return entry
 }
 
-async function fetchAllWorkspaces() {
+async function fetchAllWorkspaces(search?: string) {
   const all: any[] = []
   let page = 1
   let hasMore = true
   while (hasMore) {
-    const res = await workspaceService.listWorkspaces({ limit: 50, page })
+    const res = await workspaceService.listWorkspaces({ limit: 50, page, search: search || undefined })
     all.push(...res.workspaces)
     hasMore = res.metadata?.hasMore ?? false
     page++
@@ -694,17 +755,17 @@ async function fetchAllWorkspaces() {
   return all
 }
 
-async function load() {
+async function load(search?: string) {
   isLoading.value = true
   try {
-    const workspaces = await fetchAllWorkspaces()
+    const workspaces = await fetchAllWorkspaces(search)
 
     // ① Show cached data instantly (no skeleton for returning visits)
     const fromCache = workspaces.map((ws: any) => {
       const key = `${ws._id}:${currentYear.value}:${currentMonth.value}`
       const hit = billingCache.get(key)
       if (hit && Date.now() - hit.ts < CACHE_TTL) {
-        return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), ...hit } as Card
+        return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), ...hit } as Card
       }
       return null
     }).filter(Boolean) as Card[]
@@ -717,16 +778,22 @@ async function load() {
     // ② Fetch fresh: billing + real Meta spend in parallel per workspace
     const fresh = await Promise.all(
       workspaces.map(async (ws: any) => {
-        const hasMetaAds = !!(ws.metaAds?.adAccountId)
         try {
-          const data = await getCachedBilling(ws._id, currentYear.value, currentMonth.value, hasMetaAds)
-          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), ...data } as Card
+          const data = await getCachedBilling(ws._id, currentYear.value, currentMonth.value)
+          return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), ...data } as Card
         } catch {
-          return { id: ws._id, name: ws.name, metaConnected: !!(ws.metaAds?.pageId), roas: 0, revenue: 0, spend: 0, ts: 0 } as Card
+          return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), roas: 0, revenue: 0, onlineRevenue: 0, spend: 0, ts: 0 } as Card
         }
       })
     )
     cards.value = fresh
+
+    // ③ Background: live Meta spend for workspaces with adAccountId
+    workspaces.forEach((ws: any) => {
+      if (ws.metaAds?.adAccountId) {
+        loadMetaSpend(ws._id, ws.metaAds.adAccountId, currentYear.value, currentMonth.value)
+      }
+    })
   } catch (e) {
     console.error('TraffickerDashboard load error', e)
   } finally {
@@ -734,7 +801,13 @@ async function load() {
   }
 }
 
-onMounted(load)
+let _searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, (q) => {
+  if (_searchTimer) clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => load(q.trim() || undefined), 300)
+})
+
+onMounted(() => load())
 </script>
 
 <style scoped lang="scss">
@@ -1127,6 +1200,15 @@ onMounted(load)
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+
+  &-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    display: block;
+  }
 }
 
 .trf-card__name {
@@ -1194,6 +1276,7 @@ onMounted(load)
   flex: 1;
 
   &--revenue .trf-card__metric-icon { color: #16a34a; background: #dcfce7; }
+  &--online  .trf-card__metric-icon { color: #6366f1; background: #e0e7ff; }
   &--spend   .trf-card__metric-icon { color: #1877f2; background: rgba(#1877f2, 0.1); }
 }
 
@@ -1464,14 +1547,87 @@ onMounted(load)
 }
 
 .trf__group-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
   gap: 10px;
   padding: 0 12px 14px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.12) transparent;
 
-  @media (min-width: 480px)  { padding: 0 16px 16px; }
-  @media (min-width: 580px)  { grid-template-columns: repeat(2, 1fr); }
+  &::-webkit-scrollbar { height: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+
+  > .trf-card {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+  }
+
+  @media (min-width: 480px)  { padding: 0 16px 16px; > .trf-card { flex: 0 0 300px; } }
+  @media (min-width: 580px)  {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: unset;
+    > .trf-card { flex: unset; }
+  }
   @media (min-width: 1020px) { grid-template-columns: repeat(3, 1fr); }
+}
+
+// ── Filter tabs ────────────────────────────────────────────
+// ── Search ─────────────────────────────────────────────────
+.trf__search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.trf__search-icon {
+  position: absolute;
+  left: 14px;
+  color: $text-secondary;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.trf__search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 36px;
+  border-radius: 100px;
+  border: 1.5px solid rgba($primary, 0.15);
+  background: white;
+  font-size: 14px;
+  color: $primary-dark;
+  outline: none;
+  transition: border-color 0.14s;
+  -webkit-appearance: none;
+
+  &::placeholder { color: $text-secondary; }
+  &:focus { border-color: rgba($primary, 0.4); }
+
+  &::-webkit-search-cancel-button { display: none; }
+}
+
+.trf__search-clear {
+  position: absolute;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 100px;
+  border: none;
+  background: rgba($primary, 0.08);
+  color: $text-secondary;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+
+  &:hover { background: rgba($primary, 0.15); color: $primary-dark; }
 }
 
 // ── Filter tabs ────────────────────────────────────────────

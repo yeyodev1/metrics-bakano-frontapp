@@ -179,6 +179,30 @@
           />
         </div>
 
+        <!-- Online revenue (only for sales > 0) -->
+        <div v-if="localAmount > 0" class="field">
+          <label class="field-label">
+            <i class="fa-solid fa-globe" style="color:#6366f1" />
+            Ventas online <span class="optional">(opcional)</span>
+          </label>
+          <div class="online-revenue-hint">
+            <i class="fa-solid fa-circle-info" />
+            <span>Incluye ventas por <strong>página web</strong> o <strong>WhatsApp</strong>. Mejora el cálculo de conversión digital. Si no tienes este dato, déjalo en blanco.</span>
+          </div>
+          <div class="amount-wrap" :class="{ focused: false, filled: (localOnlineRevenue ?? 0) > 0 }">
+            <span class="currency-symbol">$</span>
+            <input
+              v-model.number="localOnlineRevenue"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              class="amount-input"
+              @input="localOnlineRevenue = localOnlineRevenue !== null ? Math.max(0, localOnlineRevenue) : null"
+            />
+          </div>
+        </div>
+
         <!-- Notes (only for sales > 0) -->
         <div v-if="localAmount > 0" class="field">
           <label class="field-label">
@@ -236,18 +260,20 @@ const props = defineProps<{
   editMode?: boolean
   existingAmount?: number
   existingNotes?: string
+  existingOnlineRevenue?: number
   entryId?: string
   calendarEntryMap?: Record<string, { hasMyEntry: boolean; total: number; entryCount: number }>
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
-  (e: 'confirmed', payload: { amount: number; notes?: string; entryId?: string; date?: string }): void
+  (e: 'confirmed', payload: { amount: number; notes?: string; onlineRevenue?: number; entryId?: string; date?: string }): void
 }>()
 
 const ZERO_REASONS = ['No abrimos', 'No hubo venta', 'Día festivo / feriado', 'Problemas técnicos']
 
 const localAmount = ref<number>(0)
+const localOnlineRevenue = ref<number | null>(null)
 const localNotes = ref('')
 const localDate = ref('')
 const zeroReason = ref('')
@@ -381,6 +407,7 @@ function handleConfirm() {
   emit('confirmed', {
     amount: localAmount.value,
     notes,
+    onlineRevenue: localOnlineRevenue.value != null && localOnlineRevenue.value > 0 ? localOnlineRevenue.value : undefined,
     entryId: props.entryId,
     date: localDate.value,
   })
@@ -389,6 +416,7 @@ function handleConfirm() {
 watch(() => props.modelValue, (val) => {
   if (val) {
     localAmount.value = (props.editMode && props.existingAmount != null) ? props.existingAmount : 0
+    localOnlineRevenue.value = (props.editMode && props.existingOnlineRevenue != null) ? props.existingOnlineRevenue : null
     localNotes.value = (props.editMode && props.existingNotes && (props.existingAmount ?? 0) > 0) ? props.existingNotes : ''
     zeroReason.value = (props.editMode && props.existingAmount === 0 && props.existingNotes) ? props.existingNotes : ''
     localDate.value = props.date || todayStr.value
@@ -521,6 +549,23 @@ watch(() => props.modelValue, (val) => {
   font-weight: 400;
   color: #9ca3af;
   font-size: 12px;
+}
+
+.online-revenue-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #4338ca;
+  line-height: 1.5;
+
+  i { margin-top: 2px; flex-shrink: 0; }
+  strong { font-weight: 700; }
 }
 
 // ── Custom date picker ────────────────────────────────────
