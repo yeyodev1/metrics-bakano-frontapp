@@ -37,6 +37,15 @@
           <p class="kpi-value">${{ formatAmount(monthTotals.totalAmount) }}</p>
         </div>
       </div>
+      <div v-if="monthTotals.totalOnlineRevenue > 0" class="kpi-card">
+        <div class="kpi-icon-wrap kpi-icon--indigo">
+          <i class="fa-solid fa-globe" />
+        </div>
+        <div class="kpi-content">
+          <p class="kpi-label">Ventas Online</p>
+          <p class="kpi-value">${{ formatAmount(monthTotals.totalOnlineRevenue) }}</p>
+        </div>
+      </div>
       <div class="kpi-card">
         <div class="kpi-icon-wrap kpi-icon--blue">
           <i class="fa-brands fa-meta" />
@@ -338,9 +347,10 @@ const pendingDays = computed(() => {
 const monthTotals = computed(() => {
   const days = monthData.value?.days ?? []
   const totalAmount = days.reduce((sum, d) => sum + d.totalAmount, 0)
+  const totalOnlineRevenue = days.reduce((sum, d) => sum + (d.totalOnlineRevenue ?? 0), 0)
   const totalMetaSpend = days.reduce((sum, d) => sum + d.totalMetaSpend, 0)
   const avgROAS = totalMetaSpend > 0 ? totalAmount / totalMetaSpend : 0
-  return { totalAmount, totalMetaSpend, avgROAS }
+  return { totalAmount, totalOnlineRevenue, totalMetaSpend, avgROAS }
 })
 // Any non-internal user with workspace access can enter billing.
 // Internal team members can view but not enter (superadmin is the only exception).
@@ -414,6 +424,21 @@ const chartData = computed(() => {
         tension: 0.4,
         fill: true,
       },
+      ...(sorted.some(d => (d.totalOnlineRevenue ?? 0) > 0) ? [{
+        label: 'Ventas Online',
+        data: sorted.map(d => d.totalOnlineRevenue ?? 0),
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99, 102, 241, 0.06)',
+        borderWidth: 2,
+        pointBackgroundColor: '#6366f1',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.4,
+        fill: false,
+        borderDash: [4, 3],
+      }] : []),
     ],
   }
 })
@@ -550,15 +575,15 @@ function canEditEntry(entry: { userId?: string; userEmail?: string }, entryDate:
   return diffDays <= 7
 }
 
-async function handleEntry(payload: { amount: number; notes?: string; entryId?: string; date?: string }) {
+async function handleEntry(payload: { amount: number; notes?: string; onlineRevenue?: number; entryId?: string; date?: string }) {
   submitting.value = true
   try {
     if (payload.entryId) {
-      await billingService.updateEntry(workspaceId.value, payload.entryId, { amount: payload.amount, notes: payload.notes })
+      await billingService.updateEntry(workspaceId.value, payload.entryId, { amount: payload.amount, notes: payload.notes, onlineRevenue: payload.onlineRevenue })
       successMsg.value = '✓ Facturación actualizada correctamente'
     } else {
       const entryDate = payload.date || modalDate.value
-      await billingService.createEntry(workspaceId.value, { amount: payload.amount, notes: payload.notes, date: entryDate })
+      await billingService.createEntry(workspaceId.value, { amount: payload.amount, notes: payload.notes, date: entryDate, onlineRevenue: payload.onlineRevenue })
       successMsg.value = isToday(entryDate) ? '✓ Facturación de hoy registrada' : `✓ Facturación del ${entryDate} registrada`
     }
     showModal.value = false
@@ -741,6 +766,7 @@ onMounted(async () => {
 
   &.kpi-icon--green  { background: #d1fae5; color: #059669; }
   &.kpi-icon--blue   { background: #dbeafe; color: #3b82f6; }
+  &.kpi-icon--indigo { background: #e0e7ff; color: #6366f1; }
   &.kpi-icon--yellow { background: #fef3c7; color: #d97706; }
   &.kpi-icon--red    { background: #fee2e2; color: #dc2626; }
   &.kpi-icon--gray   { background: #f1f5f9; color: #94a3b8; }

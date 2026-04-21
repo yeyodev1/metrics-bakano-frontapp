@@ -112,8 +112,8 @@
           </div>
           <div>
             <p class="trf-ws__kpi-label">ROAS del Mes</p>
-            <p class="trf-ws__kpi-big">{{ billingTotals.avgROAS > 0 ? billingTotals.avgROAS.toFixed(2) + 'x' : '—' }}</p>
-            <p class="trf-ws__kpi-status">{{ roasStatusLabel(billingTotals.avgROAS) }}</p>
+            <p class="trf-ws__kpi-big">{{ effectiveROAS > 0 ? effectiveROAS.toFixed(2) + 'x' : '—' }}</p>
+            <p class="trf-ws__kpi-status">{{ roasStatusLabel(effectiveROAS) }}</p>
           </div>
         </div>
 
@@ -125,11 +125,11 @@
               <div
                 class="trf-ws__gauge-fill"
                 :class="roasFillClass"
-                :style="{ width: Math.min((billingTotals.avgROAS / 4) * 100, 100) + '%' }"
+                :style="{ width: Math.min((effectiveROAS / 4) * 100, 100) + '%' }"
               />
             </div>
             <span class="trf-ws__gauge-pct">
-              {{ billingTotals.avgROAS > 0 ? Math.round(Math.min((billingTotals.avgROAS / 4) * 100, 100)) + '%' : '—' }}
+              {{ effectiveROAS > 0 ? Math.round(Math.min((effectiveROAS / 4) * 100, 100)) + '%' : '—' }}
             </span>
           </div>
           <div class="trf-ws__gauge-legend">
@@ -158,7 +158,7 @@
           </div>
           <div>
             <p class="trf-ws__kpi-label">Gasto en Meta Ads</p>
-            <p class="trf-ws__kpi-value">${{ formatAmount(billingTotals.totalMetaSpend) }}</p>
+            <p class="trf-ws__kpi-value">${{ formatAmount(effectiveMetaSpend) }}</p>
             <p class="trf-ws__kpi-hint">Inversión publicitaria</p>
           </div>
         </div>
@@ -174,12 +174,12 @@
           </span>
           <span class="trf-ws__formula-op">÷</span>
           <span class="trf-ws__formula-piece trf-ws__formula-piece--blue">
-            ${{ formatAmount(billingTotals.totalMetaSpend) }}
+            ${{ formatAmount(effectiveMetaSpend) }}
             <small>Gasto Meta</small>
           </span>
           <span class="trf-ws__formula-op">=</span>
           <span class="trf-ws__formula-piece" :class="roasPieceClass">
-            {{ billingTotals.avgROAS > 0 ? billingTotals.avgROAS.toFixed(2) + 'x' : '—' }}
+            {{ effectiveROAS > 0 ? effectiveROAS.toFixed(2) + 'x' : '—' }}
             <small>ROAS</small>
           </span>
           <span class="trf-ws__formula-target">
@@ -211,40 +211,70 @@
           <p>No se pudieron obtener datos de Meta Ads. Verifica la integración.</p>
         </div>
 
-        <div v-else>
+        <!-- Fallback: Meta API returned but with 0 spend — show billing-derived data with note -->
+        <div v-else-if="metaInsights && (metaSummary?.spend ?? 0) === 0 && billingTotals.totalMetaSpend > 0" class="trf-ws__meta-fallback">
+          <div class="trf-ws__meta-fallback-banner">
+            <i class="fa-solid fa-circle-info" />
+            <span>Meta Ads no reporta gasto en vivo para este período. Mostrando datos desde el registro de facturación.</span>
+          </div>
+          <div class="trf-ws__meta-kpis">
+            <div class="trf-ws__meta-kpi">
+              <span class="trf-ws__meta-kpi-label">Gasto Total</span>
+              <span class="trf-ws__meta-kpi-value">${{ formatAmount(billingTotals.totalMetaSpend) }}</span>
+            </div>
+            <div class="trf-ws__meta-kpi">
+              <span class="trf-ws__meta-kpi-label">Impresiones</span>
+              <span class="trf-ws__meta-kpi-value">—</span>
+            </div>
+            <div class="trf-ws__meta-kpi">
+              <span class="trf-ws__meta-kpi-label">Alcance</span>
+              <span class="trf-ws__meta-kpi-value">—</span>
+            </div>
+            <div class="trf-ws__meta-kpi">
+              <span class="trf-ws__meta-kpi-label">Clics</span>
+              <span class="trf-ws__meta-kpi-value">—</span>
+            </div>
+            <div class="trf-ws__meta-kpi">
+              <span class="trf-ws__meta-kpi-label">ROAS</span>
+              <span class="trf-ws__meta-kpi-value" :class="roasPieceClass">{{ effectiveROAS > 0 ? effectiveROAS.toFixed(2) + 'x' : '—' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="metaInsights">
           <!-- Meta KPIs -->
           <div class="trf-ws__meta-kpis">
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">Gasto Total</span>
-              <span class="trf-ws__meta-kpi-value">${{ formatAmount(metaInsights.summary?.spend ?? 0) }}</span>
+              <span class="trf-ws__meta-kpi-value">${{ formatAmount(metaSummary?.spend ?? 0) }}</span>
             </div>
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">Impresiones</span>
-              <span class="trf-ws__meta-kpi-value">{{ formatCount(metaInsights.summary?.impressions ?? 0) }}</span>
+              <span class="trf-ws__meta-kpi-value">{{ formatCount(metaSummary?.impressions ?? 0) }}</span>
             </div>
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">Alcance</span>
-              <span class="trf-ws__meta-kpi-value">{{ formatCount(metaInsights.summary?.reach ?? 0) }}</span>
+              <span class="trf-ws__meta-kpi-value">{{ formatCount(metaSummary?.reach ?? 0) }}</span>
             </div>
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">Clics</span>
-              <span class="trf-ws__meta-kpi-value">{{ formatCount(metaInsights.summary?.clicks ?? 0) }}</span>
+              <span class="trf-ws__meta-kpi-value">{{ formatCount(metaSummary?.clicks ?? 0) }}</span>
             </div>
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">CTR</span>
-              <span class="trf-ws__meta-kpi-value">{{ metaInsights.summary?.ctr ? (metaInsights.summary.ctr).toFixed(2) + '%' : '—' }}</span>
+              <span class="trf-ws__meta-kpi-value">{{ metaSummary?.ctr ? metaSummary.ctr.toFixed(2) + '%' : '—' }}</span>
             </div>
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">CPM</span>
-              <span class="trf-ws__meta-kpi-value">${{ formatAmount(metaInsights.summary?.cpm ?? 0) }}</span>
+              <span class="trf-ws__meta-kpi-value">${{ formatAmount(metaSummary?.cpm ?? 0) }}</span>
             </div>
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">CPC</span>
-              <span class="trf-ws__meta-kpi-value">${{ formatAmount(metaInsights.summary?.cpc ?? 0) }}</span>
+              <span class="trf-ws__meta-kpi-value">${{ formatAmount(metaSummary?.cpc ?? 0) }}</span>
             </div>
             <div class="trf-ws__meta-kpi">
               <span class="trf-ws__meta-kpi-label">Frecuencia</span>
-              <span class="trf-ws__meta-kpi-value">{{ metaInsights.summary?.frequency ? Number(metaInsights.summary.frequency).toFixed(2) : '—' }}</span>
+              <span class="trf-ws__meta-kpi-value">{{ metaSummary?.frequency ? Number(metaSummary.frequency).toFixed(2) : '—' }}</span>
             </div>
           </div>
 
@@ -286,12 +316,47 @@
           <p>No hay registros de facturación este mes.</p>
         </div>
 
+        <div v-else-if="isBoloncity && salesData" class="trf-ws__billing-table-wrap">
+          <table class="trf-ws__billing-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Facturado</th>
+                <th>Pedidos</th>
+                <th>Conversión</th>
+                <th>Sesiones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="day in billingDays"
+                :key="(day as any).date"
+                :class="{ 'trf-ws__billing-row--today': isToday((day as any).date) }"
+              >
+                <td>
+                  <span class="trf-ws__day-date">{{ formatDayDate((day as any).date) }}</span>
+                  <span v-if="isToday((day as any).date)" class="trf-ws__today-pill">Hoy</span>
+                </td>
+                <td class="trf-ws__amount-cell">${{ formatAmount((day as any).totalBilled) }}</td>
+                <td class="trf-ws__count-cell">{{ (day as any).totalOrders }}</td>
+                <td>
+                  <span class="trf-ws__roas-pill trf-ws__roas-pill--neutral">
+                    {{ ((day as any).conversionRate ?? 0).toFixed(1) }}%
+                  </span>
+                </td>
+                <td class="trf-ws__count-cell">{{ (day as any).totalSessions }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <div v-else class="trf-ws__billing-table-wrap">
           <table class="trf-ws__billing-table">
             <thead>
               <tr>
                 <th>Fecha</th>
                 <th>Facturación</th>
+                <th>Online</th>
                 <th>Gasto Meta</th>
                 <th>ROAS del día</th>
                 <th>Registros</th>
@@ -308,6 +373,12 @@
                   <span v-if="isToday(day.dateStr)" class="trf-ws__today-pill">Hoy</span>
                 </td>
                 <td class="trf-ws__amount-cell">${{ formatAmount(day.totalAmount) }}</td>
+                <td class="trf-ws__amount-cell trf-ws__amount-cell--online">
+                  <template v-if="(day as any).totalOnlineRevenue > 0">
+                    ${{ formatAmount((day as any).totalOnlineRevenue) }}
+                  </template>
+                  <span v-else class="trf-ws__no-data">—</span>
+                </td>
                 <td class="trf-ws__amount-cell trf-ws__amount-cell--meta">
                   <template v-if="day.totalMetaSpend > 0">
                     ${{ formatAmount(day.totalMetaSpend) }}
@@ -357,6 +428,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
 import { billingService, type IMonthData } from '@/services/billing.service'
+import { salesSummaryService, type ISalesMonthData } from '@/services/salesSummary.service'
 import { metaService } from '@/services/meta.service'
 
 const route = useRoute()
@@ -369,9 +441,19 @@ const metaPageId = ref('')
 
 const isLoading = ref(false)
 const isLoadingMeta = ref(false)
+const BOLONCITY_WS_ID = '69bdadc67386136fc3682734'
+const isBoloncity = computed(() => workspaceId.value === BOLONCITY_WS_ID)
 const billing = ref<IMonthData>({ days: [], totalAmount: 0, totalMetaSpend: 0, avgROAS: 0 })
+const salesData = ref<ISalesMonthData | null>(null)
 
 const billingTotals = computed(() => {
+  if (isBoloncity.value && salesData.value) {
+    const totalAmount = salesData.value.totalBilled ?? 0
+    const days = billing.value.days ?? []
+    const totalMetaSpend = days.reduce((s, d) => s + (d.totalMetaSpend ?? 0), 0)
+    const avgROAS = totalMetaSpend > 0 ? totalAmount / totalMetaSpend : 0
+    return { totalAmount, totalMetaSpend, avgROAS }
+  }
   const days = billing.value.days ?? []
   const totalAmount = days.reduce((s, d) => s + (d.totalAmount ?? 0), 0)
   const totalMetaSpend = days.reduce((s, d) => s + (d.totalMetaSpend ?? 0), 0)
@@ -418,13 +500,78 @@ function selectMonth(year: number, month: number) {
   loadBilling(true)
 }
 
-const billingDays = computed(() =>
-  (billing.value.days ?? []).filter(d => (d.totalAmount ?? 0) > 0 || (d.totalMetaSpend ?? 0) > 0)
-)
+const billingDays = computed(() => {
+  if (isBoloncity.value && salesData.value) {
+    return (salesData.value.days ?? []).filter(d => (d.totalRevenue ?? 0) > 0 || (d.totalOrders ?? 0) > 0)
+  }
+  return (billing.value.days ?? []).filter(d => (d.totalAmount ?? 0) > 0 || (d.totalMetaSpend ?? 0) > 0)
+})
+
+const metaSummary = computed(() => {
+  const data = metaInsights.value
+  if (!data) return null
+  const ads: any[] = data.insights ?? []
+  const daily: any[] = data.dailySpend ?? []
+  const platforms: any[] = data.spendByPlatform ?? []
+
+  // Priority: account-level daily → ad-level sum → platform breakdown (account-level total)
+  const dailyTotal = daily.reduce((s: number, d: any) => s + parseFloat(d.spend || '0'), 0)
+  const adsTotal = ads.reduce((s: number, a: any) => s + parseFloat(a.spend || '0'), 0)
+  const platformTotal = platforms.reduce((s: number, p: any) => s + parseFloat(p.spend || '0'), 0)
+  const spend = dailyTotal || adsTotal || platformTotal
+
+  const impressions = ads.reduce((s: number, a: any) => s + parseInt(a.impressions || '0'), 0)
+  const clicks = ads.reduce((s: number, a: any) => s + parseInt(a.clicks || '0'), 0)
+  const reach = ads.reduce((s: number, a: any) => s + parseInt(a.reach || '0'), 0)
+  return {
+    spend,
+    impressions,
+    clicks,
+    reach,
+    ctr: impressions ? (clicks / impressions) * 100 : 0,
+    cpc: clicks ? spend / clicks : 0,
+    cpm: impressions ? (spend / impressions) * 1000 : 0,
+    frequency: reach ? impressions / reach : 0,
+    fromPlatformOnly: !dailyTotal && !adsTotal && !!platformTotal,
+  }
+})
 
 const metaCampaigns = computed(() => {
-  if (!metaInsights.value) return []
-  return metaInsights.value.campaigns ?? metaInsights.value.ads ?? []
+  const ads: any[] = metaInsights.value?.insights ?? []
+  const byName = new Map<string, any>()
+  for (const ad of ads) {
+    const key = ad.campaign_name || 'Sin campaña'
+    const curr = byName.get(key)
+    if (!curr) {
+      byName.set(key, {
+        campaign_id: key,
+        campaign_name: key,
+        status: ad.effective_status ?? 'UNKNOWN',
+        spend: parseFloat(ad.spend || '0'),
+        impressions: parseInt(ad.impressions || '0'),
+        clicks: parseInt(ad.clicks || '0'),
+        ctr: parseFloat(ad.ctr || '0'),
+      })
+    } else {
+      curr.spend += parseFloat(ad.spend || '0')
+      curr.impressions += parseInt(ad.impressions || '0')
+      curr.clicks += parseInt(ad.clicks || '0')
+    }
+  }
+  return [...byName.values()]
+})
+
+// Use live Meta spend (metaSummary) when loaded; fall back to billing-stored value.
+// This keeps "Gasto Meta" KPI and ROAS formula consistent with the Meta Ads section below.
+const effectiveMetaSpend = computed(() => {
+  const live = metaSummary.value?.spend ?? 0
+  return live > 0 ? live : billingTotals.value.totalMetaSpend
+})
+
+const effectiveROAS = computed(() => {
+  const spend = effectiveMetaSpend.value
+  const revenue = billingTotals.value.totalAmount
+  return spend > 0 ? revenue / spend : 0
 })
 
 const roasMarks = [
@@ -434,7 +581,7 @@ const roasMarks = [
 ]
 
 const roasKpiClass = computed(() => {
-  const r = billingTotals.value.avgROAS
+  const r = effectiveROAS.value
   if (!r) return 'trf-ws__kpi--gray'
   if (r >= 4) return 'trf-ws__kpi--green'
   if (r >= 3) return 'trf-ws__kpi--teal'
@@ -443,7 +590,7 @@ const roasKpiClass = computed(() => {
 })
 
 const roasFillClass = computed(() => {
-  const r = billingTotals.value.avgROAS
+  const r = effectiveROAS.value
   if (!r) return 'fill--gray'
   if (r >= 4) return 'fill--green'
   if (r >= 3) return 'fill--teal'
@@ -452,7 +599,7 @@ const roasFillClass = computed(() => {
 })
 
 const roasPieceClass = computed(() => {
-  const r = billingTotals.value.avgROAS
+  const r = effectiveROAS.value
   if (!r) return ''
   if (r >= 4) return 'trf-ws__formula-piece--green'
   if (r >= 3) return 'trf-ws__formula-piece--teal'
@@ -510,7 +657,13 @@ function nextMonth() {
 async function loadBilling(showSkeleton = false) {
   if (showSkeleton) isLoading.value = true
   try {
-    billing.value = await billingService.getMonthData(workspaceId.value, currentYear.value, currentMonth.value)
+    const billingPromise = billingService.getMonthData(workspaceId.value, currentYear.value, currentMonth.value)
+    const salesPromise = isBoloncity.value
+      ? salesSummaryService.getMonthData(workspaceId.value, currentYear.value, currentMonth.value)
+      : Promise.resolve(null)
+    const [billingResult, salesResult] = await Promise.all([billingPromise, salesPromise])
+    billing.value = billingResult
+    if (salesResult) salesData.value = salesResult
   } catch (e) {
     console.error('Error loading billing', e)
   } finally {
@@ -1083,6 +1236,24 @@ onMounted(async () => {
   font-size: 14px;
 }
 
+.trf-ws__meta-fallback {
+  .trf-ws__meta-kpis { grid-template-columns: repeat(2, 1fr); @media (min-width: 500px) { grid-template-columns: repeat(5, 1fr); } }
+}
+
+.trf-ws__meta-fallback-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #795548;
+  i { color: #f9a825; flex-shrink: 0; }
+}
+
 .trf-ws__meta-empty {
   display: flex;
   flex-direction: column;
@@ -1254,7 +1425,8 @@ onMounted(async () => {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 
-  &--meta { color: #1877f2; }
+  &--meta   { color: #1877f2; }
+  &--online { color: #6366f1; }
 }
 
 .trf-ws__no-data {
@@ -1278,6 +1450,7 @@ onMounted(async () => {
   &.pill--teal   { color: #0e7490; background: #cffafe; }
   &.pill--orange { color: #b45309; background: #fef3c7; }
   &.pill--red    { color: #991b1b; background: #fee2e2; }
+  &.trf-ws__roas-pill--neutral { color: #374151; background: #f3f4f6; font-weight: 600; }
 }
 
 // ── Quick actions ──────────────────────────────────────────
