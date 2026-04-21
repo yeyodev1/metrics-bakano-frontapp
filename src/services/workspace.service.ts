@@ -96,6 +96,11 @@ class WorkspaceService extends APIBase {
     const res = await this.post<{ sentTo: string[] }>(`workspaces/${workspaceId}/send-brand-profile-invite`, {})
     return res.data
   }
+
+  async toggleWorkspaceActive(workspaceId: string, isActive: boolean): Promise<WorkspaceResponse> {
+    const res = await this.patch<WorkspaceResponse>(`workspaces/${workspaceId}/toggle-active`, { isActive })
+    return res.data
+  }
 }
 
 export const workspaceService = new WorkspaceService()

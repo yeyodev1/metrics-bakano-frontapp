@@ -198,6 +198,32 @@ async function fetchWorkspaces(isLoadMore = false): Promise<void> {
   }
 }
 
+const togglingWorkspaceId = ref<string | null>(null)
+
+async function handleToggleWorkspaceActive(ws: Workspace, e: Event): Promise<void> {
+  e.stopPropagation()
+  const willDeactivate = ws.isActive
+  const isConfirmed = await confirm.confirm({
+    title: willDeactivate ? 'Desactivar entorno' : 'Activar entorno',
+    message: willDeactivate
+      ? `¿Desactivar "${ws.name}"? Los usuarios no podrán acceder y se detendrán todas las notificaciones.`
+      : `¿Activar "${ws.name}"? Los usuarios podrán acceder nuevamente.`,
+    confirmText: willDeactivate ? 'Desactivar' : 'Activar',
+  })
+  if (!isConfirmed) return
+
+  togglingWorkspaceId.value = ws._id
+  try {
+    await workspaceService.toggleWorkspaceActive(ws._id, !willDeactivate)
+    ws.isActive = !willDeactivate
+    toast.success(`Entorno "${ws.name}" ${ws.isActive ? 'activado' : 'desactivado'}.`)
+  } catch {
+    toast.error('Error al cambiar el estado del entorno.')
+  } finally {
+    togglingWorkspaceId.value = null
+  }
+}
+
 // Watch for search query changes with debounce
 watch(searchQuery, () => {
   if (searchTimeout) clearTimeout(searchTimeout)
@@ -780,7 +806,10 @@ onMounted(fetchWorkspaces)
             v-for="ws in workspaces"
             :key="ws._id"
             class="superadmin-dashboard__workspace-card"
-            :class="{ 'superadmin-dashboard__workspace-card--active': selectedWorkspace?._id === ws._id }"
+            :class="{
+              'superadmin-dashboard__workspace-card--active': selectedWorkspace?._id === ws._id,
+              'superadmin-dashboard__workspace-card--inactive': !ws.isActive
+            }"
             role="button"
             @click="selectWorkspace(ws)"
           >
@@ -795,7 +824,10 @@ onMounted(fetchWorkspaces)
               <i v-else class="fa-solid fa-building" />
             </div>
             <div class="superadmin-dashboard__ws-info">
-              <span class="superadmin-dashboard__ws-name">{{ ws.name }}</span>
+              <span class="superadmin-dashboard__ws-name">
+                {{ ws.name }}
+                <span v-if="!ws.isActive" class="superadmin-dashboard__ws-inactive-badge">Inactivo</span>
+              </span>
               <span class="superadmin-dashboard__ws-meta">
                 <span v-if="ws.metaAds?.pageId" class="superadmin-dashboard__ws-meta-badge">
                   <i class="fa-brands fa-meta" /> Meta
@@ -808,6 +840,16 @@ onMounted(fetchWorkspaces)
                 {{ getBpLabel(ws) }}
               </span>
             </div>
+            <button
+              class="superadmin-dashboard__ws-toggle-btn"
+              :class="ws.isActive ? 'superadmin-dashboard__ws-toggle-btn--deactivate' : 'superadmin-dashboard__ws-toggle-btn--activate'"
+              :disabled="togglingWorkspaceId === ws._id"
+              :title="ws.isActive ? 'Desactivar entorno' : 'Activar entorno'"
+              @click="handleToggleWorkspaceActive(ws, $event)"
+            >
+              <span v-if="togglingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+              <i v-else :class="ws.isActive ? 'fa-solid fa-ban' : 'fa-solid fa-circle-play'" />
+            </button>
           </li>
         </ul>
 
@@ -2129,6 +2171,57 @@ onMounted(fetchWorkspaces)
     &--active {
       background: rgba($primary, 0.08) !important;
       border: 1px solid rgba($primary, 0.2);
+    }
+
+    &--inactive {
+      opacity: 0.55;
+    }
+  }
+
+  &__ws-inactive-badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #ef4444;
+    background: rgba(#ef4444, 0.1);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+  }
+
+  &__ws-toggle-btn {
+    flex-shrink: 0;
+    margin-left: auto;
+    padding: 0.4rem 0.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+
+    &--deactivate {
+      background: rgba(#ef4444, 0.08);
+      color: #ef4444;
+      &:hover:not(:disabled) { background: rgba(#ef4444, 0.18); }
+    }
+
+    &--activate {
+      background: rgba(#16a34a, 0.08);
+      color: #16a34a;
+      &:hover:not(:disabled) { background: rgba(#16a34a, 0.18); }
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 
