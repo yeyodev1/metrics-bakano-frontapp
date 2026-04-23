@@ -17,10 +17,13 @@ const INTERNAL_ROLES: { value: InternalRole; label: string; icon: string }[] = [
   { value: 'account_manager', label: 'Account Manager', icon: 'fa-handshake' },
   { value: 'community_manager', label: 'Community Manager', icon: 'fa-comments' },
   { value: 'productor', label: 'Productor', icon: 'fa-clapperboard' },
+  { value: 'asistente_produccion', label: 'Asistente Producción', icon: 'fa-camera' },
+  { value: 'editor', label: 'Editor', icon: 'fa-film' },
   { value: 'disenador', label: 'Diseñador', icon: 'fa-pen-ruler' },
   { value: 'copywriter', label: 'Copywriter', icon: 'fa-feather' },
   { value: 'analista', label: 'Analista', icon: 'fa-chart-bar' },
   { value: 'desarrollador', label: 'Desarrollador', icon: 'fa-code' },
+  { value: 'trafficker', label: 'Trafficker', icon: 'fa-bullseye-arrow' },
 ]
 
 const { isVisible, modalOptions, close } = useGlobalUserModal()

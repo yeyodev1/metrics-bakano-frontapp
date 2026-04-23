@@ -181,8 +181,11 @@ function handleSave() {
               <span /><span /><span /><span />
             </div>
           </div>
-          <h2 class="vcm__title">¡Video listo!</h2>
-          <p class="vcm__subtitle">El video <strong>fue marcado como editado</strong></p>
+          <h2 class="vcm__title">{{ item?.estadoPublicacion === 'PROGRAMADO' ? '¡Listo para programar!' : '¡Video listo!' }}</h2>
+          <p class="vcm__subtitle">
+            <strong v-if="item?.estadoPublicacion === 'PROGRAMADO'">Completa los datos de publicación</strong>
+            <template v-else>El video <strong>fue marcado como editado</strong></template>
+          </p>
           <button class="vcm__close" @click="emit('close')">
             <i class="fa-solid fa-xmark" />
           </button>

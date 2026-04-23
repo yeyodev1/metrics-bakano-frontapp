@@ -9,6 +9,7 @@ const props = defineProps<{
   index: number
   canManageFull: boolean
   canEditProduction: boolean
+  canMarkEditado: boolean
   locked: boolean
 }>()
 
@@ -109,10 +110,10 @@ function onUpdate(field: string, value: string) {
       <StatusBadge v-else :status="item.estadoProduccion" type="produccion" />
     </td>
 
-    <!-- Edición — editable siempre (tracking operativo) -->
+    <!-- Edición — solo superadmin desde esta vista; editores usan su panel -->
     <td class="vp-row__operational">
       <StatusSelect
-        v-if="canEditProduction"
+        v-if="canMarkEditado"
         :model-value="item.edicion"
         :options="EDIC_OPTS"
         @update:model-value="onUpdate('edicion', $event)"
