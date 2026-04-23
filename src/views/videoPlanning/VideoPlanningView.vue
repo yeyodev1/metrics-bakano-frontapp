@@ -45,6 +45,8 @@ const canManageFull = computed(() =>
 const canEditProduction = computed(() =>
   userStore.role === 'superadmin' || userStore.isInternal
 )
+// Edicion column: only superadmin from this view (editors use EditorVideoPlanningView)
+const canMarkEditado = computed(() => userStore.role === 'superadmin')
 
 const locked = computed(() => planning.value?.clienteAprobado === true)
 const items = computed(() => planning.value?.items ?? [])
@@ -137,8 +139,11 @@ async function handleFieldUpdate(itemId: string, field: string, value: string) {
     planning.value = await videoPlanningService.updateItem(planning.value._id, itemId, {
       [field]: value,
     })
-    // Show "video completed" modal when edicion → EDITADO
-    if (field === 'edicion' && value === 'EDITADO') {
+    // Show scheduling modal when edicion → EDITADO or estadoPublicacion → PROGRAMADO
+    const shouldOpenModal =
+      (field === 'edicion' && value === 'EDITADO') ||
+      (field === 'estadoPublicacion' && value === 'PROGRAMADO')
+    if (shouldOpenModal) {
       const updated = planning.value.items.find(i => i._id === itemId) ?? null
       if (updated) {
         completedItem.value = updated
@@ -568,6 +573,7 @@ onMounted(async () => {
             :items="items"
             :canManageFull="canManageFull"
             :canEditProduction="canEditProduction"
+            :canMarkEditado="canMarkEditado"
             :locked="locked"
             @update-field="handleFieldUpdate"
             @open-script="openScript"

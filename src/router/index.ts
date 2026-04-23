@@ -170,6 +170,27 @@ const routes: Array<RouteRecordRaw> = [
     ],
   },
 
+  // ── Editor — dedicated layout, no internal sidebar ───────
+  {
+    path: '/editor',
+    component: () => import('../layout/EditorLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'EditorDashboard',
+        component: () => import('../views/editor/EditorDashboard.vue'),
+        meta: { title: 'Bakano Ads: Panel Editor', requiresAuth: true, requiresInternal: true },
+      },
+      {
+        path: 'workspaces/:workspaceId/planning/:entryId/videos',
+        name: 'EditorVideoPlanning',
+        component: () => import('../views/editor/EditorVideoPlanningView.vue'),
+        meta: { title: 'Bakano Ads: Videos de Producción', requiresAuth: true, requiresInternal: true },
+      },
+    ],
+  },
+
   // ── Client Onboarding (full-screen, no sidebar) ───────────
   {
     path: '/onboarding/:workspaceId',
@@ -210,6 +231,17 @@ router.beforeEach((to, _from, next) => {
     return next({ name: 'AuthLogin', query: { redirect: to.fullPath }, replace: true })
   }
 
+  // Editor isolation: block editors from all routes outside /editor
+  if (hasToken) {
+    const internalRole = localStorage.getItem('user_internalRole')
+    if (internalRole === 'editor') {
+      const allowedForEditor = ['EditorDashboard', 'EditorVideoPlanning', 'AuthLogin']
+      if (to.name && !allowedForEditor.includes(to.name as string)) {
+        return next({ name: 'EditorDashboard', replace: true })
+      }
+    }
+  }
+
   // Handle ?redirect= after login
   if (hasToken && to.query.redirect) {
     const redirectPath = to.query.redirect as string
@@ -224,6 +256,8 @@ router.beforeEach((to, _from, next) => {
         const payload = JSON.parse(atob(payloadSegment)) as { role?: string; workspaceId?: string; internalRole?: string }
         if (payload.role === 'superadmin') {
           return next({ name: 'AdminWorkspaces' })
+        } else if (payload.internalRole === 'editor') {
+          return next({ name: 'EditorDashboard' })
         } else if (payload.internalRole === 'trafficker' || payload.internalRole === 'project_manager') {
           return next({ name: 'TraffickerDashboard' })
         } else {

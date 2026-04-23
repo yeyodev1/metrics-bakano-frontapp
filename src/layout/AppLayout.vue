@@ -1055,6 +1055,21 @@ router.afterEach(() => {
     }
   }
 
+  &__nav-item--editor {
+    background: rgba(#6366f1, 0.06);
+    border: 1px solid rgba(#6366f1, 0.18);
+    color: #3730a3 !important;
+
+    i { color: #6366f1 !important; }
+
+    &.router-link-active,
+    &:hover {
+      background: rgba(#6366f1, 0.12) !important;
+      border-color: rgba(#6366f1, 0.35) !important;
+      color: #312e81 !important;
+    }
+  }
+
   &__nav-item--trafficker {
     background: rgba(#d97706, 0.06);
     border: 1px solid rgba(#d97706, 0.18);

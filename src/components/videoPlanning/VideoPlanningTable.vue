@@ -7,6 +7,7 @@ const props = defineProps<{
   items: VideoItem[]
   canManageFull: boolean
   canEditProduction: boolean
+  canMarkEditado: boolean
   locked: boolean
 }>()
 
@@ -45,6 +46,7 @@ const emit = defineEmits<{
           :index="i"
           :canManageFull="canManageFull"
           :canEditProduction="canEditProduction"
+          :canMarkEditado="canMarkEditado"
           :locked="locked"
           @update-field="(id, field, val) => emit('update-field', id, field, val)"
           @open-script="(item) => emit('open-script', item)"
