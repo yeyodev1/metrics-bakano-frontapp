@@ -105,8 +105,8 @@
           </Transition>
         </div>
 
-        <!-- Amount input -->
-        <div class="field">
+        <!-- Legacy Amount input / Fallback when no branches -->
+        <div v-if="!useBranchBreakdown" class="field">
           <label class="field-label">
             {{ editMode ? '¿Cuál es el monto correcto?' : amountLabel }}
           </label>
@@ -128,9 +128,31 @@
           </div>
         </div>
 
+        <!-- Branch Breakdown -->
+        <div v-else class="branch-inputs-container">
+          <div class="field" v-for="branch in activeBranches" :key="branch._id">
+            <label class="field-label">
+              <i class="fa-solid fa-store" style="color:#3b82f6" />
+              Sede {{ branch.name }}
+            </label>
+            <div class="amount-wrap" :class="{ filled: (branchAmounts[branch._id] ?? 0) > 0 }">
+              <span class="currency-symbol">$</span>
+              <input
+                v-model.number="branchAmounts[branch._id]"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                class="amount-input"
+              />
+              <span class="currency-label">USD</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Day total preview -->
         <Transition name="slide-down">
-          <div v-if="localAmount > 0" class="total-preview">
+          <div v-if="computedTotalAmount > 0" class="total-preview">
             <div class="total-preview__row">
               <span class="total-preview__label">
                 <i class="fa-solid fa-chart-column" />
@@ -143,7 +165,7 @@
 
         <!-- Zero day banner -->
         <Transition name="slide-down">
-          <div v-if="localAmount === 0" class="zero-day-banner">
+          <div v-if="computedTotalAmount === 0" class="zero-day-banner">
             <div class="zero-day-banner__icon">
               <i class="fa-solid fa-store-slash" />
             </div>
@@ -155,7 +177,7 @@
         </Transition>
 
         <!-- Zero reason (required when amount = 0) -->
-        <div v-if="localAmount === 0" class="field">
+        <div v-if="computedTotalAmount === 0" class="field">
           <label class="field-label">
             <i class="fa-solid fa-circle-exclamation" style="color:#dc2626" /> Razón del día sin ventas
             <span class="required-tag">Obligatorio</span>
@@ -180,7 +202,7 @@
         </div>
 
         <!-- Online revenue (only for sales > 0) -->
-        <div v-if="localAmount > 0" class="field">
+        <div v-if="computedTotalAmount > 0" class="field">
           <label class="field-label">
             <i class="fa-solid fa-globe" style="color:#6366f1" />
             Ventas online <span class="optional">(opcional)</span>
@@ -204,7 +226,7 @@
         </div>
 
         <!-- Notes (only for sales > 0) -->
-        <div v-if="localAmount > 0" class="field">
+        <div v-if="computedTotalAmount > 0" class="field">
           <label class="field-label">
             Notas <span class="optional">(opcional)</span>
           </label>
@@ -249,7 +271,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { branchService, type IBranch } from '@/services/branch.service'
 
 const props = defineProps<{
   modelValue: boolean
@@ -261,14 +285,23 @@ const props = defineProps<{
   existingAmount?: number
   existingNotes?: string
   existingOnlineRevenue?: number
+  existingBranches?: { branchId: string; amount: number }[]
   entryId?: string
   calendarEntryMap?: Record<string, { hasMyEntry: boolean; total: number; entryCount: number }>
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
-  (e: 'confirmed', payload: { amount: number; notes?: string; onlineRevenue?: number; entryId?: string; date?: string }): void
+  (e: 'confirmed', payload: { amount: number; notes?: string; onlineRevenue?: number; entryId?: string; date?: string; branches?: { branchId: string; amount: number }[] }): void
 }>()
+
+const route = useRoute()
+const workspaceId = computed(() => route.params.workspaceId as string)
+
+const branches = ref<IBranch[]>([])
+const activeBranches = computed(() => branches.value.filter(b => b.isActive))
+const hasBranches = computed(() => activeBranches.value.length > 0)
+const branchAmounts = ref<Record<string, number | null>>({})
 
 const ZERO_REASONS = ['No abrimos', 'No hubo venta', 'Día festivo / feriado', 'Problemas técnicos']
 
@@ -289,10 +322,31 @@ const todayStr = computed(() => {
 
 const isBackfill = computed(() => !!localDate.value && localDate.value < todayStr.value)
 
+const useBranchBreakdown = computed(() => {
+  if (!hasBranches.value) return false
+  // Backward compatibility: If editing an old entry with a total amount but no branches recorded
+  if (props.editMode && (props.existingAmount || 0) > 0 && (!props.existingBranches || props.existingBranches.length === 0)) {
+    return false
+  }
+  return true
+})
+
+const computedTotalAmount = computed(() => {
+  if (useBranchBreakdown.value) {
+    let sum = 0
+    for (const key in branchAmounts.value) {
+      if (branchAmounts.value[key]) sum += branchAmounts.value[key]!
+    }
+    if (localOnlineRevenue.value) sum += localOnlineRevenue.value
+    return sum
+  }
+  return localAmount.value
+})
+
 const canSave = computed(() => {
   if (!localDate.value) return false
-  if (localAmount.value > 0) return true
-  return localAmount.value === 0 && zeroReason.value.trim().length > 0
+  if (computedTotalAmount.value > 0) return true
+  return computedTotalAmount.value === 0 && zeroReason.value.trim().length > 0
 })
 
 // ── Calendar helpers ──────────────────────────────────────
@@ -370,8 +424,8 @@ function jumpToToday() {
 
 const projectedTotal = computed(() => {
   // Only meaningful if date matches original prop (same day total)
-  if (localDate.value !== props.date) return localAmount.value
-  return props.currentDayTotal + localAmount.value
+  if (localDate.value !== props.date) return computedTotalAmount.value
+  return props.currentDayTotal + computedTotalAmount.value
 })
 
 function formatDateStr(dateStr: string): string {
@@ -401,17 +455,40 @@ function handleClose() {
 
 function handleConfirm() {
   if (!canSave.value || props.loading) return
-  const notes = localAmount.value === 0
+  const notes = computedTotalAmount.value === 0
     ? zeroReason.value.trim()
     : (localNotes.value.trim() || undefined)
+
+  let branchesPayload: { branchId: string; amount: number }[] | undefined = undefined
+  if (useBranchBreakdown.value && computedTotalAmount.value > 0) {
+    branchesPayload = Object.entries(branchAmounts.value)
+      .filter(([_, amount]) => amount != null && amount > 0)
+      .map(([branchId, amount]) => ({ branchId, amount: amount as number }))
+  }
+
   emit('confirmed', {
-    amount: localAmount.value,
+    amount: computedTotalAmount.value,
     notes,
     onlineRevenue: localOnlineRevenue.value != null && localOnlineRevenue.value > 0 ? localOnlineRevenue.value : undefined,
     entryId: props.entryId,
     date: localDate.value,
+    branches: branchesPayload,
   })
 }
+
+async function loadBranches() {
+  if (!workspaceId.value) return
+  try {
+    const res = await branchService.getBranches(workspaceId.value)
+    branches.value = res.branches || []
+  } catch (err) {
+    console.error('Error fetching branches:', err)
+  }
+}
+
+onMounted(() => {
+  loadBranches()
+})
 
 watch(() => props.modelValue, (val) => {
   if (val) {
@@ -420,6 +497,15 @@ watch(() => props.modelValue, (val) => {
     localNotes.value = (props.editMode && props.existingNotes && (props.existingAmount ?? 0) > 0) ? props.existingNotes : ''
     zeroReason.value = (props.editMode && props.existingAmount === 0 && props.existingNotes) ? props.existingNotes : ''
     localDate.value = props.date || todayStr.value
+    
+    // Initialize branch amounts if we are editing an entry with branches
+    branchAmounts.value = {}
+    if (props.editMode && props.existingBranches && props.existingBranches.length > 0) {
+      props.existingBranches.forEach(b => {
+        branchAmounts.value[b.branchId] = b.amount
+      })
+    }
+
     calendarOpen.value = false
     // Sync calendar view to initial date
     const d = new Date((localDate.value || todayStr.value) + 'T12:00:00')
@@ -1172,4 +1258,17 @@ watch(() => props.modelValue, (val) => {
   &:focus { border-color: #ea580c; background: #fff; }
   &::placeholder { color: #9ca3af; }
 }
+
+// ── Branch Breakdown ─────────────────────────────────────
+.branch-inputs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 4px;
+}
 </style>
+

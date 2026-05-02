@@ -223,19 +223,21 @@
     </div>
 
     <!-- Modal -->
-    <BillingEntryModal
-      v-model="showModal"
-      :workspace-name="workspaceName"
-      :current-day-total="modalDayTotal"
-      :date="modalDate"
-      :loading="submitting"
-      :edit-mode="modalEditMode"
-      :entry-id="modalEntryId"
-      :existing-amount="modalExistingAmount"
-      :existing-notes="modalExistingNotes"
-      :calendar-entry-map="calendarEntryMap"
-      @confirmed="handleEntry"
-    />
+      <BillingEntryModal
+        v-model="showModal"
+        :current-day-total="modalDayTotal"
+        :workspace-name="workspaceName"
+        :date="modalDate"
+        :loading="submitting"
+        :edit-mode="modalEditMode"
+        :existing-amount="modalExistingAmount"
+        :existing-notes="modalExistingNotes"
+        :existing-online-revenue="modalExistingOnlineRevenue"
+        :existing-branches="modalExistingBranches"
+        :entry-id="modalEntryId"
+        :calendar-entry-map="calendarEntryMap"
+        @confirmed="handleEntry"
+      />
     </template><!-- end v-if="!isBoloncity" (sticky CTA + modal) -->
 
     <!-- Success toast -->
@@ -305,9 +307,11 @@ const showModal = ref(false)
 const modalDate = ref('')
 const modalDayTotal = ref(0)
 const modalEditMode = ref(false)
-const modalEntryId = ref<string | undefined>()
-const modalExistingAmount = ref<number | undefined>()
-const modalExistingNotes = ref<string | undefined>()
+const modalEntryId = ref<string | undefined>(undefined)
+const modalExistingAmount = ref<number | undefined>(undefined)
+const modalExistingNotes = ref<string | undefined>(undefined)
+const modalExistingOnlineRevenue = ref<number | undefined>(undefined)
+const modalExistingBranches = ref<{ branchId: string; amount: number }[] | undefined>(undefined)
 
 const todayStr = computed(() => {
   const d = new Date()
@@ -524,16 +528,20 @@ function openModal(date: string, currentTotal: number) {
   modalEntryId.value = undefined
   modalExistingAmount.value = undefined
   modalExistingNotes.value = undefined
+  modalExistingOnlineRevenue.value = undefined
+  modalExistingBranches.value = undefined
   showModal.value = true
 }
 
-function openEditModal(entry: { _id: string; amount: number; notes?: string }, date: string, dayTotal: number) {
+function openEditModal(entry: { _id: string; amount: number; notes?: string; onlineRevenue?: number; branches?: { branchId: string; amount: number }[] }, date: string, dayTotal: number) {
   modalDate.value = date
   modalDayTotal.value = dayTotal - entry.amount // total excluding this entry
   modalEditMode.value = true
   modalEntryId.value = entry._id
   modalExistingAmount.value = entry.amount
   modalExistingNotes.value = entry.notes
+  modalExistingOnlineRevenue.value = entry.onlineRevenue
+  modalExistingBranches.value = entry.branches
   showModal.value = true
 }
 
@@ -575,15 +583,15 @@ function canEditEntry(entry: { userId?: string; userEmail?: string }, entryDate:
   return diffDays <= 7
 }
 
-async function handleEntry(payload: { amount: number; notes?: string; onlineRevenue?: number; entryId?: string; date?: string }) {
+async function handleEntry(payload: { amount: number; notes?: string; onlineRevenue?: number; entryId?: string; date?: string; branches?: { branchId: string; amount: number }[] }) {
   submitting.value = true
   try {
     if (payload.entryId) {
-      await billingService.updateEntry(workspaceId.value, payload.entryId, { amount: payload.amount, notes: payload.notes, onlineRevenue: payload.onlineRevenue })
+      await billingService.updateEntry(workspaceId.value, payload.entryId, { amount: payload.amount, notes: payload.notes, onlineRevenue: payload.onlineRevenue, branches: payload.branches })
       successMsg.value = '✓ Facturación actualizada correctamente'
     } else {
       const entryDate = payload.date || modalDate.value
-      await billingService.createEntry(workspaceId.value, { amount: payload.amount, notes: payload.notes, date: entryDate, onlineRevenue: payload.onlineRevenue })
+      await billingService.createEntry(workspaceId.value, { amount: payload.amount, notes: payload.notes, date: entryDate, onlineRevenue: payload.onlineRevenue, branches: payload.branches })
       successMsg.value = isToday(entryDate) ? '✓ Facturación de hoy registrada' : `✓ Facturación del ${entryDate} registrada`
     }
     showModal.value = false

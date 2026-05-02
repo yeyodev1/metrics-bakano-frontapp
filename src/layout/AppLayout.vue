@@ -427,6 +427,11 @@ router.afterEach(() => {
           <span>Planificación</span>
         </RouterLink>
 
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceBranches', params: { workspaceId: activeWorkspace._id } }">
+          <i class="fa-solid fa-store" aria-hidden="true" />
+          <span>Sucursales</span>
+        </RouterLink>
+
         <!-- Facturación & ROAS — superadmin, admin y colaborador externo -->
         <RouterLink
           v-if="activeWorkspace && (userStore.role === 'superadmin' || !userStore.isInternal)"
