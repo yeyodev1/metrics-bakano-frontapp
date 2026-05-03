@@ -26,8 +26,19 @@
     <!-- Manual billing UI (hidden for Boloncity — data comes from Tumesero automatically) -->
     <template v-if="!isBoloncity">
 
+    <!-- Skeleton (first load only — monthData is null until fetchMonth resolves) -->
+    <div v-if="loading && !monthData" class="skel-wrap">
+      <div class="skel-kpi-row">
+        <div v-for="i in 4" :key="i" class="skel-kpi"><div class="skel-shimmer" /></div>
+      </div>
+      <div class="skel-chart-placeholder"><div class="skel-shimmer" /></div>
+      <div class="skel-days">
+        <div v-for="i in 3" :key="i" class="skel-day"><div class="skel-shimmer" /></div>
+      </div>
+    </div>
+
     <!-- KPI Cards -->
-    <div class="kpi-grid">
+    <div v-if="monthData" class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-icon-wrap kpi-icon--green">
           <i class="fa-solid fa-dollar-sign" />
@@ -69,7 +80,7 @@
     </div>
 
     <!-- Filters -->
-    <div class="filters-row">
+    <div v-if="monthData" class="filters-row">
       <button
         class="filter-btn"
         :class="{ 'filter-btn--active': filterOnlyWithData }"
@@ -103,15 +114,32 @@
       </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="state-box">
-      <div class="loading-spinner" />
-      <p>Cargando datos...</p>
+    <!-- Branch breakdown for the month -->
+    <div v-if="monthData && branchMonthSummary.length > 0" class="branch-breakdown-card">
+      <div class="bbc-header">
+        <i class="fa-solid fa-store bbc-icon" />
+        <h3>Por sucursal · {{ monthLabel }}</h3>
+      </div>
+      <div class="bbc-grid">
+        <div v-for="b in branchMonthSummary" :key="b.branchId" class="bbc-item">
+          <div class="bbc-color" :style="{ background: b.color }" />
+          <div class="bbc-info">
+            <span class="bbc-name">{{ b.name }}</span>
+            <span class="bbc-amount">${{ formatAmount(b.total) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Month navigation loading (when data already loaded, navigating months) -->
+    <div v-if="loading && monthData" class="loading-overlay-row">
+      <div class="loading-spinner-sm" />
+      <span>Actualizando...</span>
     </div>
 
     <!-- Pending banner -->
     <Transition name="slide-down">
-      <div v-if="!loading && pendingDays.length > 0" class="pending-banner">
+      <div v-if="monthData && pendingDays.length > 0" class="pending-banner">
         <div class="pending-banner__icon">
           <i class="fa-solid fa-triangle-exclamation" />
         </div>
@@ -128,8 +156,8 @@
       </div>
     </Transition>
 
-    <!-- Days list (all days of month, shown when not loading) -->
-    <div v-if="!loading" class="days-list">
+    <!-- Days list -->
+    <div v-if="monthData" class="days-list">
       <div
         v-for="day in daysToShow"
         :key="day.date"
@@ -184,6 +212,12 @@
             >
               <i class="fa-solid fa-pen-to-square" /> Editar
             </button>
+            <div v-if="entry.branches?.length" class="entry-branches">
+              <span v-for="b in entry.branches" :key="b.branchId" class="entry-branch-chip">
+                <i class="fa-solid fa-store" />
+                {{ b.name }}: ${{ formatAmount(b.amount) }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -630,6 +664,27 @@ function roasPillClass(roas: number) {
   if (roas >= 1) return 'pill-medium'
   return 'pill-bad'
 }
+
+const BRANCH_COLORS = ['#3b82f6', '#059669', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#f97316']
+
+const branchMonthSummary = computed(() => {
+  const map = new Map<string, { name: string; total: number }>()
+  for (const day of (monthData.value?.days ?? [])) {
+    for (const entry of (day.entries ?? [])) {
+      for (const b of (entry.branches ?? [])) {
+        const existing = map.get(b.branchId)
+        if (existing) {
+          existing.total += b.amount
+        } else {
+          map.set(b.branchId, { name: b.name, total: b.amount })
+        }
+      }
+    }
+  }
+  return Array.from(map.entries())
+    .map(([id, data], i) => ({ branchId: id, name: data.name, total: data.total, color: BRANCH_COLORS[i % BRANCH_COLORS.length] }))
+    .sort((a, b) => b.total - a.total)
+})
 
 watch([currentYear, currentMonth], fetchMonth)
 
@@ -1151,6 +1206,7 @@ onMounted(async () => {
 .entry-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 9px 16px;
   border-bottom: 1px solid #f8fafc;
@@ -1375,4 +1431,175 @@ onMounted(async () => {
 .toast-fade-leave-to { opacity: 0; transform: translateY(8px); }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Skeleton ─────────────────────────────────────────────
+.skel-wrap { margin-bottom: 20px; }
+
+.skel-kpi-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+
+  @media (min-width: 480px) { grid-template-columns: repeat(3, 1fr); }
+}
+
+.skel-kpi {
+  height: 72px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  overflow: hidden;
+  position: relative;
+}
+
+.skel-chart-placeholder {
+  height: 300px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.skel-days { display: flex; flex-direction: column; gap: 12px; }
+
+.skel-day {
+  height: 64px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  overflow: hidden;
+  position: relative;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skel-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+// ── Loading overlay row (month navigation) ───────────────
+.loading-overlay-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.loading-spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+// ── Branch breakdown card ─────────────────────────────────
+.branch-breakdown-card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.bbc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+
+  .bbc-icon { color: #64748b; font-size: 14px; }
+
+  h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    text-transform: capitalize;
+  }
+}
+
+.bbc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+
+  @media (min-width: 640px) { grid-template-columns: repeat(3, 1fr); }
+  @media (min-width: 1024px) { grid-template-columns: repeat(4, 1fr); }
+}
+
+.bbc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.bbc-color {
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.bbc-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bbc-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bbc-amount {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+// ── Entry branch chips ────────────────────────────────────
+.entry-branches {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 6px;
+  padding-left: 36px;
+}
+
+.entry-branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: #eff6ff;
+  color: #3b82f6;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+
+  i { font-size: 9px; }
+}
 </style>

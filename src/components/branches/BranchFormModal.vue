@@ -1,75 +1,112 @@
 <template>
-  <Transition name="modal">
-    <div v-if="modelValue" class="modal-overlay" @click.self="handleClose">
-      <div class="modal-box">
-        <div class="modal-header">
-          <div class="modal-header-icon">
-            <i class="fa-solid" :class="editMode ? 'fa-store' : 'fa-plus'" />
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="modelValue" class="modal-backdrop" @mousedown.self="handleClose">
+        <div class="modal-container" role="dialog" aria-modal="true">
+          <!-- Header -->
+          <div class="modal-header">
+            <div class="modal-header-icon">
+              <i class="fa-solid fa-store" />
+            </div>
+            <div class="modal-header-text">
+              <h2>{{ editMode ? 'Editar sucursal' : 'Nueva sucursal' }}</h2>
+              <p>{{ editMode ? 'Modifica el nombre de la sede' : 'Crea una nueva sede para este workspace' }}</p>
+            </div>
+            <button class="modal-close" @click="handleClose">
+              <i class="fa-solid fa-xmark" />
+            </button>
           </div>
-          <div class="modal-header-text">
-            <h2>{{ editMode ? 'Editar Sucursal' : 'Nueva Sucursal' }}</h2>
-            <p class="modal-subtitle">Configura el nombre de tu sede</p>
-          </div>
-          <button class="modal-close" @click="handleClose" :disabled="loading">
-            <i class="fa-solid fa-xmark" />
-          </button>
-        </div>
 
-        <div class="modal-body">
-          <div class="field">
-            <label class="field-label">Nombre de la Sucursal</label>
-            <input
-              v-model="localName"
-              type="text"
-              placeholder="Ej: Sede Norte, Local Centro..."
-              class="input-text"
-              @keyup.enter="handleConfirm"
-              autofocus
-            />
-          </div>
-        </div>
+          <!-- Body -->
+          <div class="modal-body">
+            <!-- Live preview -->
+            <div class="branch-preview">
+              <div class="preview-avatar">
+                {{ localName.trim() ? localName.trim().substring(0, 2).toUpperCase() : '?' }}
+              </div>
+              <div class="preview-info">
+                <span class="preview-name" :class="{ 'preview-name--placeholder': !localName.trim() }">
+                  {{ localName.trim() || 'Nombre de la sucursal' }}
+                </span>
+                <span class="preview-status">
+                  <span class="preview-dot" />
+                  Activa
+                </span>
+              </div>
+            </div>
 
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="handleClose" :disabled="loading">
-            Cancelar
-          </button>
-          <button
-            class="btn-save"
-            :disabled="!canSave || loading"
-            @click="handleConfirm"
-          >
-            <div v-if="loading" class="spinner" />
-            <template v-else>
-              <i class="fa-solid fa-floppy-disk" />
-              {{ editMode ? 'Actualizar' : 'Guardar' }}
-            </template>
-          </button>
+            <!-- Input -->
+            <div class="form-field">
+              <label class="form-label" for="branch-name">Nombre de la sucursal</label>
+              <input
+                id="branch-name"
+                v-model="localName"
+                class="form-input"
+                type="text"
+                placeholder="Ej: Sucursal Norte, Local Centro…"
+                maxlength="80"
+                autofocus
+                @keydown.enter="canSave && handleConfirm()"
+              />
+              <span class="form-hint">{{ localName.trim().length }} / 80 caracteres</span>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="modal-footer">
+            <button class="btn-cancel" :disabled="loading" @click="handleClose">
+              Cancelar
+            </button>
+            <button class="btn-save" :disabled="!canSave || loading" @click="handleConfirm">
+              <i v-if="loading" class="fa-solid fa-spinner fa-spin" />
+              <i v-else :class="editMode ? 'fa-solid fa-floppy-disk' : 'fa-solid fa-plus'" />
+              {{ editMode ? 'Guardar cambios' : 'Crear sucursal' }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
-const props = defineProps<{
+interface Props {
   modelValue: boolean
   loading?: boolean
   editMode?: boolean
   existingName?: string
-}>()
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+  editMode: false,
+  existingName: '',
+})
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', val: boolean): void
+  (e: 'update:modelValue', value: boolean): void
   (e: 'confirmed', payload: { name: string }): void
 }>()
 
 const localName = ref('')
 
 const canSave = computed(() => {
-  return localName.value.trim().length > 0
+  const trimmed = localName.value.trim()
+  if (!trimmed) return false
+  if (props.editMode && trimmed === props.existingName?.trim()) return false
+  return true
 })
+
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (open) {
+      localName.value = props.existingName ?? ''
+    }
+  },
+)
 
 function handleClose() {
   if (props.loading) return
@@ -80,179 +117,279 @@ function handleConfirm() {
   if (!canSave.value || props.loading) return
   emit('confirmed', { name: localName.value.trim() })
 }
-
-watch(() => props.modelValue, (val) => {
-  if (val) {
-    localName.value = props.existingName || ''
-  }
-})
 </script>
 
 <style scoped lang="scss">
-.modal-overlay {
+/* Backdrop */
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 17, 23, 0.55);
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
   padding: 16px;
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(2px);
 }
 
-.modal-box {
-  background: #fff;
-  border-radius: 20px;
+/* Container */
+.modal-container {
   width: 100%;
-  max-width: 400px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+  max-width: 460px;
+  border-radius: 18px;
+  background: #fff;
   overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
+/* Header */
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
-  background: linear-gradient(135deg, #0f1117 0%, #1e293b 100%);
-  padding: 22px 24px;
+  padding: 20px 20px 18px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  position: relative;
 }
 
 .modal-header-icon {
-  width: 44px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   font-size: 18px;
+  color: #60a5fa;
   flex-shrink: 0;
 }
 
 .modal-header-text {
   flex: 1;
+  min-width: 0;
 
   h2 {
-    margin: 0 0 2px;
-    color: #fff;
+    margin: 0 0 3px;
     font-size: 17px;
-    font-weight: 800;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    color: #94a3b8;
   }
 }
 
-.modal-subtitle {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  font-weight: 500;
-}
-
 .modal-close {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
   width: 32px;
   height: 32px;
   border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s;
-
-  &:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
-}
-
-.modal-body {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.field { display: flex; flex-direction: column; gap: 6px; }
-
-.field-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-}
-
-.input-text {
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 10px 14px;
   font-size: 14px;
-  font-weight: 500;
-  outline: none;
-  transition: border-color 0.15s;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
 
-  &:focus {
-    border-color: #3b82f6;
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #f1f5f9;
   }
 }
 
-.modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid #e5e7eb;
+/* Body */
+.modal-body {
+  padding: 20px;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Preview */
+.branch-preview {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  background: #fafafa;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.preview-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.preview-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &--placeholder {
+    font-style: italic;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+}
+
+.preview-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #059669;
+}
+
+.preview-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #059669;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+/* Form */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  font-size: 15px;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: #cbd5e1;
+  }
+
+  &:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
+}
+
+.form-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: right;
+}
+
+/* Footer */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .btn-cancel {
-  padding: 10px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
-  color: #374151;
-  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
 
-  &:hover:not(:disabled) { background: #f3f4f6; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    background: #f1f5f9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .btn-save {
-  padding: 10px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: 10px;
   border: none;
-  border-radius: 8px;
   background: #3b82f6;
   color: #fff;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
   transition: background 0.15s;
 
-  &:hover:not(:disabled) { background: #2563eb; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    background: #2563eb;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+/* Transition */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s;
+
+  .modal-container {
+    transition: transform 0.2s;
+  }
 }
 
-@keyframes spin { 100% { transform: rotate(360deg); } }
-
-.modal-enter-active, .modal-leave-active {
-  transition: opacity 0.25s, transform 0.25s;
-}
-.modal-enter-from, .modal-leave-to {
+.modal-fade-enter-from,
+.modal-fade-leave-to {
   opacity: 0;
-  transform: translateY(10px) scale(0.98);
+
+  .modal-container {
+    transform: scale(0.96) translateY(8px);
+  }
 }
 </style>
