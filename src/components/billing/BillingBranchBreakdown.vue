@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type IBranch } from '@/services/branch.service'
+import type { IBranch } from '@/types'
 
 const props = defineProps({
   activeBranches: {

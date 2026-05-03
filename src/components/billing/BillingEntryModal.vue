@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { branchService, type IBranch } from '@/services/branch.service'
+import { branchService } from '@/services/branch.service'
+import type { IBranch } from '@/types'
 import BillingCalendar from './BillingCalendar.vue'
 import BillingBranchBreakdown from './BillingBranchBreakdown.vue'
 import BillingZeroDaySection from './BillingZeroDaySection.vue'
@@ -91,7 +92,7 @@ watch(() => props.modelValue, (val) => {
   }
 })
 
-onMounted(async () => { if (workspaceId.value) branches.value = (await branchService.getBranches(workspaceId.value)).branches || [] })
+onMounted(async () => { if (workspaceId.value) branches.value = await branchService.getBranches(workspaceId.value) })
 
 const formattedLocalDate = computed(() => localDate.value ? new Date(localDate.value + 'T12:00:00').toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Guayaquil' }) : '')
 const amountLabel = computed(() => (!localDate.value || localDate.value === todayStr.value) ? '¿Cuánto facturaste hoy?' : `¿Cuánto facturaste el ${new Date(localDate.value + 'T12:00:00').toLocaleDateString('es-EC', { weekday: 'long', timeZone: 'America/Guayaquil' })}?`)

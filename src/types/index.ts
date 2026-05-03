@@ -111,6 +111,26 @@ export interface WorkspaceListResponse {
   }
 }
 
+// ── Branch types ─────────────────────────────────────────
+export interface IBranch {
+  _id: string
+  workspaceId: string
+  name: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BranchResponse {
+  message: string
+  branch: IBranch
+}
+
+export interface BranchListResponse {
+  message: string
+  branches: IBranch[]
+}
+
 // ── User types ───────────────────────────────────────────
 export interface WorkspaceUser {
   _id: string
