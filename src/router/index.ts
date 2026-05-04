@@ -69,6 +69,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/settings/WorkspaceSettings.vue'),
         meta: { title: 'Bakano Ads: Configuración del Entorno', requiresAuth: true },
       },
+      // ── Branches ───────────────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/branches',
+        name: 'WorkspaceBranches',
+        component: () => import('../views/branches/WorkspaceBranchesView.vue'),
+        meta: { title: 'Bakano Ads: Sucursales', requiresAuth: true },
+      },
       // ── Surveys ───────────────────────────────────────────
       {
         path: 'surveys',

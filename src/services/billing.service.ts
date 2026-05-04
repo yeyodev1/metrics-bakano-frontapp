@@ -1,5 +1,11 @@
 import APIBase from './httpBase'
 
+export interface IBillingBranchEntry {
+  branchId: string
+  name: string
+  amount: number
+}
+
 export interface IDailyBillingEntry {
   _id: string
   workspaceId: string
@@ -9,6 +15,7 @@ export interface IDailyBillingEntry {
   date: string
   amount: number
   onlineRevenue?: number
+  branches?: IBillingBranchEntry[]
   metaSpend: number
   roas: number
   notes?: string
@@ -35,7 +42,7 @@ export interface IMonthData {
 }
 
 class BillingService extends APIBase {
-  async createEntry(workspaceId: string, data: { amount: number; notes?: string; date?: string; onlineRevenue?: number }) {
+  async createEntry(workspaceId: string, data: { amount: number; notes?: string; date?: string; onlineRevenue?: number; branches?: { branchId: string; amount: number }[] }) {
     const res = await this.post<{ entry: IDailyBillingEntry; daySummary: IDaySummary }>(
       `billing/${workspaceId}`,
       data
@@ -65,7 +72,7 @@ class BillingService extends APIBase {
   async updateEntry(
     workspaceId: string,
     entryId: string,
-    data: { amount: number; notes?: string; onlineRevenue?: number }
+    data: { amount: number; notes?: string; onlineRevenue?: number; branches?: { branchId: string; amount: number }[] }
   ) {
     const res = await this.put<{ entry: IDailyBillingEntry; daySummary: IDaySummary }>(
       `billing/${workspaceId}/entry/${entryId}`,

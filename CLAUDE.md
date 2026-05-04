@@ -297,4 +297,31 @@ Daily sync of WhatsApp ordering sessions from the Tumesero/Kuikers API for Bolon
 - `src/components/billing/SalesDashboardSection.vue` — full dashboard: KPI cards, bar chart, store breakdown table, day detail list, API usage pill, manual sync button
 - `src/views/billing/BillingRoasView.vue` — renders `<SalesDashboardSection>` only when `workspaceId === '69bdadc67386136fc3682734'`
 
+### Branches (Sucursales)
+
+Physical locations per workspace. Used to break down billing entries by sede.
+
+**Backend:** `GET/POST /api/workspaces/:id/branches`, `PUT /api/workspaces/:id/branches/:branchId`, `DELETE /api/workspaces/:id/branches/:branchId`
+
+**Frontend service:** `branchService` in `src/services/branch.service.ts`
+- `IBranch { _id, workspaceId, name, isActive, createdAt, updatedAt }`
+- `createBranch(workspaceId, { name })` — backend defaults `isActive: true`
+- `updateBranch(workspaceId, branchId, { name, isActive? })` — supports toggle
+- `deleteBranch(workspaceId, branchId)`
+
+**Billing integration:** `IBillingBranchEntry { branchId, name, amount }` is embedded in each `IDailyBillingEntry.branches[]`. Never fetch branches separately in `BillingRoasView` — names and amounts are already in `monthData.days[].entries[].branches[]`.
+
+**Frontend files:**
+- `src/views/branches/WorkspaceBranchesView.vue` — 8-color palette, per-branch color bar/avatar, toggle active/inactive button, stats bar with billing link
+- `src/components/branches/BranchFormModal.vue` — name-only modal (`{ name: string }` emit, no isActive); live preview section
+- `src/components/billing/BillingBranchBreakdown.vue` — amount inputs per active branch in BillingEntryModal
+- `src/components/billing/BillingEntryModal.vue` — fetches its own branches on `onMounted`; do NOT also fetch branches in BillingRoasView
+
+**CRITICAL — skeleton loading in BillingRoasView:**
+`AppLayout.vue` uses `<RouterView :key="$route.fullPath" />` which remounts the component on every navigation. Gate skeleton on `loading && !monthData` (not bare `loading`), and gate days-list/KPI-cards on `monthData` (not `!loading`). This prevents infinite skeleton on navigation.
+
+**Do NOT use `@extend %placeholder` in Vue scoped SCSS** — causes Vite/Sass compilation issues. Use `@mixin` instead.
+
+**Branch colors palette:** `['#3b82f6', '#059669', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#f97316']` (assigned by index, not stored in DB).
+
 **Manual sync:** Available to superadmin and admin roles via the "Sync ahora" button. Optional `?date=YYYY-MM-DD` query param for backfill.
