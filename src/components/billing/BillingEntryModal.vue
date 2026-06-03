@@ -57,7 +57,8 @@ const computedTotalAmount = computed(() => {
     if (localOnlineRevenue.value) sum += localOnlineRevenue.value
     return sum
   }
-  return localAmount.value
+  // When there are no branches, all sales are considered online sales
+  return localOnlineRevenue.value || 0
 })
 
 const canSave = computed(() => {
@@ -81,8 +82,14 @@ function handleConfirm() {
 
 watch(() => props.modelValue, (val) => {
   if (val) {
-    localAmount.value = props.editMode ? (props.existingAmount ?? 0) : 0
-    localOnlineRevenue.value = props.editMode ? (props.existingOnlineRevenue ?? null) : null
+    if (useBranchBreakdown.value) {
+      localOnlineRevenue.value = props.editMode ? (props.existingOnlineRevenue ?? null) : null
+      localAmount.value = 0
+    } else {
+      // If no branches, all previous amount is treated as online if online was empty
+      localOnlineRevenue.value = props.editMode ? (props.existingOnlineRevenue || props.existingAmount || null) : null
+      localAmount.value = 0
+    }
     localNotes.value = (props.editMode && props.existingNotes && (props.existingAmount ?? 0) > 0) ? props.existingNotes : ''
     zeroReason.value = (props.editMode && props.existingAmount === 0 && props.existingNotes) ? props.existingNotes : ''
     localDate.value = props.date || todayStr.value
@@ -118,23 +125,35 @@ const amountLabel = computed(() => (!localDate.value || localDate.value === toda
       <div class="modal-body">
         <BillingCalendar v-if="!editMode" ref="billingCalendarRef" v-model="localDate" :calendar-entry-map="calendarEntryMap" :today-str="todayStr" />
 
-        <div v-if="!useBranchBreakdown" class="field">
-          <label class="field-label">{{ editMode ? '¿Cuál es el monto correcto?' : amountLabel }}</label>
-          <div class="amount-wrap" :class="{ focused: amountFocused, filled: localAmount > 0 }">
-            <span class="currency-symbol">$</span>
-            <input v-model.number="localAmount" type="number" min="0" step="0.01" placeholder="0.00" class="amount-input" @focus="amountFocused = true" @blur="amountFocused = false" @input="localAmount = Math.max(0, localAmount)" autofocus />
-            <span class="currency-label">USD</span>
+        <div v-if="!useBranchBreakdown" class="no-branches-wrap">
+          <div class="info-notice info-notice--blue" style="margin-bottom: 16px; align-items: flex-start;">
+            <i class="fa-solid fa-store-slash" style="margin-top: 2px;" />
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span>Al no tener sucursales físicas, toda tu facturación se registrará automáticamente como <strong>Ventas Online</strong>.</span>
+              <RouterLink :to="`/app/workspaces/${workspaceId}/branches`" class="setup-branches-link" @click="handleClose">
+                Configurar sucursales físicas <i class="fa-solid fa-arrow-right" />
+              </RouterLink>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Ventas Online Generales</label>
+            <div class="amount-wrap" :class="{ focused: amountFocused, filled: (localOnlineRevenue || 0) > 0 }">
+              <span class="currency-symbol">$</span>
+              <input v-model.number="localOnlineRevenue" type="number" min="0" step="0.01" placeholder="0.00" class="amount-input" @focus="amountFocused = true" @blur="amountFocused = false" @input="localOnlineRevenue = Math.max(0, localOnlineRevenue || 0)" autofocus />
+              <span class="currency-label">USD</span>
+            </div>
           </div>
         </div>
 
         <BillingBranchBreakdown v-else v-model="branchAmounts" :active-branches="activeBranches" />
+        
+        <!-- Only show the separate Online Revenue input if we have branches -->
+        <BillingOnlineRevenue v-if="useBranchBreakdown" v-model="localOnlineRevenue" />
+        <BillingNotes v-model="localNotes" />
+
         <BillingTotalPreview :amount="projectedTotal" :edit-mode="editMode" v-if="computedTotalAmount > 0" />
         <BillingZeroDaySection v-if="computedTotalAmount === 0" v-model="zeroReason" />
-
-        <template v-if="computedTotalAmount > 0">
-          <BillingOnlineRevenue v-model="localOnlineRevenue" />
-          <BillingNotes v-model="localNotes" />
-        </template>
 
         <div class="info-notice" :class="editMode ? 'info-notice--blue' : 'info-notice--amber'">
           <i :class="editMode ? 'fa-solid fa-rotate' : 'fa-solid fa-calendar-check'" />
@@ -171,6 +190,7 @@ const amountLabel = computed(() => (!localDate.value || localDate.value === toda
 .amount-input { flex: 1; border: none; background: transparent; font-size: 22px; font-weight: 800; color: #0f172a; outline: none; padding: 14px 0; min-width: 0; &::placeholder { color: #d1d5db; font-weight: 400; } &::-webkit-outer-spin-button, &::-webkit-inner-spin-button { -webkit-appearance: none; } -moz-appearance: textfield; }
 .currency-label { padding: 0 16px 0 8px; font-size: 13px; font-weight: 700; color: #9ca3af; }
 .info-notice { display: flex; align-items: flex-start; gap: 8px; border-radius: 10px; padding: 10px 14px; font-size: 13px; line-height: 1.5; i { flex-shrink: 0; margin-top: 1px; } strong { font-weight: 700; } &--amber { background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e; i { color: #d97706; } } &--blue { background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1e40af; i { color: #3b82f6; } } }
+.setup-branches-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: #3b82f6; text-decoration: none; margin-top: 2px; transition: color 0.15s; i { font-size: 10px; } &:hover { color: #1d4ed8; text-decoration: underline; } }
 .btn-cancel { flex: 1; border: 2px solid #e5e7eb; background: transparent; color: #6b7280; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.15s; &:hover { border-color: #9ca3af; color: #374151; } &:disabled { opacity: 0.5; cursor: not-allowed; } }
 .btn-save { flex: 2; background: linear-gradient(135deg, #0f1117 0%, #1e293b 100%); color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s, transform 0.1s; &:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); } &:disabled { opacity: 0.35; cursor: not-allowed; transform: none; } &--edit { background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); } }
 .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255, 255, 255, 0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }

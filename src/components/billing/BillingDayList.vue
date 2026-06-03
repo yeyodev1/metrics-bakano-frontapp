@@ -24,6 +24,26 @@
       <span v-if="filterOnlyWithData || filterMyEntries" class="filter-clear" @click="clearFilters">
         <i class="fa-solid fa-xmark" /> Limpiar filtros
       </span>
+      
+      <!-- View Mode Toggle -->
+      <div class="view-toggle">
+        <button 
+          class="view-btn" 
+          :class="{ 'view-btn--active': viewMode === 'list' }"
+          @click="setViewMode('list')"
+          title="Vista de Lista"
+        >
+          <i class="fa-solid fa-list" />
+        </button>
+        <button 
+          class="view-btn" 
+          :class="{ 'view-btn--active': viewMode === 'grid' }"
+          @click="setViewMode('grid')"
+          title="Vista de Cuadrícula"
+        >
+          <i class="fa-solid fa-border-all" />
+        </button>
+      </div>
     </div>
 
     <!-- Month navigation loading -->
@@ -52,22 +72,39 @@
     </Transition>
 
     <!-- Days list -->
-    <div class="days-list-container">
+    <div class="days-list-container" :class="'days-list-container--' + viewMode">
       <BillingDayCard
-        v-for="day in daysToShow"
+        v-for="day in visibleDays"
         :key="day.date"
         :day="day"
         :todayStr="todayStr"
         :canEnterBilling="canEnterBilling"
         :canRegister="canRegisterOnDay(day)"
+        :viewMode="viewMode"
         @add-entry="(p) => $emit('add-entry', p)"
         @edit-entry="(p) => $emit('edit-entry', p)"
       />
+    </div>
+
+    <!-- Show More Button -->
+    <div v-if="!showAllDays && daysToShow.length > 10" class="show-more-container">
+      <button class="btn-show-more" @click="showAllDays = true">
+        <i class="fa-solid fa-calendar-days" />
+        Ver los {{ daysToShow.length - 10 }} días restantes
+        <i class="fa-solid fa-chevron-down" />
+      </button>
+    </div>
+    
+    <div v-if="showAllDays && daysToShow.length > 10" class="show-more-container">
+      <button class="btn-show-less" @click="showAllDays = false">
+        <i class="fa-solid fa-chevron-up" /> Ocultar días anteriores
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, watch, computed } from 'vue'
 import BillingDayCard from './BillingDayCard.vue'
 
 const props = defineProps<{
@@ -91,6 +128,24 @@ const emit = defineEmits<{
 function clearFilters() {
   emit('update:filterOnlyWithData', false)
   emit('update:filterMyEntries', false)
+}
+
+const viewMode = ref<'list' | 'grid'>((localStorage.getItem('bakano_billing_view_mode') as 'list' | 'grid') || 'list')
+const showAllDays = ref(false)
+
+const visibleDays = computed(() => {
+  if (showAllDays.value) return props.daysToShow
+  return props.daysToShow.slice(0, 10)
+})
+
+watch(() => props.daysToShow, () => {
+  // If the month changes, reset the showAllDays flag
+  showAllDays.value = false
+})
+
+function setViewMode(mode: 'list' | 'grid') {
+  viewMode.value = mode
+  localStorage.setItem('bakano_billing_view_mode', mode)
 }
 
 function dateStr(date: string): string { return date.substring(0, 10) }
@@ -157,6 +212,47 @@ function dayName(date: string) { return new Date(dateStr(date) + 'T12:00:00').to
     transition: color 0.2s;
 
     &:hover { color: #dc2626; }
+  }
+
+  .view-toggle {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 10px;
+    gap: 4px;
+
+    @media (max-width: 640px) {
+      margin-left: 0;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .view-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+
+      &:hover {
+        color: $primary-dark;
+      }
+
+      &--active {
+        background: $white;
+        color: $primary-dark;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      }
+    }
   }
 }
 
@@ -255,11 +351,73 @@ function dayName(date: string) { return new Date(dateStr(date) + 'T12:00:00').to
 }
 
 .days-list-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  &--list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  &--grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+  }
 }
 
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.3s ease; }
 .slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-10px); }
+
+.show-more-container {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 20px;
+}
+
+.btn-show-more {
+  background: $white;
+  color: $primary-dark;
+  border: 1px solid #cbd5e1;
+  padding: 12px 24px;
+  border-radius: 100px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+
+  i { color: #64748b; font-size: 13px; }
+
+  &:hover {
+    border-color: $primary;
+    color: $primary;
+    box-shadow: 0 6px 16px rgba($primary, 0.15);
+    transform: translateY(-2px);
+    
+    i { color: $primary; }
+  }
+}
+
+.btn-show-less {
+  background: transparent;
+  color: #64748b;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+
+  &:hover {
+    color: $primary-dark;
+    background: #f1f5f9;
+    border-radius: 8px;
+  }
+}
 </style>

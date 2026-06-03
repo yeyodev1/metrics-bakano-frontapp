@@ -24,7 +24,7 @@ const emit = defineEmits<{
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  padding: 80px 24px;
+  padding: 30px 24px 40px;
   text-align: center;
 
   h3 {

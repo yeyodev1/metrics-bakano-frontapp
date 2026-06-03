@@ -163,9 +163,13 @@ defineExpose({
             'cal-cell--has-data': isCalHasData(day),
           }" :disabled="isCalFuture(day) || isCalMyEntry(day)" :title="isCalMyEntry(day) ? `Ya registraste este día (${calDayTotal(day)})` : isCalHasData(day) ? `Otros registraron ${calDayTotal(day)}` : ''" @click.prevent="selectCalDay(day)">
             <span class="cal-day-num">{{ day }}</span>
-            <span v-if="isCalMyEntry(day)" class="cal-day-dot cal-day-dot--mine" />
-            <span v-else-if="isCalHasData(day)" class="cal-day-dot cal-day-dot--other" />
-            <span v-if="(isCalMyEntry(day) || isCalHasData(day)) && calDayTotal(day)" class="cal-day-amount">{{ calDayTotal(day) }}</span>
+            
+            <div v-if="isCalMyEntry(day) || isCalHasData(day)" class="cal-day-indicator">
+              <span class="cal-day-dot" :class="isCalMyEntry(day) ? 'cal-day-dot--mine' : 'cal-day-dot--other'" />
+              <span v-if="calDayTotal(day)" class="cal-day-amount" :class="isCalMyEntry(day) ? 'cal-day-amount--mine' : 'cal-day-amount--other'">
+                {{ calDayTotal(day) }}
+              </span>
+            </div>
           </button>
         </div>
 
@@ -351,25 +355,28 @@ defineExpose({
   &--empty { pointer-events: none; }
 
   &--day {
-    border: none;
-    background: none;
-    border-radius: 7px;
-    padding: 3px 2px 5px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #374151;
+    border: 1px solid transparent;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 6px 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #334155;
     cursor: pointer;
-    transition: background 0.1s, color 0.1s;
+    transition: all 0.15s;
     font-family: inherit;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1px;
+    justify-content: center;
+    gap: 3px;
     position: relative;
+    min-height: 48px;
 
     &:hover:not(:disabled) {
       background: #ede9fe;
       color: #7c3aed;
+      border-color: #ddd6fe;
     }
   }
 
@@ -411,24 +418,37 @@ defineExpose({
   }
 }
 
-.cal-day-num { line-height: 1; }
+.cal-day-num { 
+  line-height: 1; 
+}
+
+.cal-day-indicator {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
 
 .cal-day-dot {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
 
-  &--mine  { background: #16a34a; }
+  &--mine  { background: #16a34a; box-shadow: 0 0 4px rgba(22, 163, 74, 0.4); }
   &--other { background: #94a3b8; }
 }
 
 .cal-day-amount {
-  font-size: 8px;
-  font-weight: 700;
-  color: #64748b;
+  font-size: 9.5px;
+  font-weight: 800;
   line-height: 1;
   letter-spacing: -0.2px;
+
+  &--mine  { color: #16a34a; }
+  &--other { color: #64748b; }
 }
 
 .cal-footer {
