@@ -67,7 +67,7 @@ function getMetaUrl(pageId: string): string {
 
     <!-- Go to workspace link -->
     <RouterLink
-      :to="{ name: 'AppDashboard', params: { workspaceId: workspace._id } }"
+      :to="{ name: 'BillingRoas', params: { workspaceId: workspace._id } }"
       class="internal-planning-client-item__goto"
       :title="`Ir al entorno de ${workspace.name}`"
     >

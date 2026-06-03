@@ -80,6 +80,25 @@ const isWorkspaceDeactivated = computed(() => {
   return !workspaces.value.some(w => w._id === wsId)
 })
 
+const isBrandProfileCompleted = computed(() => {
+  if (userStore.brandProfileCompleted) return true
+  const bp = activeWorkspace.value?.brandProfile
+  if (!bp) return false
+
+  const checks = [
+    bp.descripcion?.trim(),
+    bp.tipoNegocio,
+    bp.publicoObjetivo?.trim(),
+    bp.propuestaValor?.trim(),
+    bp.tono?.trim(),
+    bp.productosServicios?.trim(),
+    bp.problemaResuelto?.trim(),
+    bp.trafficDirection,
+    bp.trafficLink?.trim(),
+  ]
+  return checks.filter(Boolean).length === 9
+})
+
 async function fetchWorkspaces() {
   try {
     const res = await workspaceService.listWorkspaces()
@@ -110,7 +129,7 @@ function toggleDropdown(e: Event) {
 function selectWorkspace(ws: Workspace) {
   isDropdownOpen.value = false
   wsSearch.value = ''
-  router.push({ name: 'AppDashboard', params: { workspaceId: ws._id } })
+  router.push({ name: 'BillingRoas', params: { workspaceId: ws._id } })
 }
 
 function closeDropdownOnClickOutside(e: Event) {
@@ -299,6 +318,26 @@ router.afterEach(() => {
           <span>Vista Global (Superadmin)</span>
         </RouterLink>
 
+        <RouterLink
+          v-if="userStore.role === 'superadmin'"
+          class="app-layout__nav-item app-layout__nav-item--global-tool"
+          :to="{ name: 'SuperadminPublicMetrics' }"
+        >
+          <i class="fa-solid fa-chart-bar" aria-hidden="true" />
+          <span>Métricas & Alertas</span>
+          <span class="app-layout__nav-global-tag">API</span>
+        </RouterLink>
+
+        <RouterLink
+          v-if="userStore.role === 'superadmin'"
+          class="app-layout__nav-item app-layout__nav-item--global-tool"
+          :to="{ name: 'SuperadminApiKeys' }"
+        >
+          <i class="fa-solid fa-key" aria-hidden="true" />
+          <span>API Keys</span>
+          <span class="app-layout__nav-global-tag">API</span>
+        </RouterLink>
+
         <!-- Global tools label -->
         <div v-if="userStore.isInternal || userStore.role === 'superadmin'" class="app-layout__nav-section-label">Herramientas globales</div>
 
@@ -412,27 +451,37 @@ router.afterEach(() => {
           <span class="app-layout__nav-divider-label">Este cliente</span>
         </div>
 
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppDashboard', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-chart-line" aria-hidden="true" />
-          <span>Dashboard Detallado</span>
-        </RouterLink>
+        <!-- Informativo CRM (solo clientes) -->
+        <div v-if="activeWorkspace && !userStore.isInternal && userStore.role !== 'superadmin'" class="app-layout__crm-notice">
+          <div class="app-layout__crm-notice-header">
+            <i class="fa-solid fa-chart-pie" />
+            <strong>Analítica en el CRM</strong>
+          </div>
+          <p class="app-layout__crm-notice-body">
+            Tus tableros y analítica avanzada ahora viven en 
+            <a href="https://crm.bakano.ec" target="_blank" rel="noopener noreferrer">crm.bakano.ec</a>. 
+            Esta plataforma se mantiene para tu <strong>operativa diaria</strong>.
+          </p>
+          
+          <div class="app-layout__crm-notice-contact">
+            <span class="app-layout__crm-notice-label">¿Ayuda con el CRM?</span>
+            <div class="app-layout__crm-notice-actions">
+              <a href="https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm" target="_blank" rel="noopener noreferrer" class="app-layout__crm-btn app-layout__crm-btn--primary">
+                <i class="fa-solid fa-calendar-plus" /> Agendar
+              </a>
+              <div class="app-layout__crm-notice-links">
+                <a href="https://wa.me/593939380957" target="_blank" rel="noopener noreferrer" class="app-layout__crm-link" title="Soporte WhatsApp">
+                  <i class="fa-brands fa-whatsapp" />
+                </a>
+                <a href="mailto:cjurado@bakano.ec" class="app-layout__crm-link" title="Correo de soporte">
+                  <i class="fa-solid fa-envelope" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppVisual', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-chart-pie" aria-hidden="true" />
-          <span>Analítica Visual</span>
-        </RouterLink>
-
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-calendar-days" aria-hidden="true" />
-          <span>Planificación</span>
-        </RouterLink>
-
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceBranches', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-store" aria-hidden="true" />
-          <span>Sucursales</span>
-        </RouterLink>
-
-        <!-- Facturación & ROAS — superadmin, admin y colaborador externo -->
+        <!-- 1. Facturación & ROAS — superadmin, admin y colaborador externo -->
         <RouterLink
           v-if="activeWorkspace && (userStore.role === 'superadmin' || !userStore.isInternal)"
           class="app-layout__nav-item app-layout__nav-item--billing"
@@ -440,6 +489,18 @@ router.afterEach(() => {
         >
           <i class="fa-solid fa-chart-column" aria-hidden="true" />
           <span>Facturación & ROAS</span>
+        </RouterLink>
+
+        <!-- 2. Sucursales (Puntos de venta) -->
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceBranches', params: { workspaceId: activeWorkspace._id } }">
+          <i class="fa-solid fa-store" aria-hidden="true" />
+          <span>Sucursales</span>
+        </RouterLink>
+
+        <!-- 3. Planificación -->
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: activeWorkspace._id } }">
+          <i class="fa-solid fa-calendar-days" aria-hidden="true" />
+          <span>Planificación</span>
         </RouterLink>
 
         <!-- Perfil de Marca — IA para community/content -->
@@ -477,7 +538,7 @@ router.afterEach(() => {
 
     <main class="app-layout__main">
       <div
-        v-if="!userStore.isInternal && userStore.role !== 'superadmin' && !userStore.brandProfileCompleted"
+        v-if="!userStore.isInternal && userStore.role !== 'superadmin' && !isBrandProfileCompleted"
         class="app-layout__onboarding-banner"
       >
         <i class="fa-solid fa-circle-exclamation" />
@@ -1026,6 +1087,121 @@ router.afterEach(() => {
     border-radius: 100px;
     border: 1px solid rgba($primary, 0.25);
     flex-shrink: 0;
+  }
+
+  &__crm-notice {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    background: linear-gradient(135deg, rgba($primary, 0.12) 0%, rgba($primary, 0.04) 100%);
+    border: 1px solid rgba($primary, 0.25);
+    border-radius: 12px;
+    padding: 1.15rem;
+    margin: 1rem 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  &__crm-notice-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    i { color: $primary; font-size: 1.1rem; }
+    strong { font-size: 0.9rem; color: $white; font-weight: 700; }
+  }
+
+  &__crm-notice-body {
+    margin: 0;
+    font-size: 0.78rem;
+    color: rgba($white, 0.75);
+    line-height: 1.45;
+
+    a {
+      color: lighten($primary, 15%);
+      text-decoration: underline;
+      font-weight: 600;
+
+      &:hover { color: lighten($primary, 25%); }
+    }
+    
+    strong { color: rgba($white, 0.9); }
+  }
+
+  &__crm-notice-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid rgba($white, 0.1);
+  }
+
+  &__crm-notice-label {
+    font-size: 0.7rem;
+    color: rgba($white, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+
+  &__crm-notice-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  &__crm-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.55rem;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+
+    &--primary {
+      background: $primary;
+      color: $white;
+      box-shadow: 0 2px 8px rgba($primary, 0.3);
+
+      &:hover {
+        background: lighten($primary, 5%);
+        transform: translateY(-1px);
+      }
+    }
+  }
+
+  &__crm-notice-links {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  &__crm-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba($white, 0.08);
+    color: rgba($white, 0.8);
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba($white, 0.15);
+      color: $white;
+      transform: translateY(-1px);
+    }
+    
+    .fa-whatsapp { color: #25d366; }
   }
 
   &__nav-booking-tag {

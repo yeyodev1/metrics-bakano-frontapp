@@ -891,7 +891,7 @@ onMounted(fetchWorkspaces)
               <button
                 class="superadmin-dashboard__btn-outline"
                 type="button"
-                @click="router.push({ name: 'AppDashboard', params: { workspaceId: selectedWorkspace?._id } })"
+                @click="router.push({ name: 'BillingRoas', params: { workspaceId: selectedWorkspace?._id } })"
               >
                 <i class="fa-solid fa-right-to-bracket" />
                 Ingresar al entorno
@@ -1784,7 +1784,7 @@ onMounted(fetchWorkspaces)
                   <i v-if="ws._id === planningSelectedId" class="fa-solid fa-circle-check superadmin-dashboard__planning-item-check" />
                 </button>
                 <RouterLink
-                  :to="{ name: 'AppDashboard', params: { workspaceId: ws._id } }"
+                  :to="{ name: 'BillingRoas', params: { workspaceId: ws._id } }"
                   class="superadmin-dashboard__planning-item-goto"
                   :title="`Ir al entorno de ${ws.name}`"
                 >

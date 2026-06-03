@@ -46,10 +46,20 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Ads: Gestión de Entornos', requiresAuth: true, requiresRole: 'superadmin' },
       },
       {
+        path: 'superadmin/public-metrics',
+        name: 'SuperadminPublicMetrics',
+        component: () => import('../views/superadmin/PublicMetricsView.vue'),
+        meta: { title: 'Bakano Ads: Métricas Públicas', requiresAuth: true, requiresRole: 'superadmin' },
+      },
+      {
+        path: 'superadmin/api-keys',
+        name: 'SuperadminApiKeys',
+        component: () => import('../views/superadmin/ApiKeysView.vue'),
+        meta: { title: 'Bakano Ads: API Keys', requiresAuth: true, requiresRole: 'superadmin' },
+      },
+      {
         path: 'workspaces/:workspaceId',
-        name: 'AppDashboard',
-        component: () => import('../views/WorkspaceDashboard.vue'),
-        meta: { title: 'Bakano Ads: Dashboard Detallado', requiresAuth: true },
+        redirect: to => ({ name: 'BillingRoas', params: { workspaceId: to.params.workspaceId } })
       },
       {
         path: 'workspaces/:workspaceId/visual',
@@ -270,7 +280,7 @@ router.beforeEach((to, _from, next) => {
         } else {
           const workspaceId = payload.workspaceId || localStorage.getItem('user_workspaceId')
           if (workspaceId) {
-            return next({ name: 'AppDashboard', params: { workspaceId } })
+            return next({ name: 'BillingRoas', params: { workspaceId } })
           }
         }
       }

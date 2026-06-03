@@ -185,7 +185,7 @@ async function saveStep(nextStep?: number) {
       if (isClientView.value) {
         userStore.setBrandProfileCompleted(true)
         setTimeout(() => {
-          router.push({ name: 'AppDashboard', params: { workspaceId } })
+          router.push({ name: 'BillingRoas', params: { workspaceId } })
         }, 2000)
       } else {
         setTimeout(() => { saveSuccess.value = false }, 3000)
