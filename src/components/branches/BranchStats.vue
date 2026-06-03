@@ -73,6 +73,8 @@ const props = defineProps({
 </template>
 
 <style lang="scss" scoped>
+@import '@/styles/colorVariables.module.scss';
+
 .stats-section {
   display: flex;
   align-items: center;
@@ -144,76 +146,131 @@ const props = defineProps({
   }
 }
 
-/* Billing CTA — prominent card pushed to the right */
+/* Billing CTA — Ultra Premium */
 .billing-banner {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 18px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  color: #fff;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, $primary-dark 0%, $secondary 100%);
+  color: $white;
   text-decoration: none;
-  border: none;
-  transition: all 0.25s;
+  border: 1px solid rgba($white, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: auto;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.2);
-  min-width: 220px;
+  box-shadow: 0 4px 12px rgba($primary-dark, 0.15), inset 0 1px 1px rgba($white, 0.05);
+  min-width: 240px;
+  position: relative;
+  overflow: hidden;
+
+  /* Subtle shine effect */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba($white, 0.08), transparent);
+    transform: skewX(-20deg);
+    transition: all 0.5s;
+  }
 
   &__icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.1);
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba($white, 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 17px;
-    color: #60a5fa;
+    font-size: 18px;
+    color: $primary-light;
     flex-shrink: 0;
   }
 
   &__text {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     flex: 1;
+    z-index: 1;
   }
 
   &__label {
-    font-size: 14px;
-    font-weight: 700;
-    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    color: $white;
+    letter-spacing: -0.3px;
   }
 
   &__sub {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: 400;
+    font-size: 12px;
+    color: rgba($white, 0.7);
+    font-weight: 500;
   }
 
   &__arrow {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.08);
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: rgba($white, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    color: rgba($white, 0.6);
     flex-shrink: 0;
-    transition: transform 0.2s, background 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
   }
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.35);
+    box-shadow: 0 12px 24px rgba($primary-dark, 0.25), inset 0 1px 1px rgba($white, 0.1);
+    border-color: rgba($white, 0.15);
+
+    &::before {
+      left: 200%;
+    }
+
+    .billing-banner__icon {
+      background: rgba($white, 0.15);
+      color: $white;
+    }
 
     .billing-banner__arrow {
-      transform: translateX(3px);
-      background: rgba(255, 255, 255, 0.15);
-      color: #fff;
+      transform: translateX(4px);
+      background: rgba($white, 0.15);
+      color: $white;
+    }
+  }
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    width: 100%;
+    min-width: unset;
+    padding: 12px 16px;
+    gap: 12px;
+    
+    &__icon {
+      width: 36px;
+      height: 36px;
+      font-size: 16px;
+      border-radius: 10px;
+    }
+    
+    &__arrow {
+      width: 28px;
+      height: 28px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    &__label {
+      font-size: 14px;
+    }
+
+    &__sub {
+      font-size: 11px;
     }
   }
 }

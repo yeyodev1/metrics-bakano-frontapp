@@ -15,6 +15,7 @@ const workspaceId = computed(() => route.params.workspaceId as string)
 
 const {
   branches,
+  branchesWithBilling,
   loading,
   saving,
   toggling,
@@ -24,12 +25,17 @@ const {
   activeBranches,
   inactiveBranches,
   billingRoute,
+  isCurrentMonth,
+  monthLabel,
+  onlineMonthTotal,
   fetchBranches,
   openCreateModal,
   openEditModal,
   handleSaveBranch,
   toggleBranch,
   deleteBranch,
+  prevMonth,
+  nextMonth,
 } = useBranches(workspaceId.value)
 
 const BRANCH_COLORS = ['#3b82f6', '#059669', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#f97316']
@@ -39,7 +45,14 @@ onMounted(fetchBranches)
 
 <template>
   <div class="branches-view">
-    <BranchHeader @create="openCreateModal" />
+    <BranchHeader 
+      :month-label="monthLabel"
+      :is-current-month="isCurrentMonth"
+      :loading="loading"
+      @create="openCreateModal" 
+      @prev-month="prevMonth"
+      @next-month="nextMonth"
+    />
 
     <BranchStats
       :total="branches.length"
@@ -59,12 +72,26 @@ onMounted(fetchBranches)
 
     <!-- Grid -->
     <TransitionGroup v-else name="grid" tag="div" class="branches-grid">
+      <!-- Virtual Online Branch -->
       <BranchCard
-        v-for="(branch, idx) in branches"
+        key="virtual-online"
+        :branch="{ _id: 'online', name: 'Ventas Online', isActive: true } as any"
+        color="#8b5cf6"
+        :current-month-total="onlineMonthTotal"
+        :month-label="monthLabel"
+        is-virtual
+        icon="fa-solid fa-globe"
+      />
+
+      <!-- Physical Branches -->
+      <BranchCard
+        v-for="(branch, idx) in branchesWithBilling"
         :key="branch._id"
         :branch="branch"
         :color="BRANCH_COLORS[idx % BRANCH_COLORS.length]"
         :is-toggling="toggling === branch._id"
+        :current-month-total="branch.currentMonthTotal"
+        :month-label="monthLabel"
         @toggle="toggleBranch"
         @edit="openEditModal"
         @delete="deleteBranch"

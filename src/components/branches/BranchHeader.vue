@@ -1,6 +1,14 @@
 <script setup lang="ts">
+defineProps<{
+  monthLabel: string
+  isCurrentMonth: boolean
+  loading: boolean
+}>()
+
 const emit = defineEmits<{
   (e: 'create'): void
+  (e: 'prev-month'): void
+  (e: 'next-month'): void
 }>()
 </script>
 
@@ -15,16 +23,31 @@ const emit = defineEmits<{
         <p class="header-banner__subtitle">Gestiona y monitorea las sedes de este workspace</p>
       </div>
     </div>
-    <button class="btn-create" @click="emit('create')">
-      <span class="btn-create__icon">
-        <i class="fa-solid fa-plus" />
-      </span>
-      <span>Nueva sucursal</span>
-    </button>
+    <div class="header-actions">
+      <!-- Month Nav -->
+      <div class="month-nav">
+        <button class="nav-btn" @click="emit('prev-month')" :disabled="loading">
+          <i class="fa-solid fa-chevron-left" />
+        </button>
+        <span class="month-label">{{ monthLabel }}</span>
+        <button class="nav-btn" @click="emit('next-month')" :disabled="loading || isCurrentMonth">
+          <i class="fa-solid fa-chevron-right" />
+        </button>
+      </div>
+
+      <button class="btn-create" @click="emit('create')">
+        <span class="btn-create__icon">
+          <i class="fa-solid fa-plus" />
+        </span>
+        <span>Nueva sucursal</span>
+      </button>
+    </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
+@import '@/styles/colorVariables.module.scss';
+
 .view-header {
   display: flex;
   align-items: center;
@@ -75,38 +98,100 @@ const emit = defineEmits<{
   }
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+
+  .nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    i { font-size: 13px; }
+
+    &:hover:not(:disabled) {
+      background: #f1f5f9;
+      color: #0f172a;
+      transform: scale(1.05);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+
+  .month-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    min-width: 140px;
+    text-align: center;
+    text-transform: capitalize;
+    letter-spacing: -0.2px;
+  }
+}
+
 .btn-create {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   padding: 10px 20px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-  color: #fff;
+  background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+  color: $white;
   font-size: 14px;
   font-weight: 700;
   border: none;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba($secondary, 0.3);
   white-space: nowrap;
 
   &__icon {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    background: rgba(255, 255, 255, 0.2);
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: rgba($white, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     flex-shrink: 0;
+    transition: transform 0.3s;
   }
 
   &:hover {
-    opacity: 0.92;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba($secondary, 0.4);
+
+    .btn-create__icon {
+      transform: rotate(90deg);
+    }
   }
 
   &:active {
