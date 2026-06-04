@@ -99,6 +99,13 @@ const isBrandProfileCompleted = computed(() => {
   return checks.filter(Boolean).length === 9
 })
 
+const isOnboardingCompleted = computed(() => {
+  if (userStore.isInternal || userStore.role === 'superadmin') return true
+  const st = activeWorkspace.value?.onboardingStatus
+  if (!st) return false
+  return st.meetingScheduled
+})
+
 async function fetchWorkspaces() {
   try {
     const res = await workspaceService.listWorkspaces()
@@ -110,8 +117,14 @@ async function fetchWorkspaces() {
   }
 }
 
-onMounted(() => {
-  fetchWorkspaces()
+onMounted(async () => {
+  await fetchWorkspaces()
+  
+  if (!isOnboardingCompleted.value && currentWorkspaceId.value) {
+    router.replace(`/onboarding/${currentWorkspaceId.value}`)
+    return
+  }
+
   userStore.fetchPendingSurveys()
   notificationStore.fetchUnreadCount()
   document.addEventListener('click', closeDropdownOnClickOutside)
@@ -512,6 +525,11 @@ router.afterEach(() => {
           <i class="fa-solid fa-palette" aria-hidden="true" />
           <span>Perfil de Marca</span>
           <span class="app-layout__nav-ai-tag">IA</span>
+        </RouterLink>
+
+        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceLegal', params: { workspaceId: activeWorkspace._id } }">
+          <i class="fa-solid fa-file-contract" aria-hidden="true" />
+          <span>Legalidades</span>
         </RouterLink>
 
         <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: activeWorkspace._id } }">

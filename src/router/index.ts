@@ -150,6 +150,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/workspaces/WorkspaceBrandProfileView.vue'),
         meta: { title: 'Bakano Ads: Perfil de Marca', requiresAuth: true },
       },
+      // ── Legalidades ───────────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/legal',
+        name: 'WorkspaceLegal',
+        component: () => import('../views/workspaces/WorkspaceLegalView.vue'),
+        meta: { title: 'Bakano Ads: Legalidades y Contrato', requiresAuth: true },
+      },
       // ── Team KPIs ─────────────────────────────────────
       {
         path: 'kpis',
@@ -217,8 +224,8 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: '',
         name: 'ClientOnboarding',
-        component: () => import('../views/workspaces/WorkspaceBrandProfileView.vue'),
-        meta: { title: 'Bakano Ads: Completa tu Perfil', requiresAuth: true },
+        component: () => import('../views/onboarding/index.vue'),
+        meta: { title: 'Bakano Ads: Onboarding de Cliente', requiresAuth: true },
       },
     ],
   },
