@@ -224,6 +224,35 @@ async function handleToggleWorkspaceActive(ws: Workspace, e: Event): Promise<voi
   }
 }
 
+const deletingWorkspaceId = ref<string | null>(null)
+
+async function handleDeleteWorkspace(ws: Workspace, e: Event): Promise<void> {
+  e.stopPropagation()
+  const isConfirmed = await confirm.confirm({
+    title: 'Eliminar entorno (Irreversible)',
+    message: `¿Estás seguro de eliminar "${ws.name}"? Esta acción borrará el entorno y eliminará la referencia de todos los usuarios asignados permanentemente.`,
+    confirmText: 'Sí, Eliminar',
+    requireHold: true
+  })
+  if (!isConfirmed) return
+
+  deletingWorkspaceId.value = ws._id
+  try {
+    await workspaceService.deleteWorkspace(ws._id)
+    toast.success(`Entorno "${ws.name}" eliminado correctamente.`)
+    // Remove from UI list
+    workspaces.value = workspaces.value.filter(w => w._id !== ws._id)
+    if (selectedWorkspace.value?._id === ws._id) {
+      selectedWorkspace.value = null
+      users.value = []
+    }
+  } catch {
+    toast.error('Error al eliminar el entorno.')
+  } finally {
+    deletingWorkspaceId.value = null
+  }
+}
+
 // Watch for search query changes with debounce
 watch(searchQuery, () => {
   if (searchTimeout) clearTimeout(searchTimeout)
@@ -840,16 +869,27 @@ onMounted(fetchWorkspaces)
                 {{ getBpLabel(ws) }}
               </span>
             </div>
-            <button
-              class="superadmin-dashboard__ws-toggle-btn"
-              :class="ws.isActive ? 'superadmin-dashboard__ws-toggle-btn--deactivate' : 'superadmin-dashboard__ws-toggle-btn--activate'"
-              :disabled="togglingWorkspaceId === ws._id"
-              :title="ws.isActive ? 'Desactivar entorno' : 'Activar entorno'"
-              @click="handleToggleWorkspaceActive(ws, $event)"
-            >
-              <span v-if="togglingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
-              <i v-else :class="ws.isActive ? 'fa-solid fa-ban' : 'fa-solid fa-circle-play'" />
-            </button>
+            <div class="superadmin-dashboard__ws-actions-inline">
+              <button
+                class="superadmin-dashboard__ws-toggle-btn"
+                :class="ws.isActive ? 'superadmin-dashboard__ws-toggle-btn--deactivate' : 'superadmin-dashboard__ws-toggle-btn--activate'"
+                :disabled="togglingWorkspaceId === ws._id"
+                :title="ws.isActive ? 'Desactivar entorno' : 'Activar entorno'"
+                @click="handleToggleWorkspaceActive(ws, $event)"
+              >
+                <span v-if="togglingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+                <i v-else :class="ws.isActive ? 'fa-solid fa-ban' : 'fa-solid fa-circle-play'" />
+              </button>
+              <button
+                class="superadmin-dashboard__ws-toggle-btn superadmin-dashboard__ws-toggle-btn--delete"
+                :disabled="deletingWorkspaceId === ws._id"
+                title="Eliminar entorno (Irreversible)"
+                @click="handleDeleteWorkspace(ws, $event)"
+              >
+                <span v-if="deletingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+                <i v-else class="fa-solid fa-trash-can" />
+              </button>
+            </div>
           </li>
         </ul>
 
@@ -2192,9 +2232,15 @@ onMounted(fetchWorkspaces)
     margin-left: 0.4rem;
   }
 
+  &__ws-actions-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+  }
+
   &__ws-toggle-btn {
     flex-shrink: 0;
-    margin-left: auto;
     padding: 0.4rem 0.5rem;
     border: none;
     border-radius: 6px;
@@ -2211,6 +2257,13 @@ onMounted(fetchWorkspaces)
       background: rgba(#ef4444, 0.08);
       color: #ef4444;
       &:hover:not(:disabled) { background: rgba(#ef4444, 0.18); }
+    }
+
+    &--delete {
+      background: rgba(#dc2626, 0.1);
+      color: #dc2626;
+      border: 1px solid rgba(#dc2626, 0.2);
+      &:hover:not(:disabled) { background: rgba(#b91c1c, 0.8); color: #fff; }
     }
 
     &--activate {
