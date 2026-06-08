@@ -1,8 +1,7 @@
 <template>
   <div class="onboarding-shell">
     <div class="onboarding-shell__logo">
-      <i class="fa-solid fa-bolt" />
-      <span class="onboarding-shell__brand">metrics.bakano.ec</span>
+      <img :src="logoDark" alt="Bakano" class="onboarding-shell__img-logo" width="130" />
     </div>
     <div class="onboarding-shell__content">
       <router-view />
@@ -11,6 +10,7 @@
 </template>
 
 <script setup lang="ts">
+import logoDark from '@/assets/logos/bakano-dark.png'
 </script>
 
 <style lang="scss" scoped>
@@ -23,17 +23,13 @@
   &__logo {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 1.5rem 2rem;
-
-    i { font-size: 1.4rem; color: #7c3aed; }
+    justify-content: center;
+    padding: 2rem;
   }
 
-  &__brand {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #7c3aed;
-    letter-spacing: -0.02em;
+  &__img-logo {
+    display: block;
+    height: auto;
   }
 
   &__content {

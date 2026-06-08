@@ -404,7 +404,7 @@
           <i class="fa-solid fa-chart-column" />
           <span>Facturación & ROAS</span>
         </RouterLink>
-        <RouterLink :to="{ name: 'AppDashboard', params: { workspaceId } }" class="trf-ws__action-btn">
+        <RouterLink :to="{ name: 'BillingRoas', params: { workspaceId } }" class="trf-ws__action-btn">
           <i class="fa-solid fa-chart-line" />
           <span>Dashboard Cliente</span>
         </RouterLink>

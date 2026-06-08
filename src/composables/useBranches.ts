@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { branchService } from '@/services/branch.service'
+import { billingService } from '@/services/billing.service'
 import { useConfirm } from '@/composables/useConfirm'
 import type { IBranch } from '@/types'
 
@@ -7,7 +8,13 @@ export function useBranches(workspaceId: string) {
   const { confirm } = useConfirm()
 
   // State
+  const now = new Date()
+  const currentYear = ref(now.getFullYear())
+  const currentMonth = ref(now.getMonth() + 1)
+  
   const branches = ref<IBranch[]>([])
+  const branchTotals = ref<Record<string, number>>({})
+  const onlineMonthTotal = ref(0)
   const loading = ref(false)
   const saving = ref(false)
   const toggling = ref<string | null>(null)
@@ -18,9 +25,26 @@ export function useBranches(workspaceId: string) {
   let toastTimer: ReturnType<typeof setTimeout> | null = null
 
   // Computed
+  const isCurrentMonth = computed(() => {
+    const n = new Date()
+    return currentYear.value === n.getFullYear() && currentMonth.value === n.getMonth() + 1
+  })
+  
+  const monthLabel = computed(() => {
+    const d = new Date(currentYear.value, currentMonth.value - 1, 1)
+    return d.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' })
+  })
+
   const activeBranches = computed(() => branches.value.filter(b => b.isActive))
   const inactiveBranches = computed(() => branches.value.filter(b => !b.isActive))
   const billingRoute = computed(() => `/app/workspaces/${workspaceId}/billing`)
+
+  const branchesWithBilling = computed(() => {
+    return branches.value.map(b => ({
+      ...b,
+      currentMonthTotal: branchTotals.value[b._id] || 0,
+    }))
+  })
 
   // Actions
   function showToast(type: 'success' | 'error', message: string) {
@@ -32,16 +56,58 @@ export function useBranches(workspaceId: string) {
   const showSuccess = (msg: string) => showToast('success', msg)
   const showError = (msg: string) => showToast('error', msg)
 
+  async function fetchMonthBilling() {
+    try {
+      const monthData = await billingService.getMonthData(workspaceId, currentYear.value, currentMonth.value).catch(() => null)
+      const totals: Record<string, number> = {}
+      let onlineTotal = 0
+      
+      if (monthData && monthData.days) {
+        for (const day of monthData.days) {
+          onlineTotal += (day.totalOnlineRevenue || 0)
+          for (const entry of (day.entries || [])) {
+            for (const b of (entry.branches || [])) {
+              totals[b.branchId] = (totals[b.branchId] || 0) + b.amount
+            }
+          }
+        }
+      }
+      branchTotals.value = totals
+      onlineMonthTotal.value = onlineTotal
+    } catch {
+      branchTotals.value = {}
+      onlineMonthTotal.value = 0
+    }
+  }
+
   async function fetchBranches() {
     loading.value = true
     try {
-      const data = await branchService.getBranches(workspaceId)
+      const [data] = await Promise.all([
+        branchService.getBranches(workspaceId),
+        fetchMonthBilling()
+      ])
       branches.value = data
     } catch (err: any) {
       showError(err.message || 'Error al cargar sucursales')
     } finally {
       loading.value = false
     }
+  }
+
+  function prevMonth() {
+    if (currentMonth.value === 1) { currentMonth.value = 12; currentYear.value-- }
+    else { currentMonth.value-- }
+    loading.value = true
+    fetchMonthBilling().finally(() => (loading.value = false))
+  }
+  
+  function nextMonth() {
+    if (isCurrentMonth.value) return
+    if (currentMonth.value === 12) { currentMonth.value = 1; currentYear.value++ }
+    else { currentMonth.value++ }
+    loading.value = true
+    fetchMonthBilling().finally(() => (loading.value = false))
   }
 
   function openCreateModal() {
@@ -113,6 +179,7 @@ export function useBranches(workspaceId: string) {
   return {
     // State
     branches,
+    branchesWithBilling,
     loading,
     saving,
     toggling,
@@ -124,13 +191,19 @@ export function useBranches(workspaceId: string) {
     activeBranches,
     inactiveBranches,
     billingRoute,
+    isCurrentMonth,
+    monthLabel,
+    onlineMonthTotal,
     
     // Actions
     fetchBranches,
+    fetchMonthBilling,
     openCreateModal,
     openEditModal,
     handleSaveBranch,
     toggleBranch,
     deleteBranch,
+    prevMonth,
+    nextMonth,
   }
 }

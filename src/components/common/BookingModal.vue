@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import carlosPhoto from '@/assets/team/carlos.jpg'
 
 defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-type Expert = 'denisse' | 'diego' | null
+type Expert = 'denisse' | 'carlos' | null
 const selected = ref<Expert>(null)
 
 const experts = [
@@ -29,10 +30,10 @@ const experts = [
     warningBody: 'Si tu duda es sobre anuncios en Facebook o Instagram, estás en el lugar correcto. Cualquier otro tema será redirigido.',
   },
   {
-    key: 'diego' as Expert,
-    name: 'Diego Reyes',
-    role: 'Director de Tecnología',
-    photo: 'https://res.cloudinary.com/dpjzfua3n/image/upload/q_auto/f_auto/v1775355501/sorbito-de-verdad/collaborators/bakano-team-diego.webp',
+    key: 'carlos' as Expert,
+    name: 'Carlos Jurado',
+    role: 'Experto en Tecnología',
+    photo: carlosPhoto,
     color: '#3B5BDB',
     accentBg: 'rgba(59, 91, 219, 0.08)',
     accentBorder: 'rgba(59, 91, 219, 0.25)',
@@ -44,7 +45,7 @@ const experts = [
       { icon: 'fa-solid fa-robot', label: 'Integraciones y herramientas tech' },
     ],
     notFor: 'Esta reunión NO es para temas de Meta Ads, anuncios ni estrategia publicitaria.',
-    url: 'https://api.leadconnectorhq.com/widget/booking/oOlLR0GxtmjAxyMaKesw',
+    url: 'https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm',
     warningTitle: 'Solo temas de Tecnología',
     warningBody: 'Si tu duda es sobre la plataforma, CRM, reportes o cualquier tema técnico, estás en el lugar correcto. Cualquier otro tema será redirigido.',
   },
@@ -223,10 +224,15 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   flex-shrink: 0;
   margin-top: 2px;
   transition: background 0.2s;
-  &:hover { background: #e4e4e4; }
+
+  &:hover {
+    background: #e4e4e4;
+  }
 }
 
-.bm-header-text { flex: 1; }
+.bm-header-text {
+  flex: 1;
+}
 
 .bm-title {
   margin: 0 0 0.25rem;
@@ -254,7 +260,10 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   flex-shrink: 0;
   margin-top: 2px;
   transition: color 0.2s;
-  &:hover { color: #333; }
+
+  &:hover {
+    color: #333;
+  }
 }
 
 // ── Alert ────────────────────────────────────────────────
@@ -271,8 +280,15 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   line-height: 1.5;
   margin-bottom: 1.25rem;
 
-  i { margin-top: 2px; flex-shrink: 0; color: #f59e0b; }
-  strong { font-weight: 700; }
+  i {
+    margin-top: 2px;
+    flex-shrink: 0;
+    color: #f59e0b;
+  }
+
+  strong {
+    font-weight: 700;
+  }
 }
 
 // ── Selection ────────────────────────────────────────────
@@ -398,7 +414,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
       color: #333;
       padding: 0.35rem 0.5rem;
       border-radius: 7px;
-      background: rgba(0,0,0,0.025);
+      background: rgba(0, 0, 0, 0.025);
 
       i {
         color: var(--accent);
@@ -425,7 +441,11 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     text-align: left;
     line-height: 1.4;
 
-    i { flex-shrink: 0; margin-top: 1px; font-size: 0.72rem; }
+    i {
+      flex-shrink: 0;
+      margin-top: 1px;
+      font-size: 0.72rem;
+    }
   }
 
   // CTA
@@ -474,7 +494,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     object-position: top center;
     flex-shrink: 0;
     border: 2px solid #fff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
 
   &__info {

@@ -68,6 +68,17 @@ export interface BrandProfile {
   updatedAt?: string
 }
 
+export interface OnboardingStatus {
+  videoGenesisAccepted: boolean
+  contractSubmitted: boolean
+  meetingScheduled: boolean
+}
+
+export interface OnboardingStatusResponse {
+  onboardingStatus: OnboardingStatus
+  preNegotiatedContract?: any
+}
+
 export interface Workspace {
   _id: string
   name: string
@@ -90,6 +101,11 @@ export interface Workspace {
   }
   brandProfile?: BrandProfile
   brandProfileInviteSentAt?: string
+  onboardingStatus?: OnboardingStatus
+  contractData?: {
+    pdfUrl?: string
+    [key: string]: any
+  }
   userRole?: 'admin' | 'colaborador'
   createdAt: string
   updatedAt: string

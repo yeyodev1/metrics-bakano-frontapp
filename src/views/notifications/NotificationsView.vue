@@ -65,7 +65,7 @@ function getRedirectRoute(n: AppNotification): { name: string; params: Record<st
   if (!n.workspaceId) return null
   switch (n.type) {
     case 'new_client_assigned':
-      return { name: 'AppDashboard', params: { workspaceId: n.workspaceId } }
+      return { name: 'BillingRoas', params: { workspaceId: n.workspaceId } }
     case 'video_status_changed':
     case 'video_planning_resent':
       return { name: 'AppPlanning', params: { workspaceId: n.workspaceId } }

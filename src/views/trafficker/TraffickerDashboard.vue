@@ -313,7 +313,7 @@
               <RouterLink
                 v-if="card.metaConnected"
                 class="trf-card__action"
-                :to="{ name: 'AppDashboard', params: { workspaceId: card.id } }"
+                :to="{ name: 'BillingRoas', params: { workspaceId: card.id } }"
               >
                 <i class="fa-brands fa-meta" /> Meta Ads
               </RouterLink>
