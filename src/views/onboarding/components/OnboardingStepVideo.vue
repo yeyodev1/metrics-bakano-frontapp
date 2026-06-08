@@ -60,8 +60,8 @@ onUnmounted(() => {
 
 <template>
   <div class="step-content" key="step1">
-    <h1 class="main-title">Video de Community Manager</h1>
-    <p class="main-subtitle">Por favor revisa el siguiente video de nuestro Community Manager atentamente antes de continuar.</p>
+    <h1 class="main-title">Video de Onboarding: Aquí empieza todo</h1>
+    <p class="main-subtitle">Por favor revisa el siguiente video de nuestro Project Manager atentamente antes de continuar.</p>
     
     <div class="video-container">
       <wistia-player media-id="ph8sog4lkp" aspect="1.7777777777777777"></wistia-player>
