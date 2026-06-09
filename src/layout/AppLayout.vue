@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useNotificationStore } from '@/stores/notification'
@@ -21,6 +21,7 @@ const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
 const wsSearch = ref('')
 const isBookingModalOpen = ref(false)
+const showInvasiveOnboardingModal = ref(false)
 
 const INTERNAL_ROLE_LABELS: Record<string, string> = {
   director: 'Director',
@@ -106,6 +107,13 @@ const isOnboardingCompleted = computed(() => {
   return st.meetingScheduled
 })
 
+const isContractPending = computed(() => {
+  if (userStore.isInternal || userStore.role === 'superadmin') return false
+  const st = activeWorkspace.value?.onboardingStatus
+  if (!st) return true
+  return !st.contractSubmitted
+})
+
 async function fetchWorkspaces() {
   try {
     const res = await workspaceService.listWorkspaces()
@@ -120,9 +128,8 @@ async function fetchWorkspaces() {
 onMounted(async () => {
   await fetchWorkspaces()
   
-  if (!isOnboardingCompleted.value && currentWorkspaceId.value) {
-    router.replace(`/onboarding/${currentWorkspaceId.value}`)
-    return
+  if (isContractPending.value && currentWorkspaceId.value) {
+    showInvasiveOnboardingModal.value = true
   }
 
   userStore.fetchPendingSurveys()
@@ -180,6 +187,13 @@ async function logout(): Promise<void> {
 // Close sidebar on navigation (mobile)
 router.afterEach(() => {
   isSidebarOpen.value = false
+})
+
+// Trigger invasive modal again on every route change if onboarding is incomplete
+watch(() => route.fullPath, () => {
+  if (workspacesLoaded.value && isContractPending.value && currentWorkspaceId.value) {
+    showInvasiveOnboardingModal.value = true
+  }
 })
 
 </script>
@@ -556,7 +570,20 @@ router.afterEach(() => {
 
     <main class="app-layout__main">
       <div
-        v-if="!userStore.isInternal && userStore.role !== 'superadmin' && !isBrandProfileCompleted"
+        v-if="!userStore.isInternal && userStore.role !== 'superadmin' && isContractPending && activeWorkspace"
+        class="app-layout__onboarding-banner"
+      >
+        <i class="fa-solid fa-file-signature" />
+        <div class="app-layout__onboarding-banner-text">
+          <strong>Actualización de Términos y Condiciones</strong>
+          <span>Por favor, revisa y acepta los términos actualizados con tu firma. Este paso es importante para tu servicio.</span>
+        </div>
+        <RouterLink :to="`/onboarding/${activeWorkspace._id}`" class="app-layout__onboarding-btn">
+          Revisar y Firmar
+        </RouterLink>
+      </div>
+      <div
+        v-else-if="!userStore.isInternal && userStore.role !== 'superadmin' && !isBrandProfileCompleted && activeWorkspace"
         class="app-layout__onboarding-banner"
       >
         <i class="fa-solid fa-circle-exclamation" />
@@ -564,7 +591,7 @@ router.afterEach(() => {
           <strong>Completa tu perfil de marca</strong>
           <span>Para activar todas las funcionalidades de la plataforma, necesitas completar la información de tu negocio.</span>
         </div>
-        <RouterLink :to="`/onboarding/${userStore.workspaceId}`" class="app-layout__onboarding-btn">
+        <RouterLink :to="`/workspaces/${activeWorkspace._id}/brand-profile`" class="app-layout__onboarding-btn">
           Completar ahora
         </RouterLink>
       </div>
@@ -601,6 +628,29 @@ router.afterEach(() => {
 
     <!-- Booking modal (client-only) -->
     <BookingModal v-model="isBookingModalOpen" />
+
+    <!-- Invasive Onboarding Modal -->
+    <Transition name="fade">
+      <div v-if="showInvasiveOnboardingModal" class="app-layout__invasive-backdrop">
+        <div class="app-layout__invasive-modal">
+          <div class="app-layout__invasive-icon">
+            <i class="fa-solid fa-file-signature" />
+          </div>
+          <h2 class="app-layout__invasive-title">Firma Requerida</h2>
+          <p class="app-layout__invasive-text">
+            Hemos actualizado nuestros términos y condiciones. Por favor, tómate un minuto para revisarlos y firmar el nuevo acuerdo. Es muy importante para asegurar la continuidad de tu servicio.
+          </p>
+          <div class="app-layout__invasive-actions">
+            <RouterLink :to="`/onboarding/${activeWorkspace?._id}`" class="app-layout__invasive-btn-primary" @click="showInvasiveOnboardingModal = false">
+              Revisar y Firmar Ahora
+            </RouterLink>
+            <button class="app-layout__invasive-btn-secondary" @click="showInvasiveOnboardingModal = false">
+              Hacerlo más tarde
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -1540,6 +1590,93 @@ router.afterEach(() => {
   &--email {
     background: rgba(#0f172a, 0.06);
     color: #0f172a;
+  }
+}
+
+// ── Invasive Onboarding Modal ────────────────────────────
+.app-layout__invasive-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.app-layout__invasive-modal {
+  background: #ffffff;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: invasivePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes invasivePop {
+  0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.app-layout__invasive-icon {
+  font-size: 3rem;
+  color: #3b82f6; // Fallback in case $primary is a CSS var
+  margin-bottom: 1.5rem;
+}
+
+.app-layout__invasive-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.app-layout__invasive-text {
+  font-size: 1rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.app-layout__invasive-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.app-layout__invasive-btn-primary {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  background: #3b82f6;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.app-layout__invasive-btn-secondary {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #1e293b;
   }
 }
 </style>
