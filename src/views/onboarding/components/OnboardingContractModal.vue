@@ -150,6 +150,18 @@ function onSubmitContract() {
           <p><strong>DÉCIMA SEXTA.- JURISDICCIÓN:</strong><br/>
           Para cualquier controversia derivada del presente contrato, las partes se someten a los jueces competentes de la ciudad de Guayaquil y a la legislación ecuatoriana.</p>
 
+          <p><strong>DÉCIMA OCTAVA.- GARANTÍA DE DESEMPEÑO Y EXTENSIÓN DE SERVICIO:</strong><br/>
+          En caso de que, tras la correcta implementación de las campañas y estrategias comerciales, BAKANO no logre generar ningún prospecto (lead) para EL CLIENTE, se activará de forma excepcional una garantía de desempeño. Esta garantía consistirá en la extensión de los servicios por un periodo máximo de hasta dos (2) meses adicionales, durante los cuales BAKANO no percibirá el pago de sus honorarios mensuales estipulados. El objetivo exclusivo de esta extensión será ajustar, optimizar y completar el proceso estratégico de marketing digital hasta estabilizar la captación de prospectos.</p>
+
+          <p><strong>DÉCIMA NOVENA.- EXCLUSIÓN DE PRESUPUESTO PUBLICITARIO DE LA GARANTÍA:</strong><br/>
+          EL CLIENTE reconoce y acepta expresamente que la gratuidad temporal de honorarios descrita en la cláusula anterior aplica única y exclusivamente a los servicios profesionales de BAKANO. En consecuencia, durante los meses que se active la extensión por garantía, EL CLIENTE mantendrá de forma obligatoria, directa e ininterrumpida el pago del presupuesto publicitario (pauta) en Meta Ads, Google Ads o las plataformas correspondientes. La falta de asignación presupuestaria para pauta por parte de EL CLIENTE provocará la cancelación inmediata de la garantía.</p>
+
+          <p><strong>VIGÉSIMA.- CORRESPONSABILIDAD COMERCIAL Y CONDICIÓN DE GESTIÓN:</strong><br/>
+          Para la validez y continuidad de la garantía de desempeño, EL CLIENTE se obliga irrevocablemente a cumplir con su contraparte operativa y comercial estipulada en la Cláusula Séptima de este contrato. Esto incluye la obligación estricta de contar con personal interno capacitado para la atención inmediata, seguimiento oportuno y el despliegue del máximo esfuerzo comercial para el cierre de ventas de los prospectos generados. EL CLIENTE deberá compartir con BAKANO la retroalimentación de dicha gestión comercial para fines de optimización.</p>
+
+          <p><strong>VIGÉSIMA PRIMERA.- AUDITORÍA Y ANULACIÓN DE LA GARANTÍA:</strong><br/>
+          BAKANO se reserva el derecho de verificar la gestión comercial de EL CLIENTE a través de las plataformas y herramientas tecnológicas pactadas. Si se demuestra que BAKANO cumplió con la generación de prospectos, pero estos no se convirtieron en cierres comerciales debido a demoras en el contacto, deficiente atención, inacción operativa o incumplimiento de procesos internos por parte de EL CLIENTE, la presente garantía quedará automáticamente anulada, debiendo EL CLIENTE abonar la mensualidad regular correspondiente.</p>
+
           <p class="mt-4 text-center"><em>Al confirmar, este documento será generado en PDF y sellado con tu firma electrónica y la de BAKANO, y se enviará una copia a <strong>{{ contractData.email }}</strong>.</em></p>
         </div>
       </div>
