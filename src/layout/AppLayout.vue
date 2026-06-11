@@ -591,7 +591,7 @@ watch(() => route.fullPath, () => {
           <strong>Completa tu perfil de marca</strong>
           <span>Para activar todas las funcionalidades de la plataforma, necesitas completar la información de tu negocio.</span>
         </div>
-        <RouterLink :to="`/workspaces/${activeWorkspace._id}/brand-profile`" class="app-layout__onboarding-btn">
+        <RouterLink :to="`/app/workspaces/${activeWorkspace._id}/brand-profile`" class="app-layout__onboarding-btn">
           Completar ahora
         </RouterLink>
       </div>

@@ -80,7 +80,7 @@
 
     <template v-if="!analytics.isBoloncity.value">
       <!-- Sticky CTA -->
-      <div v-if="analytics.isCurrentMonth.value && analytics.canEnterBilling.value && !analytics.todayHasMyEntry.value && !analytics.loading.value" class="today-cta">
+      <div v-if="analytics.isCurrentMonth.value && analytics.canEnterBilling.value && !analytics.todayHasMyEntry.value" class="today-cta">
         <button class="btn-today-register" @click="openModalForAdd({ date: analytics.todayStr.value, total: analytics.todayDaySummary.value?.totalAmount ?? 0 })">
           <i class="fa-solid fa-plus" />
           Registrar facturación de hoy
@@ -195,7 +195,8 @@ async function handleEntry(payload: { amount: number; notes?: string; onlineReve
     }
     showModal.value = false
     setTimeout(() => (successMsg.value = ''), 4000)
-    await Promise.all([analytics.fetchMonth(), analytics.fetchTodayStatus()])
+    await analytics.fetchTodayStatus()
+    analytics.fetchMonth()
   } catch (e: any) {
     errorMsg.value = e?.message || 'Error al guardar la facturación'
     setTimeout(() => (errorMsg.value = ''), 5000)
@@ -205,7 +206,8 @@ async function handleEntry(payload: { amount: number; notes?: string; onlineReve
 }
 
 onMounted(async () => {
-  await Promise.all([analytics.fetchMonth(), analytics.fetchTodayStatus()])
+  await analytics.fetchTodayStatus()
+  analytics.fetchMonth()
 })
 </script>
 

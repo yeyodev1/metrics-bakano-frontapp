@@ -70,18 +70,18 @@ async function handleSubmit(): Promise<void> {
 
     // Honor redirect param (e.g. from shared video-planning link)
     if (route.query.redirect && typeof route.query.redirect === 'string') {
-      router.push(route.query.redirect)
+      await router.push(route.query.redirect)
       return
     }
 
     // Role-based redirect
     const isClientUser = !(user.isInternal ?? jwtIsInternal) && user.role !== 'superadmin'
     if (user.role === 'superadmin') {
-      router.push({ name: 'AdminWorkspaces' })
+      await router.push({ name: 'AdminWorkspaces' })
     } else if (targetWorkspaceId) {
-      router.push({ name: 'BillingRoas', params: { workspaceId: targetWorkspaceId } })
+      await router.push({ name: 'BillingRoas', params: { workspaceId: targetWorkspaceId } })
     } else {
-      router.push({ name: 'Home' })
+      await router.push({ name: 'Home' })
     }
   } catch (err: unknown) {
     const apiError = err as ApiError
