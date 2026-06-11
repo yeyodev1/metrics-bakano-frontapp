@@ -22,7 +22,7 @@ const signaturePadRef = ref<InstanceType<typeof SignaturePad> | null>(null)
 
 const isSignatureValid = computed(() => {
   if (!props.contractData.representanteCliente) return false
-  const textMatches = contractSignatureText.value.trim().toLowerCase() === props.contractData.representanteCliente.trim().toLowerCase()
+  const textMatches = contractSignatureText.value.replace(/\s+/g, '').toLowerCase() === props.contractData.representanteCliente.replace(/\s+/g, '').toLowerCase()
   return textMatches && hasDrawnSignature.value
 })
 
