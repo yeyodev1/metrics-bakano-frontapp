@@ -27,10 +27,10 @@ const loadEvaluations = async () => {
 
     let members: WorkspaceUser[] = []
     if (teamRes && teamRes.data) {
-      members = teamRes.data.members
+      members = teamRes.data.members.filter((m: WorkspaceUser) => m.email !== 'testing@bakano.ec')
     }
 
-    const ranking = [...rankingRes]
+    const ranking = rankingRes.filter(r => r.email !== 'testing@bakano.ec')
 
     fullRanking.value = ranking
 

@@ -347,7 +347,6 @@ onMounted(() => {
                 </table>
               </div>
             </div>
-
             <!-- Equipo Bakano (Premium Design) -->
             <div v-if="bakanoUsers.length > 0" class="workspace-settings__team-section">
               <h3 style="margin: 0 0 1.5rem; font-size: 1.25rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; letter-spacing: -0.02em;">
