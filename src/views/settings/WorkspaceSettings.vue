@@ -2,8 +2,6 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
-import { metaService } from '@/services/meta.service'
-import { useMetaAds } from '@/composables/useMetaAds'
 import { useUserStore } from '@/stores/user'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -37,51 +35,13 @@ const workspaceError = ref('')
 const users = ref<WorkspaceUser[]>([])
 const isLoadingUsers = ref(false)
 
+const bakanoUsers = computed(() => users.value.filter(u => u.email.endsWith('@bakano.ec')))
+const clientUsers = computed(() => users.value.filter(u => !u.email.endsWith('@bakano.ec')))
+
 // Edit workspace name
 const isEditingName = ref(false)
 const editNameValue = ref('')
 const isSavingName = ref(false)
-
-// Meta Ads Composable
-const {
-  isLoggingIn,
-  error: metaError,
-  authStep,
-  availablePages,
-  initSDK,
-  loginWithMeta,
-  selectPageAndSave
-} = useMetaAds()
-
-const isFetchingAdAccounts = ref(false)
-const showAdAccountModal = ref(false)
-const adAccountsList = ref<any[]>([])
-
-/**
- * Scores each ad account by keyword match with the current page name,
- * then sorts so the best match (suggested) appears first.
- */
-const sortedAdAccounts = computed(() => {
-  const pageName = workspace.value?.metaAds?.pageName || ''
-  if (!pageName || adAccountsList.value.length === 0) return adAccountsList.value
-
-  const keywords = pageName
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w: string) => w.length > 2)
-
-  return [...adAccountsList.value]
-    .map((account) => {
-      const name = (account.name || '').toLowerCase()
-      const score = keywords.reduce((acc: number, kw: string) => acc + (name.includes(kw) ? 1 : 0), 0)
-      return { ...account, _score: score }
-    })
-    .sort((a, b) => b._score - a._score)
-})
-
-function isSuggestedAccount(account: any): boolean {
-  return account._score > 0
-}
 
 // ── Initial Fetch ─────────────────────────────────────────
 
@@ -148,68 +108,6 @@ function cancelEditName() {
   isEditingName.value = false
 }
 
-// ── Meta Ads Settings ─────────────────────────────────────
-
-async function handleConnectMeta() {
-  try {
-    await loginWithMeta()
-  } catch (err) {
-    console.error('Meta connection failed:', err)
-  }
-}
-
-async function handlePageSelection(page: any) {
-  try {
-    await selectPageAndSave(workspaceId, page)
-    await fetchWorkspace()
-    toast.success('Página de Facebook vinculada exitosamente.')
-  } catch (err) {
-    console.error('Page selection failed:', err)
-    toast.error('Ocurrió un error al vincular la página.')
-  }
-}
-
-async function fetchAdAccounts() {
-  isFetchingAdAccounts.value = true
-  try {
-    const data = await metaService.listAdAccounts(workspaceId)
-    adAccountsList.value = data.accounts || []
-    showAdAccountModal.value = true
-  } catch (err) {
-    console.error('Error fetching ad accounts:', err)
-    toast.error("Ocurrió un error al cargar las cuentas publicitarias.")
-  } finally {
-    isFetchingAdAccounts.value = false
-  }
-}
-
-async function handleAdAccountSelection(account: any) {
-  if (!workspace.value?.metaAds) return
-
-  try {
-    isFetchingAdAccounts.value = true
-    await metaService.saveIntegration({
-      workspaceId,
-      pageId: workspace.value.metaAds.pageId,
-      pageName: workspace.value.metaAds.pageName,
-      accessToken: workspace.value.metaAds.accessToken,
-      pageAccessToken: workspace.value.metaAds.pageAccessToken, // Send existing or undefined to not overwrite 
-      adAccountId: account.account_id,
-      adAccountName: account.name
-    })
-    showAdAccountModal.value = false
-    await fetchWorkspace()
-    toast.success('Cuenta publicitaria de Meta vinculada correctamente.')
-  } catch (err) {
-    console.error('Error saving ad account:', err)
-    toast.error("Ocurrió un error al vincular la cuenta publicitaria.")
-  } finally {
-    isFetchingAdAccounts.value = false
-  }
-}
-
-// ── User Management ───────────────────────────────────────
-
 async function openCreateUser(): Promise<void> {
   const newUser = await userModal.open({
     mode: 'create',
@@ -260,9 +158,41 @@ async function confirmDeleteUser(user: WorkspaceUser): Promise<void> {
   }
 }
 
+function canManageUser(user: WorkspaceUser): boolean {
+  if (!canManageTeam.value) return false
+  if (!userStore.isInternal && user.email.endsWith('@bakano.ec')) return false
+  return true
+}
+
+function handleInternalUserClick(user: WorkspaceUser) {
+  if (user.email.endsWith('@bakano.ec')) {
+    router.push({ name: 'WorkspaceTeam', params: { workspaceId } })
+  }
+}
+
+function formatInternalRole(role?: string): string {
+  if (!role) return 'Especialista'
+  const roleMap: Record<string, string> = {
+    director: 'Director',
+    estratega: 'Estratega',
+    project_manager: 'Project Manager',
+    account_manager: 'Account Manager',
+    content_manager: 'Content Manager',
+    community_manager: 'Community Manager',
+    copywriter: 'Copywriter',
+    editor: 'Editor de Video',
+    disenador: 'Diseñador',
+    productor: 'Productor',
+    asistente_produccion: 'Asist. de Producción',
+    trafficker: 'Trafficker',
+    analista: 'Analista de Datos',
+    desarrollador: 'Desarrollador'
+  }
+  return roleMap[role] || 'Especialista'
+}
+
 onMounted(() => {
   fetchWorkspace()
-  initSDK()
 })
 </script>
 
@@ -325,68 +255,27 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- Panel 2: Integrations (Meta Ads) -->
+      <!-- Panel 2: Integrations -->
       <section class="workspace-settings__panel">
         <div class="workspace-settings__panel-header">
           <h2><i class="fa-solid fa-link" /> Integraciones de Datos</h2>
         </div>
         <div class="workspace-settings__panel-body">
-          <p class="workspace-settings__text-helper">Conecta tus fuentes de tráfico para calcular el retorno de inversión global.</p>
-          
-          <div class="workspace-settings__integration-card" :class="{ 'workspace-settings__integration-card--active': workspace?.metaAds }">
-            <div class="workspace-settings__integration-left">
-              <div class="workspace-settings__integration-icon">
-                <i class="fa-brands fa-facebook" />
-              </div>
-              <div class="workspace-settings__integration-info">
-                <h3>Facebook & Instagram Ads</h3>
-                <p v-if="!workspace?.metaAds">No conectado</p>
-                <div v-else class="workspace-settings__integration-details">
-                  <span class="workspace-settings__pill">Página: {{ workspace.metaAds.pageName }}</span>
-                  <span v-if="workspace.metaAds.adAccountName" class="workspace-settings__pill">C/P: {{ workspace.metaAds.adAccountName }}</span>
-                </div>
-              </div>
+          <div class="workspace-settings__crm-notice" style="display: flex; gap: 1rem; align-items: flex-start; padding: 1.5rem; background: #fafafa; border: 1px solid rgba(0,0,0,0.05); border-radius: 12px;">
+            <div class="workspace-settings__crm-icon" style="width: 48px; height: 48px; border-radius: 12px; background: rgba(230, 40, 92, 0.1); color: #e6285c; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
+              <i class="fa-solid fa-database" />
             </div>
-            
-            <div v-if="canManageIntegrations" class="workspace-settings__integration-right">
-              <template v-if="workspace?.metaAds">
-                <button v-if="!workspace.metaAds.adAccountId" class="workspace-settings__btn-primary" @click="fetchAdAccounts">
-                  Elegir Cuenta Ads
-                </button>
-                <button v-else class="workspace-settings__btn-outline" @click="fetchAdAccounts">
-                  Cambiar Cuenta Ads
-                </button>
-                <button class="workspace-settings__btn-ghost" @click="handleConnectMeta" title="Renovar token de permisos">
-                  <i class="fa-solid fa-rotate" />
-                </button>
-              </template>
-              <button v-else class="workspace-settings__btn-primary" @click="handleConnectMeta" :disabled="isLoggingIn">
-                {{ isLoggingIn ? 'Conectando...' : 'Conectar' }}
-              </button>
-            </div>
-            <div v-else class="workspace-settings__integration-right">
-              <span class="workspace-settings__pill workspace-settings__pill--restricted">
-                <i class="fa-solid fa-lock" /> Solo lectura
-              </span>
+            <div class="workspace-settings__crm-info">
+              <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem; color: #1e293b;">Integraciones migradas al CRM</h3>
+              <p style="margin: 0; color: #64748b; font-size: 0.95rem; line-height: 1.5;">
+                La conexión de fuentes de tráfico como Meta Ads y Google Ads ahora se gestiona de forma centralizada en nuestro CRM. 
+                Puedes revisar y administrar tus integraciones directamente desde allí.
+              </p>
+              <a href="https://crm.bakano.ec" target="_blank" class="workspace-settings__btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem; text-decoration: none;">
+                Ir a crm.bakano.ec <i class="fa-solid fa-arrow-up-right-from-square" />
+              </a>
             </div>
           </div>
-          <p v-if="metaError" class="workspace-settings__error-text">{{ metaError }}</p>
-
-          <div class="workspace-settings__integration-card workspace-settings__integration-card--disabled">
-            <div class="workspace-settings__integration-left">
-              <div class="workspace-settings__integration-icon" style="background: rgba(219, 68, 55, 0.1); color: #db4437;">
-                <i class="fa-brands fa-google" />
-              </div>
-              <div class="workspace-settings__integration-info">
-                <h3>Google Ads</h3>
-                <p>Próximamente</p>
-              </div>
-            </div>
-            <div class="workspace-settings__integration-right">
-              <button class="workspace-settings__btn-ghost" disabled>Pronto</button>
-            </div>
-          </div>
-
         </div>
       </section>
 
@@ -410,49 +299,99 @@ onMounted(() => {
           <div v-else-if="users.length === 0" class="workspace-settings__empty-list">
              Nadie ha sido invitado a este entorno aún.
           </div>
-          <div v-else class="workspace-settings__table-wrapper">
-            <table class="workspace-settings__table">
-              <thead>
-                <tr>
-                  <th>Usuario</th>
-                  <th>Rol</th>
-                  <th v-if="canManageTeam">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="user in users" :key="user._id">
-                  <td>
-                    <div class="workspace-settings__user-cell">
-                      <div class="workspace-settings__avatar">{{ (user.name || user.email).charAt(0).toUpperCase() }}</div>
-                      <div class="workspace-settings__user-cell-info">
-                        <strong>{{ user.name || 'Invitado' }}</strong>
-                        <span class="workspace-settings__email-text">
-                          {{ user.email }}
-                          <span v-if="user.email.endsWith('@bakano.ec')" class="workspace-settings__designated-badge" title="Equipo designado a estar pendiente de este usuario">
-                            <i class="fa-solid fa-star"></i> Equipo Designado
-                          </span>
+          <div v-else class="workspace-settings__teams-container" style="display: flex; flex-direction: column; gap: 2.5rem;">
+            
+            <!-- Tu Equipo -->
+            <div v-if="clientUsers.length > 0" class="workspace-settings__team-section">
+              <h3 style="margin: 0 0 1rem; font-size: 1.1rem; color: #334155; border-bottom: 2px solid rgba(0,0,0,0.05); padding-bottom: 0.5rem;">Tu Equipo de Trabajo</h3>
+              <div class="workspace-settings__table-wrapper">
+                <table class="workspace-settings__table">
+                  <thead>
+                    <tr>
+                      <th>Usuario</th>
+                      <th>Rol</th>
+                      <th v-if="canManageTeam">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="user in clientUsers" :key="user._id">
+                      <td>
+                        <div class="workspace-settings__user-cell">
+                          <div class="workspace-settings__avatar">
+                            <img v-if="user.photoUrl" :src="user.photoUrl" alt="Avatar" class="workspace-settings__avatar-img" />
+                            <span v-else>{{ (user.name || user.email).charAt(0).toUpperCase() }}</span>
+                          </div>
+                          <div class="workspace-settings__user-cell-info">
+                            <strong>{{ user.name || 'Invitado' }}</strong>
+                            <span class="workspace-settings__email-text">{{ user.email }}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="workspace-settings__role-badge" :class="`workspace-settings__role-badge--${user.role}`">
+                          {{ user.role }}
                         </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="workspace-settings__role-badge" :class="`workspace-settings__role-badge--${user.role}`">
-                      {{ user.role }}
+                      </td>
+                      <td v-if="canManageTeam">
+                        <div v-if="canManageUser(user)" class="workspace-settings__table-actions">
+                          <button class="workspace-settings__btn-icon" @click="openEditUser(user)">
+                            <i class="fa-solid fa-pen" />
+                          </button>
+                          <button class="workspace-settings__btn-icon workspace-settings__btn-icon--danger" @click="confirmDeleteUser(user)">
+                            <i class="fa-solid fa-trash" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Equipo Bakano (Premium Design) -->
+            <div v-if="bakanoUsers.length > 0" class="workspace-settings__team-section">
+              <h3 style="margin: 0 0 1.5rem; font-size: 1.25rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; letter-spacing: -0.02em;">
+                <i class="fa-solid fa-star" style="color: #f59e0b; font-size: 1.1rem;"></i> Equipo Designado por Bakano
+              </h3>
+              
+              <div class="workspace-settings__premium-team-list">
+                <div 
+                  v-for="user in bakanoUsers" 
+                  :key="user._id" 
+                  class="workspace-settings__premium-member-card"
+                  @click="handleInternalUserClick(user)"
+                >
+                  <div class="workspace-settings__premium-member-avatar-wrapper">
+                    <img v-if="user.photoUrl" :src="user.photoUrl" alt="Avatar" class="workspace-settings__premium-member-avatar" />
+                    <span v-else class="workspace-settings__premium-member-avatar-fallback">{{ (user.name || user.email).charAt(0).toUpperCase() }}</span>
+                  </div>
+                  
+                  <div class="workspace-settings__premium-member-info">
+                    <strong class="workspace-settings__premium-member-name">{{ user.name || 'Especialista Bakano' }}</strong>
+                    <span class="workspace-settings__premium-member-email">{{ user.email }}</span>
+                  </div>
+
+                  <div class="workspace-settings__premium-member-role">
+                    <span class="workspace-settings__premium-role-badge">
+                      {{ formatInternalRole(user.internalRole) }}
                     </span>
-                  </td>
-                  <td v-if="canManageTeam">
-                    <div class="workspace-settings__table-actions">
-                      <button class="workspace-settings__btn-icon" @click="openEditUser(user)">
-                        <i class="fa-solid fa-pen" />
-                      </button>
-                      <button class="workspace-settings__btn-icon workspace-settings__btn-icon--danger" @click="confirmDeleteUser(user)">
-                        <i class="fa-solid fa-trash" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+
+                  <div v-if="canManageTeam && canManageUser(user)" class="workspace-settings__premium-member-actions" @click.stop>
+                    <button class="workspace-settings__btn-icon" @click.stop="openEditUser(user)" title="Editar Usuario">
+                      <i class="fa-solid fa-pen" />
+                    </button>
+                    <button class="workspace-settings__btn-icon workspace-settings__btn-icon--danger" @click.stop="confirmDeleteUser(user)" title="Eliminar Usuario">
+                      <i class="fa-solid fa-trash" />
+                    </button>
+                  </div>
+                  <div v-else class="workspace-settings__premium-member-go-icon">
+                    <i class="fa-solid fa-arrow-right" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -460,73 +399,8 @@ onMounted(() => {
     </div>
 
     <!-- Modals -->
-    <!-- Meta Page Picker -->
-    <Transition name="modal">
-      <div v-if="authStep === 'pick_page'" class="workspace-settings__overlay">
-        <div class="workspace-settings__modal">
-          <div class="workspace-settings__modal-header">
-            <h3>Selecciona la Página a Vincular</h3>
-          </div>
-          <div class="workspace-settings__page-list">
-            <div 
-              v-for="page in availablePages" 
-              :key="page.id" 
-              class="workspace-settings__page-item"
-              @click="handlePageSelection(page)"
-            >
-              <img
-                v-if="page.picture?.data?.url"
-                :src="page.picture.data.url"
-                :alt="page.name"
-                class="workspace-settings__page-avatar"
-              />
-              <i v-else class="fa-solid fa-flag" />
-              <div>
-                <strong>{{ page.name }}</strong>
-                <span>ID: {{ page.id }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="workspace-settings__modal-footer">
-            <button class="workspace-settings__btn-ghost" @click="authStep = 'idle'">Cerrar</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Meta Ad Account Picker -->
-    <Transition name="modal">
-      <div v-if="showAdAccountModal" class="workspace-settings__overlay">
-        <div class="workspace-settings__modal">
-          <div class="workspace-settings__modal-header">
-            <h3>Selecciona Cuenta Publicitaria</h3>
-          </div>
-          <div class="workspace-settings__page-list">
-            <div 
-              v-for="account in sortedAdAccounts" 
-              :key="account.account_id" 
-              class="workspace-settings__page-item"
-              :class="{ 'workspace-settings__page-item--suggested': isSuggestedAccount(account) }"
-              @click="handleAdAccountSelection(account)"
-            >
-              <i class="fa-solid fa-bullhorn" />
-              <div>
-                <div class="workspace-settings__page-item-header">
-                  <strong>{{ account.name }}</strong>
-                  <span v-if="isSuggestedAccount(account)" class="workspace-settings__suggested-badge">
-                    <i class="fa-solid fa-star" /> Recomendada
-                  </span>
-                </div>
-                <span>ID: {{ account.account_id }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="workspace-settings__modal-footer">
-            <button class="workspace-settings__btn-ghost" @click="showAdAccountModal = false">Cancelar</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <!-- Meta Page Picker (Removed) -->
+    <!-- Meta Ad Account Picker (Removed) -->
 
   </div>
 </template>
@@ -964,6 +838,15 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 1rem;
+
+    &--clickable {
+      cursor: pointer;
+      transition: opacity 0.2s;
+      
+      &:hover {
+        opacity: 0.8;
+      }
+    }
   }
 
   &__avatar {
@@ -976,6 +859,13 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     font-weight: 700;
+    overflow: hidden;
+  }
+
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   &__user-cell-info {
@@ -1052,6 +942,120 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  &__premium-member-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      border-color: rgba($primary, 0.15);
+
+      .workspace-settings__premium-member-go-icon {
+        transform: translateX(0);
+        opacity: 1;
+        color: $primary;
+        background: rgba($primary, 0.08);
+      }
+    }
+  }
+
+  &__premium-member-avatar-wrapper {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 1.25rem;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, rgba($primary, 0.1) 0%, rgba($primary, 0.02) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+
+  &__premium-member-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__premium-member-avatar-fallback {
+    color: $primary;
+    font-weight: 700;
+    font-size: 1.3rem;
+  }
+
+  &__premium-member-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__premium-member-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+  }
+
+  &__premium-member-email {
+    font-size: 0.85rem;
+    color: #64748b;
+  }
+
+  &__premium-member-role {
+    margin: 0 2rem;
+    
+    @media (max-width: 768px) {
+      display: none;
+    }
+  }
+
+  &__premium-member-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__premium-member-go-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f8fafc;
+    color: #cbd5e1;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateX(-10px);
+    opacity: 0.5;
+    font-size: 1.2rem;
+  }
+
+  &__premium-role-badge {
+    display: inline-block;
+    padding: 0.4rem 1.2rem;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 800;
+    border-radius: 100px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
 
   &__modal {

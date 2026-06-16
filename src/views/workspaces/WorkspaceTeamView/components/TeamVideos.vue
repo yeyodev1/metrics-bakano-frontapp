@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import CustomVideoPlayer from '@/components/CustomVideoPlayer.vue'
 
 const props = defineProps({
   uniqueVideos: {
@@ -17,13 +18,10 @@ const activeVideo = ref(0)
     <div v-if="uniqueVideos.length === 1" class="video-grid">
       <div class="video-card video-card--active">
         <div class="video-card__inner single-video">
-          <video 
+          <CustomVideoPlayer 
             class="video-card__media" 
-            controls 
-            playsinline 
-            preload="metadata"
-            :src="uniqueVideos[0]"
-          ></video>
+            :src="uniqueVideos[0] || ''"
+          />
         </div>
         <div class="video-card__badge">Presentación Oficial</div>
       </div>
@@ -39,13 +37,10 @@ const activeVideo = ref(0)
         @click="activeVideo = index"
       >
         <div class="video-card__inner">
-          <video 
+          <CustomVideoPlayer 
             class="video-card__media" 
-            controls 
-            playsinline 
-            preload="metadata"
             :src="videoUrl"
-          ></video>
+          />
         </div>
         <div class="video-card__overlay" v-if="activeVideo !== index">
           <i class="fa-solid fa-play"></i>
@@ -146,9 +141,8 @@ const activeVideo = ref(0)
   &__media {
     width: 100%;
     height: 100%;
-    object-fit: contain;
     display: block;
-    background: #000;
+    background: transparent;
   }
 
   &__overlay {

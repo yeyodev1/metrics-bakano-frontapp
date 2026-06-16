@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import type { WorkspaceUser } from '@/types'
+import type { TeamRanking } from '@/services/evaluation.service'
 import { getRoleLabel, getRoleDescription } from '../utils/roles'
 
 const props = defineProps({
@@ -11,10 +13,16 @@ const props = defineProps({
   isOpen: {
     type: Boolean,
     default: false,
+  },
+  memberRanking: {
+    type: Object as () => TeamRanking | undefined,
+    required: false,
   }
 })
 
 const emit = defineEmits(['close'])
+const router = useRouter()
+const route = useRoute()
 
 const copySuccess = ref(false)
 
@@ -31,6 +39,12 @@ const copyEmail = async (email: string) => {
 const goToWhatsApp = (phone: string) => {
   const cleanPhone = phone.replace(/\D/g, '')
   window.open(`https://wa.me/${cleanPhone}`, '_blank')
+}
+
+const goToUserEvaluations = (userId: string) => {
+  const workspaceId = route.params.workspaceId
+  emit('close')
+  router.push({ name: 'WorkspaceEvaluations', params: { workspaceId }, query: { userId } })
 }
 </script>
 
@@ -76,6 +90,29 @@ const goToWhatsApp = (phone: string) => {
             </div>
             <button class="action-btn" @click="goToWhatsApp(member.phoneNumber)" title="Escribir por WhatsApp">
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Feedback & Rating Section -->
+        <div class="member-feedback" v-if="memberRanking && memberRanking.totalEvaluations > 0">
+          <div class="member-feedback__score">
+            <i class="fa-solid fa-star"></i> {{ memberRanking.averageRating.toFixed(1) }} 
+            <span class="member-feedback__count">({{ memberRanking.totalEvaluations }} opiniones)</span>
+          </div>
+          
+          <div class="member-feedback__list" v-if="memberRanking.positiveFeedback && memberRanking.positiveFeedback.length > 0">
+            <div class="feedback-comment" v-for="(comment, idx) in memberRanking.positiveFeedback" :key="idx">
+              <i class="fa-solid fa-quote-left quote-icon"></i>
+              <div class="feedback-author">
+                <strong>Evaluador Anónimo</strong>
+                <span class="feedback-date">{{ new Date(comment.createdAt).toLocaleDateString() }}</span>
+              </div>
+              <p>"{{ comment.feedback }}"</p>
+            </div>
+            
+            <button class="btn-view-more" @click="goToUserEvaluations(member._id)">
+              Ver todos los reconocimientos
             </button>
           </div>
         </div>
@@ -280,6 +317,111 @@ const goToWhatsApp = (phone: string) => {
       &:hover {
         filter: brightness(1.1);
         transform: translateY(-1px);
+      }
+    }
+  }
+
+  .member-feedback {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    text-align: left;
+
+    &__score {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #FFD700;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .member-feedback__count {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 400;
+      }
+    }
+
+    &__list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-height: 250px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+      
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+      }
+    }
+
+    .feedback-comment {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 1rem;
+      border-radius: 12px;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+
+      .quote-icon {
+        position: absolute;
+        top: -8px;
+        left: 10px;
+        font-size: 1rem;
+        color: $primary;
+        opacity: 0.8;
+        background: #1a1a24;
+        padding: 0 4px;
+        border-radius: 50%;
+      }
+
+      .feedback-author {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        
+        strong {
+          font-size: 0.85rem;
+          color: $primary;
+        }
+        
+        .feedback-date {
+          font-size: 0.75rem;
+          color: rgba(255, 255, 255, 0.4);
+        }
+      }
+
+      p {
+        margin: 0;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-style: italic;
+        line-height: 1.5;
+        padding-left: 1.5rem;
+      }
+    }
+
+    .btn-view-more {
+      width: 100%;
+      background: rgba($primary, 0.1);
+      color: $primary;
+      border: 1px solid rgba($primary, 0.2);
+      padding: 0.75rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.5rem;
+
+      &:hover {
+        background: $primary;
+        color: #fff;
       }
     }
   }
