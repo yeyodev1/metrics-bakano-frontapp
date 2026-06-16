@@ -79,6 +79,11 @@ class VideoPlanningService extends APIBase {
     )
     return res.data.items
   }
+
+  async getEditorCompletedItems(editorId: string): Promise<any[]> {
+    const res = await this.get<{ items: any[] }>(`video-planning/editor/${editorId}/edited-items`)
+    return res.data.items
+  }
 }
 
 export const videoPlanningService = new VideoPlanningService()

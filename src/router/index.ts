@@ -30,7 +30,7 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'clients',
         name: 'ClientsGlobal',
-        component: () => import('../views/ClientsGlobalView.vue'),
+        component: () => import('../views/ClientsGlobalView/index.vue'),
         meta: { title: 'Bakano Ads: Vista Global de Clientes', requiresAuth: true, requiresInternal: true },
       },
       {
