@@ -530,6 +530,16 @@ watch(() => route.fullPath, () => {
           <span>Planificación</span>
         </RouterLink>
 
+        <!-- Mi Equipo (Client assigned team) -->
+        <RouterLink
+          v-if="activeWorkspace && !userStore.isInternal && userStore.role !== 'superadmin'"
+          class="app-layout__nav-item app-layout__nav-item--team"
+          :to="{ name: 'WorkspaceTeam', params: { workspaceId: activeWorkspace._id } }"
+        >
+          <i class="fa-solid fa-users-viewfinder" aria-hidden="true" />
+          <span>Mi Equipo</span>
+        </RouterLink>
+
         <!-- Perfil de Marca — IA para community/content -->
         <RouterLink
           v-if="activeWorkspace && (userStore.role === 'superadmin' || ['community_manager', 'content_manager', 'copywriter'].includes(userStore.internalRole || ''))"
@@ -555,7 +565,8 @@ watch(() => route.fullPath, () => {
       <div class="app-layout__footer">
         <div class="app-layout__user">
           <div class="app-layout__user-avatar" aria-hidden="true">
-            {{ userStore.name?.charAt(0).toUpperCase() || userStore.email?.charAt(0).toUpperCase() }}
+            <img v-if="userStore.photoUrl" :src="userStore.photoUrl" :alt="userStore.name || 'User'" />
+            <span v-else>{{ userStore.name?.charAt(0).toUpperCase() || userStore.email?.charAt(0).toUpperCase() }}</span>
           </div>
           <div class="app-layout__user-info">
             <span class="app-layout__user-email">{{ userStore.name || userStore.email }}</span>
@@ -1396,6 +1407,13 @@ watch(() => route.fullPath, () => {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
   }
 
   &__user-info {

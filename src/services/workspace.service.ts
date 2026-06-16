@@ -40,6 +40,11 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
+  async getTeam(workspaceId: string): Promise<any> {
+    const res = await this.get<any>(`workspaces/${workspaceId}/team`)
+    return res.data
+  }
+
   async createUser(workspaceId: string, payload: CreateUserPayload): Promise<UserResponse> {
     const res = await this.post<UserResponse>(`workspaces/${workspaceId}/users`, payload)
     return res.data

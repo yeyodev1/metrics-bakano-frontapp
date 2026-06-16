@@ -62,6 +62,7 @@ async function handleSubmit(): Promise<void> {
       name: user.name,
       email: user.email,
       role: user.role,
+      photoUrl: user.photoUrl,
       workspaces: user.workspaces as any,
       workspaceId: targetWorkspaceId || undefined,
       isInternal: user.isInternal ?? jwtIsInternal,

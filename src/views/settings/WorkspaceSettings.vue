@@ -426,7 +426,12 @@ onMounted(() => {
                       <div class="workspace-settings__avatar">{{ (user.name || user.email).charAt(0).toUpperCase() }}</div>
                       <div class="workspace-settings__user-cell-info">
                         <strong>{{ user.name || 'Invitado' }}</strong>
-                        <span>{{ user.email }}</span>
+                        <span class="workspace-settings__email-text">
+                          {{ user.email }}
+                          <span v-if="user.email.endsWith('@bakano.ec')" class="workspace-settings__designated-badge" title="Equipo designado a estar pendiente de este usuario">
+                            <i class="fa-solid fa-star"></i> Equipo Designado
+                          </span>
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -984,6 +989,32 @@ onMounted(() => {
     span {
       color: $text-secondary;
       font-size: 0.85rem;
+    }
+  }
+
+  &__email-text {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  &__designated-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, rgba($primary, 0.1), rgba($primary-dark, 0.2));
+    color: $primary;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid rgba($primary, 0.2);
+
+    i {
+      font-size: 0.6rem;
     }
   }
 

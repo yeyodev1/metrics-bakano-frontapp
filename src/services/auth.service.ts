@@ -13,6 +13,15 @@ class AuthService extends APIBase {
     const response = await this.post<LoginResponse>('auth/login', payload, publicHeaders)
     return response.data
   }
+
+  /**
+   * GET /api/auth/me
+   * Returns current user data.
+   */
+  async me(): Promise<{ message: string; user: AuthUser }> {
+    const response = await this.get<{ message: string; user: AuthUser }>('auth/me')
+    return response.data
+  }
 }
 
 // Singleton — one instance shared across the app

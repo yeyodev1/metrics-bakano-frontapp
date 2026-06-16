@@ -12,6 +12,7 @@ export interface UserState {
   isAuthenticated: boolean
   pendingSurveysCount: number
   brandProfileCompleted: boolean
+  photoUrl: string | null
 }
 
 export const useUserStore = defineStore('user', {
@@ -27,6 +28,7 @@ export const useUserStore = defineStore('user', {
     isAuthenticated: false,
     pendingSurveysCount: 0,
     brandProfileCompleted: false,
+    photoUrl: null,
   }),
 
   actions: {
@@ -44,6 +46,7 @@ export const useUserStore = defineStore('user', {
       this.isInternal = localStorage.getItem('user_isInternal') === 'true'
       this.internalRole = localStorage.getItem('user_internalRole')
       this.brandProfileCompleted = localStorage.getItem('user_brandProfileCompleted') === 'true'
+      this.photoUrl = localStorage.getItem('user_photoUrl')
 
       // Fallback: decode internalRole from JWT if localStorage is missing it
       if (!this.internalRole) {
@@ -66,13 +69,21 @@ export const useUserStore = defineStore('user', {
       }
     },
 
-    setUser(payload: { id?: string; name?: string; email?: string; role?: string; workspaceId?: string; isInternal?: boolean; internalRole?: string; workspaces?: Array<{ workspaceId: string; role: 'admin' | 'colaborador' }> }) {
+    setUser(payload: { id?: string; name?: string; email?: string; role?: string; workspaceId?: string; photoUrl?: string; isInternal?: boolean; internalRole?: string; workspaces?: Array<{ workspaceId: string; role: 'admin' | 'colaborador' }> }) {
       try {
         if (payload.id !== undefined) { this.id = payload.id; localStorage.setItem('user_id', payload.id) }
         if (payload.email !== undefined) { this.email = payload.email; localStorage.setItem('user_email', payload.email) }
         if (payload.role !== undefined) { this.role = payload.role; localStorage.setItem('user_role', payload.role) }
         if (payload.name !== undefined) { this.name = payload.name; localStorage.setItem('user_name', payload.name) }
         if (payload.workspaceId !== undefined) { this.workspaceId = payload.workspaceId; localStorage.setItem('user_workspaceId', payload.workspaceId) }
+        if (payload.photoUrl !== undefined) { 
+          this.photoUrl = payload.photoUrl; 
+          if (payload.photoUrl === null) {
+            localStorage.removeItem('user_photoUrl')
+          } else {
+            localStorage.setItem('user_photoUrl', payload.photoUrl) 
+          }
+        }
         if (payload.workspaces !== undefined) {
           this.workspaces = payload.workspaces as any
           localStorage.setItem('user_workspaces', JSON.stringify(payload.workspaces))
@@ -108,6 +119,7 @@ export const useUserStore = defineStore('user', {
       this.isInternal = false
       this.isAuthenticated = false
       this.pendingSurveysCount = 0
+      this.photoUrl = null
       try {
         localStorage.removeItem('access_token')
         localStorage.removeItem('user_id')
@@ -119,6 +131,7 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('user_isInternal')
         localStorage.removeItem('user_internalRole')
         localStorage.removeItem('user_brandProfileCompleted')
+        localStorage.removeItem('user_photoUrl')
       } catch { /* localStorage unavailable */ }
     },
 

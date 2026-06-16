@@ -157,6 +157,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/workspaces/WorkspaceLegalView.vue'),
         meta: { title: 'Bakano Ads: Legalidades y Contrato', requiresAuth: true },
       },
+      // ── Equipo Asignado ───────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/team',
+        name: 'WorkspaceTeam',
+        component: () => import('../views/workspaces/WorkspaceTeamView/index.vue'),
+        meta: { title: 'Bakano Ads: Mi Equipo', requiresAuth: true },
+      },
       // ── Team KPIs ─────────────────────────────────────
       {
         path: 'kpis',
