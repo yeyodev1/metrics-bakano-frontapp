@@ -202,6 +202,66 @@ function closeWizard() {
 </template>
 
 <style lang="scss" scoped>
+.superadmin-dashboard__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(#0a192f, 0.6);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.superadmin-dashboard__modal {
+  background: $white;
+  border-radius: 16px;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.superadmin-dashboard__modal-header {
+  padding: 1.5rem 1.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: $primary-dark;
+  }
+}
+
+.superadmin-dashboard__close-btn {
+  background: transparent;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba($primary-dark, 0.08);
+    color: $alert-error;
+  }
+
+  i {
+    font-size: 1.1rem;
+  }
+}
+
 .superadmin-dashboard__modal--wizard {
   width: 560px;
   max-width: 96vw;

@@ -1,106 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { workspaceService } from '@/services/workspace.service'
-import type { Workspace } from '@/types'
+import { ref } from 'vue'
 import PlanningCalendar from '@/components/PlanningCalendar.vue'
-import InternalPlanningHeader from '@/components/planning/internal/InternalPlanningHeader.vue'
-import InternalPlanningSidebar from '@/components/planning/internal/InternalPlanningSidebar.vue'
 
-const PAGE_SIZE = 6
-
-const workspaces = ref<Workspace[]>([])
-const selectedWorkspaceId = ref<string>('')
-const calendarDefaultView = ref<'month' | 'week' | 'global-week' | 'global-month'>('global-month')
-const isLoading = ref(true)
-const isLoadingMore = ref(false)
-const currentPage = ref(1)
-const hasMore = ref(false)
-const activeSearch = ref('')
-
-async function fetchWorkspaces(page = 1, search = '') {
-  try {
-    const params: { page: number; limit: number; search?: string } = { page, limit: PAGE_SIZE }
-    if (search) params.search = search
-    const res = await workspaceService.listWorkspaces(params)
-    const fetched = Array.isArray(res.workspaces) ? res.workspaces : []
-    workspaces.value = page === 1 ? fetched : [...workspaces.value, ...fetched]
-    hasMore.value = search ? false : (res.metadata?.hasMore ?? false)
-    currentPage.value = page
-  } catch (error) {
-    console.error('Error fetching workspaces:', error)
-  } finally {
-    isLoading.value = false
-    isLoadingMore.value = false
-  }
-}
-
-async function handleSearch(query: string) {
-  activeSearch.value = query
-  isLoading.value = true
-  await fetchWorkspaces(1, query)
-}
-
-async function loadMoreWorkspaces() {
-  if (isLoadingMore.value || !hasMore.value) return
-  isLoadingMore.value = true
-  await fetchWorkspaces(currentPage.value + 1, activeSearch.value)
-}
-
-function handleSelectWorkspace(id: string) {
-  selectedWorkspaceId.value = id
-  calendarDefaultView.value = 'week'
-}
-
-onMounted(() => fetchWorkspaces(1))
+const calendarDefaultView = ref<'global-week' | 'global-month'>('global-month')
 </script>
 
 <template>
   <div class="internal-planning">
-    <!-- Header Section -->
-    <InternalPlanningHeader :client-count="workspaces.length" />
-
-    <!-- Main Content Grid -->
-    <main class="internal-planning__content">
-      <!-- Left Sidebar (sticky) -->
-      <div class="internal-planning__sidebar-wrapper">
-        <InternalPlanningSidebar
-          :selected-workspace-id="selectedWorkspaceId"
-          :workspaces="workspaces"
-          :is-loading="isLoading"
-          :is-loading-more="isLoadingMore"
-          :has-more="hasMore"
-          @update:selected-workspace-id="handleSelectWorkspace"
-          @load-more="loadMoreWorkspaces"
-          @search="handleSearch"
-        />
-      </div>
-
-      <!-- Right Calendar Area -->
-      <section class="internal-planning__calendar">
-        <!-- Loading -->
-        <div v-if="isLoading" class="internal-planning__loader">
-          <div class="internal-planning__spinner" />
-          <p>Cargando clientes…</p>
-        </div>
-
-        <!-- No client selected yet -->
-        <div v-else-if="!selectedWorkspaceId" class="internal-planning__empty">
-          <div class="internal-planning__empty-icon">
-            <i class="fa-solid fa-arrow-left" />
-          </div>
-          <h3>Selecciona un cliente</h3>
-          <p>Elige un entorno de la lista para ver su planificación.</p>
-        </div>
-
-        <PlanningCalendar
-          v-else
-          :key="selectedWorkspaceId"
-          :workspace-id="selectedWorkspaceId"
-          :default-view="calendarDefaultView"
-          allow-global
-        />
-      </section>
-    </main>
+    <PlanningCalendar
+      :workspace-id="''"
+      :filter-workspace-id="''"
+      :default-view="calendarDefaultView"
+      allow-global
+    />
   </div>
 </template>
 

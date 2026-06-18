@@ -2,7 +2,8 @@
 import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import type { PlanningEntry, WorkspaceUser } from '@/types'
+import type { PlanningEntry, WorkspaceUser, Workspace } from '@/types'
+import { workspaceService } from '@/services/workspace.service'
 import BaseTimePicker from '../common/BaseTimePicker.vue'
 
 const router = useRouter()
@@ -65,17 +66,31 @@ const form = ref({
   time: '09:00',
   notes: '',
   assignedTo: [] as string[],
+  globalWorkspaceId: '',
 })
+
+const globalWorkspaces = ref<Workspace[]>([])
+const isLoadingWorkspaces = ref(false)
+
+async function fetchGlobalWorkspaces() {
+  if (globalWorkspaces.value.length > 0) return
+  isLoadingWorkspaces.value = true
+  try {
+    const res = await workspaceService.listWorkspaces({ limit: 100, page: 1 })
+    globalWorkspaces.value = res.workspaces
+  } catch {
+  } finally {
+    isLoadingWorkspaces.value = false
+  }
+}
 
 watch(
   () => props.show,
   (isShown) => {
     if (isShown) {
-      console.log('--- PlanningEventModal ABIERTO ---')
-      console.log('isClientUser:', isClientUser.value)
-      console.log('userStore.isInternal:', userStore.isInternal)
-      console.log('isReadOnly:', isReadOnly.value)
-      console.log('props.canManage:', props.canManage)
+      if (!props.workspaceId && !props.entry) {
+        fetchGlobalWorkspaces()
+      }
 
       if (props.entry) {
         const dateObj = new Date(props.entry.date)
@@ -90,6 +105,7 @@ watch(
           }),
           notes: props.entry.notes || '',
           assignedTo: (props.entry.assignedTo || []).map(u => u._id),
+          globalWorkspaceId: '',
         }
       } else {
         const d = props.defaultDate || new Date()
@@ -99,6 +115,7 @@ watch(
           time: '09:00',
           notes: '',
           assignedTo: [],
+          globalWorkspaceId: '',
         }
       }
     }
@@ -143,7 +160,11 @@ function getMetaPictureUrl(pageId: string): string {
 }
 
 function handleSubmit() {
-  emit('save', { ...form.value })
+  const payload: any = { ...form.value }
+  if (!props.workspaceId && !props.entry && form.value.globalWorkspaceId) {
+    payload.workspaceId = form.value.globalWorkspaceId
+  }
+  emit('save', payload)
 }
 
 function goToVideoPlanning() {
@@ -174,8 +195,20 @@ function goToVideoPlanning() {
           </button>
         </div>
 
-        <!-- Workspace Banner -->
-        <div class="planning-modal__ws-banner">
+        <!-- Workspace Banner / Selector -->
+        <div v-if="!workspaceId && !entry" class="planning-modal__ws-selector">
+          <label>Selecciona el Cliente</label>
+          <div class="planning-modal__input-wrapper">
+            <i class="fa-solid fa-building" />
+            <select v-model="form.globalWorkspaceId" required :disabled="isLoadingWorkspaces">
+              <option value="" disabled>{{ isLoadingWorkspaces ? 'Cargando clientes...' : 'Elige un cliente' }}</option>
+              <option v-for="ws in globalWorkspaces" :key="ws._id" :value="ws._id">
+                {{ ws.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div v-else class="planning-modal__ws-banner">
           <img
             v-if="workspaceMetaPageId"
             class="planning-modal__ws-img"
@@ -489,6 +522,23 @@ function goToVideoPlanning() {
     display: flex; align-items: center; justify-content: center;
   }
 
+  &__ws-selector {
+    padding: 1.25rem 2rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    border-bottom: 1px solid rgba($primary-dark, 0.05);
+
+    label {
+      font-size: 0.82rem; font-weight: 800; color: $primary-dark; 
+      text-transform: uppercase; letter-spacing: 0.02em; opacity: 0.8;
+    }
+
+    @media (max-width: 480px) {
+      padding: 1rem 1.25rem 0.5rem;
+    }
+  }
+
   &__ws-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   &__ws-label { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; color: $text-secondary; opacity: 0.6; }
   &__ws-name { font-size: 1rem; font-weight: 700; color: $primary-dark; }
@@ -539,11 +589,12 @@ function goToVideoPlanning() {
     position: relative;
     i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: $text-secondary; opacity: 0.6; pointer-events: none; }
     
-    input, textarea {
+    input, textarea, select {
       width: 100%; padding: 0.8rem 1rem 0.8rem 2.75rem;
       border-radius: 14px; border: 1.5px solid rgba($primary-dark, 0.1);
       background: rgba($primary-dark, 0.02); font-family: inherit; font-size: 0.95rem;
       transition: all 0.2s;
+      appearance: none;
       
       &:focus { outline: none; border-color: $primary; background: $white; box-shadow: 0 0 0 4px rgba($primary, 0.1); }
       &:disabled { opacity: 0.6; cursor: not-allowed; }

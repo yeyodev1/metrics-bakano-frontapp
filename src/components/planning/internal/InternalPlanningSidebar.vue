@@ -141,26 +141,6 @@ function handleSelect(id: string) {
       </template>
     </div>
 
-    <!-- Active Workspace Hint (sticky at bottom) -->
-    <Transition name="hint-slide">
-      <div v-if="selectedWorkspace" class="internal-planning-sidebar__hint">
-        <div class="internal-planning-sidebar__hint-avatar"
-          :style="{ background: getClientColor(selectedWorkspace._id) }"
-        >
-          <img
-            v-if="selectedWorkspace.metaAds?.pageId"
-            :src="getMetaUrl(selectedWorkspace.metaAds.pageId)"
-            :alt="selectedWorkspace.name"
-            @error="($event.target as HTMLImageElement).style.display = 'none'"
-          />
-          <span v-else>{{ getInitials(selectedWorkspace.name) }}</span>
-        </div>
-        <div class="internal-planning-sidebar__hint-details">
-          <span class="internal-planning-sidebar__hint-label">Creando en</span>
-          <span class="internal-planning-sidebar__hint-name">{{ selectedWorkspace.name }}</span>
-        </div>
-      </div>
-    </Transition>
   </aside>
 </template>
 

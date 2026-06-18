@@ -429,23 +429,23 @@ watch(() => route.params.workspaceId, async (newId) => {
           <!-- Métricas & Alertas -->
           <RouterLink
             v-if="userStore.role === 'superadmin'"
-            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            class="app-layout__nav-item"
             :to="{ name: 'SuperadminPublicMetrics' }"
           >
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>Métricas & Alertas</span>
-            <span class="app-layout__nav-global-tag">API</span>
+            <span class="app-layout__nav-tag">API</span>
           </RouterLink>
 
           <!-- API Keys -->
           <RouterLink
             v-if="userStore.role === 'superadmin'"
-            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            class="app-layout__nav-item"
             :to="{ name: 'SuperadminApiKeys' }"
           >
             <i class="fa-solid fa-key" aria-hidden="true" />
             <span>API Keys</span>
-            <span class="app-layout__nav-global-tag">API</span>
+            <span class="app-layout__nav-tag">API</span>
           </RouterLink>
 
           <div class="app-layout__nav-section-label">Herramientas globales</div>
@@ -453,66 +453,67 @@ watch(() => route.params.workspaceId, async (newId) => {
           <!-- Global planner — internal team only -->
           <RouterLink
             v-if="userStore.isInternal"
-            class="app-layout__nav-item app-layout__nav-item--global-planning"
+            class="app-layout__nav-item"
             :to="{ name: 'InternalPlanning' }"
           >
             <i class="fa-solid fa-calendar-range" aria-hidden="true" />
             <span>Planificador Global</span>
+            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Clients global view — internal team only -->
           <RouterLink
             v-if="userStore.isInternal"
-            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            class="app-layout__nav-item"
             :to="{ name: 'ClientsGlobal' }"
           >
             <i class="fa-solid fa-users" aria-hidden="true" />
             <span>Vista de Clientes</span>
-            <span class="app-layout__nav-global-tag">GLOBAL</span>
+            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Meetings calendar — internal team only -->
           <RouterLink
             v-if="userStore.isInternal"
-            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            class="app-layout__nav-item"
             :to="{ name: 'PMCalendar' }"
           >
             <i class="fa-solid fa-handshake" aria-hidden="true" />
             <span>Reuniones</span>
-            <span class="app-layout__nav-global-tag">GLOBAL</span>
+            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Trafficker panel — trafficker + project_manager + superadmin -->
           <RouterLink
             v-if="(userStore.isInternal && ['trafficker', 'project_manager'].includes(userStore.internalRole || '')) || userStore.role === 'superadmin'"
-            class="app-layout__nav-item app-layout__nav-item--trafficker"
+            class="app-layout__nav-item"
             :to="{ name: 'TraffickerDashboard' }"
           >
             <i class="fa-solid fa-bullseye-arrow" aria-hidden="true" />
             <span>Panel Trafficker</span>
-            <span class="app-layout__nav-global-tag">ADS</span>
+            <span class="app-layout__nav-tag">ADS</span>
           </RouterLink>
 
           <!-- Team KPIs — superadmin and project_manager only -->
           <RouterLink
             v-if="userStore.role === 'superadmin' || (userStore.isInternal && userStore.internalRole === 'project_manager')"
-            class="app-layout__nav-item app-layout__nav-item--kpis"
+            class="app-layout__nav-item"
             :to="{ name: 'TeamKpis' }"
           >
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>KPIs del Equipo</span>
-            <span class="app-layout__nav-global-tag">GLOBAL</span>
+            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Surveys — internal + superadmin (global tool) -->
           <RouterLink
             v-if="userStore.isInternal || userStore.role === 'superadmin'"
-            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            class="app-layout__nav-item"
             :to="{ name: 'SurveyList' }"
           >
             <i class="fa-solid fa-clipboard-list" aria-hidden="true" />
             <span>Encuestas</span>
-            <span class="app-layout__nav-global-tag">GLOBAL</span>
+            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
         </template>
 
@@ -553,7 +554,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           <!-- 1. Facturación & ROAS — superadmin, admin y colaborador externo -->
           <RouterLink
             v-if="currentWorkspaceId && (userStore.role === 'superadmin' || !userStore.isInternal)"
-            class="app-layout__nav-item app-layout__nav-item--billing"
+            class="app-layout__nav-item"
             :to="{ name: 'BillingRoas', params: { workspaceId: currentWorkspaceId } }"
           >
             <i class="fa-solid fa-chart-column" aria-hidden="true" />
@@ -575,7 +576,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           <!-- Mi Equipo (Client assigned team) -->
           <RouterLink
             v-if="currentWorkspaceId"
-            class="app-layout__nav-item app-layout__nav-item--team"
+            class="app-layout__nav-item"
             :to="{ name: 'WorkspaceTeam', params: { workspaceId: currentWorkspaceId } }"
           >
             <i class="fa-solid fa-users-viewfinder" aria-hidden="true" />
@@ -585,12 +586,12 @@ watch(() => route.params.workspaceId, async (newId) => {
           <!-- Perfil de Marca — IA para community/content -->
           <RouterLink
             v-if="currentWorkspaceId"
-            class="app-layout__nav-item app-layout__nav-item--brand-profile"
+            class="app-layout__nav-item"
             :to="{ name: 'WorkspaceBrandProfile', params: { workspaceId: currentWorkspaceId } }"
           >
             <i class="fa-solid fa-palette" aria-hidden="true" />
             <span>Perfil de Marca</span>
-            <span class="app-layout__nav-ai-tag">IA</span>
+            <span class="app-layout__nav-tag">IA</span>
           </RouterLink>
 
           <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'WorkspaceLegal', params: { workspaceId: currentWorkspaceId } }">
@@ -601,7 +602,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           <!-- Surveys — clients (My Surveys) -->
           <RouterLink
             v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
-            class="app-layout__nav-item app-layout__nav-item--surveys"
+            class="app-layout__nav-item"
             :to="{ name: 'MySurveys', params: { workspaceId: currentWorkspaceId } }"
           >
             <div class="app-layout__nav-icon-container">
@@ -616,12 +617,12 @@ watch(() => route.params.workspaceId, async (newId) => {
           <!-- Book a meeting — clients only -->
           <button
             v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
-            class="app-layout__nav-item app-layout__nav-item--booking"
+            class="app-layout__nav-item"
             @click="isBookingModalOpen = true"
           >
             <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
             <span>Agendar Reunión</span>
-            <span class="app-layout__nav-booking-tag">NUEVO</span>
+            <span class="app-layout__nav-tag">NUEVO</span>
           </button>
 
           <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: currentWorkspaceId } }">
@@ -1217,56 +1218,9 @@ watch(() => route.params.workspaceId, async (newId) => {
     &--bottom {
       margin-top: auto;
     }
-
-    // Global planner entry — subtle highlight for internal team
-    &--global-planning {
-      background: rgba($primary, 0.06);
-      border: 1px solid rgba($primary, 0.12);
-      color: rgba($white, 0.85);
-      margin-bottom: 0.5rem;
-
-      i {
-        color: $primary;
-      }
-
-      &:hover,
-      &.router-link-active {
-        background: rgba($primary, 0.14);
-        color: $white;
-        border-color: rgba($primary, 0.25);
-      }
-
-      &.router-link-active {
-        border-left: 3px solid $primary;
-        padding-left: calc(1rem - 3px);
-      }
-    }
-
-    // Global tool entries (surveys, etc.)
-    &--global-tool {
-      background: rgba($primary, 0.06);
-      border: 1px solid rgba($primary, 0.12);
-      color: rgba($white, 0.85);
-
-      i {
-        color: $primary;
-      }
-
-      &:hover,
-      &.router-link-active {
-        background: rgba($primary, 0.14);
-        color: $white;
-        border-color: rgba($primary, 0.25);
-      }
-
-      &.router-link-active {
-        border-left: 3px solid $primary;
-        padding-left: calc(1rem - 3px);
-      }
-    }
   }
 
-  &__nav-global-tag {
+  &__nav-tag {
     margin-left: auto;
     font-size: 0.6rem;
     font-weight: 800;
@@ -1405,80 +1359,6 @@ watch(() => route.params.workspaceId, async (newId) => {
 
     .fa-whatsapp {
       color: #25d366;
-    }
-  }
-
-  &__nav-booking-tag {
-    margin-left: auto;
-    font-size: 0.6rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: #34d399;
-    background: rgba(52, 211, 153, 0.15);
-    padding: 0.15rem 0.45rem;
-    border-radius: 100px;
-    border: 1px solid rgba(52, 211, 153, 0.3);
-    flex-shrink: 0;
-  }
-
-  &__nav-item--booking {
-    width: 100%;
-    text-align: left;
-    border: none;
-    cursor: pointer;
-    background: rgba(52, 211, 153, 0.08);
-    border: 1px solid rgba(52, 211, 153, 0.2);
-    color: #34d399 !important;
-    margin-top: 0.25rem;
-
-    i {
-      color: #34d399 !important;
-    }
-
-    &:hover {
-      background: rgba(52, 211, 153, 0.15) !important;
-      color: #34d399 !important;
-      transform: none;
-    }
-  }
-
-  &__nav-item--editor {
-    background: rgba(#6366f1, 0.06);
-    border: 1px solid rgba(#6366f1, 0.18);
-    color: #3730a3 !important;
-
-    i {
-      color: #6366f1 !important;
-    }
-
-    &.router-link-active,
-    &:hover {
-      background: rgba(#6366f1, 0.12) !important;
-      border-color: rgba(#6366f1, 0.35) !important;
-      color: #312e81 !important;
-    }
-  }
-
-  &__nav-item--trafficker {
-    background: rgba(#d97706, 0.06);
-    border: 1px solid rgba(#d97706, 0.18);
-    color: #92400e !important;
-
-    i {
-      color: #d97706 !important;
-    }
-
-    .app-layout__nav-global-tag {
-      color: #d97706;
-      background: rgba(#d97706, 0.12);
-      border-color: rgba(#d97706, 0.25);
-    }
-
-    &.router-link-active,
-    &:hover {
-      background: rgba(#d97706, 0.12) !important;
-      border-color: rgba(#d97706, 0.35) !important;
-      color: #78350f !important;
     }
   }
 
