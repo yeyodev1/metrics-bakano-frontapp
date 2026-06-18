@@ -33,10 +33,19 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
+  async deleteWorkspace(workspaceId: string): Promise<void> {
+    await this.delete(`workspaces/${workspaceId}`)
+  }
+
   // ── Users within a workspace ─────────────────────────────
 
   async listUsers(workspaceId: string): Promise<UserListResponse> {
     const res = await this.get<UserListResponse>(`workspaces/${workspaceId}/users`)
+    return res.data
+  }
+
+  async getTeam(workspaceId: string): Promise<any> {
+    const res = await this.get<any>(`workspaces/${workspaceId}/team`)
     return res.data
   }
 

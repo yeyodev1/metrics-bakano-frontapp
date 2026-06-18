@@ -23,6 +23,8 @@ export type InternalRole =
   | 'copywriter'
   | 'analista'
   | 'desarrollador'
+  | 'asistente_produccion'
+  | 'trafficker'
 
 export interface AuthUser {
   _id: string
@@ -32,6 +34,8 @@ export interface AuthUser {
   isInternal?: boolean
   internalRole?: InternalRole
   workspaceId?: string
+  presentationVideoUrl?: string
+  photoUrl?: string
   workspaces?: Array<{
     workspaceId: string
     role: 'admin' | 'colaborador'
@@ -156,6 +160,8 @@ export interface WorkspaceUser {
   isInternal?: boolean
   internalRole?: InternalRole
   workspaceId?: string
+  presentationVideoUrl?: string
+  photoUrl?: string
   workspaces?: {
     workspaceId: {
       _id: string

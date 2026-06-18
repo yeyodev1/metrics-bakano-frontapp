@@ -13,6 +13,10 @@ const props = defineProps({
   text: {
     type: String,
     default: 'Mantener para Confirmar'
+  },
+  disabled: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -25,6 +29,7 @@ let animationFrameId: number | null = null
 let startTime: number = 0
 
 const startHold = () => {
+  if (props.disabled) return
   isHolding.value = true
   progress.value = 0
   startTime = performance.now()
@@ -84,6 +89,7 @@ onBeforeUnmount(() => {
     @touchend.passive="cancelHold"
     @touchcancel.passive="cancelHold"
     type="button"
+    :disabled="disabled"
   >
     <div 
       class="hold-btn__progress" 
@@ -116,8 +122,13 @@ onBeforeUnmount(() => {
   background: $alert-error;
   transition: transform 0.1s ease;
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   &__progress {

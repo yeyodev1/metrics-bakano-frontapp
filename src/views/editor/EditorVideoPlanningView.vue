@@ -19,7 +19,11 @@ const updatingId = ref<string | null>(null)
 
 async function load() {
   try {
-    planning.value = await videoPlanningService.getByEntry(entryId)
+    const loaded = await videoPlanningService.getByEntry(entryId)
+    if (loaded && loaded.workspaceId && loaded.workspaceId !== workspaceId) {
+      throw new Error('Workspace mismatch')
+    }
+    planning.value = loaded
   } catch { /* silent */ } finally {
     loading.value = false
   }

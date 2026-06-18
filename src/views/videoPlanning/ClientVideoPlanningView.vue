@@ -18,6 +18,7 @@ const planning = ref<VideoPlanning | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
+const workspaceMismatch = ref(false)
 
 const showScript = ref(false)
 const scriptItem = ref<VideoItem | null>(null)
@@ -35,15 +36,20 @@ const reviewed = computed(() =>
 async function loadPlanning() {
   loading.value = true
   try {
-    planning.value = await videoPlanningService.getByEntry(entryId)
+    const loaded = await videoPlanningService.getByEntry(entryId)
+    if (loaded && loaded.workspaceId && loaded.workspaceId !== route.params.workspaceId) {
+      workspaceMismatch.value = true
+      return
+    }
+    planning.value = loaded
     if (planning.value) {
       for (const item of planning.value.items) {
         approvals[item._id] = item.clienteAprobacion
         if (item.motivoRechazo) rejections[item._id] = item.motivoRechazo
       }
     }
-  } catch {
-    error.value = 'Error al cargar los videos'
+  } catch (err: any) {
+    error.value = err.message || 'Error al cargar los videos'
   } finally {
     loading.value = false
   }
@@ -89,6 +95,14 @@ async function submitApproval() {
   }
 }
 
+function goBack() {
+  if (window.history.state && window.history.state.back) {
+    router.back()
+  } else {
+    router.push({ name: 'AppPlanning', params: { workspaceId: route.params.workspaceId } })
+  }
+}
+
 onMounted(loadPlanning)
 </script>
 
@@ -99,7 +113,7 @@ onMounted(loadPlanning)
     <div class="cv__hero">
       <div class="cv__hero-inner">
         <div class="cv__hero-left">
-          <button class="cv__back-btn" @click="router.back()">
+          <button class="cv__back-btn" @click="goBack">
             <i class="fa-solid fa-arrow-left" />
           </button>
           <div>
@@ -123,6 +137,17 @@ onMounted(loadPlanning)
     <div v-if="loading" class="cv__loading">
       <div class="cv__spinner" />
       <span>Cargando planificación...</span>
+    </div>
+
+    <!-- ── Error de Entorno (Mismatch) ────────────────────────── -->
+    <div v-else-if="workspaceMismatch" class="cv__mismatch">
+      <div class="cv__mismatch-icon"><i class="fa-solid fa-link-slash" /></div>
+      <h3>Enlace incorrecto</h3>
+      <p>Esta planificación pertenece a otra marca o entorno de trabajo. Por favor, verifica el enlace o selecciona el cliente correcto.</p>
+      <button class="cv__mismatch-btn" @click="router.push('/')">
+        <i class="fa-solid fa-house" />
+        Ir al Inicio
+      </button>
     </div>
 
     <!-- ── Error ──────────────────────────────────────────────── -->
@@ -363,6 +388,27 @@ onMounted(loadPlanning)
   }
   &__empty h3 { margin: 0; font-size: 1.05rem; font-weight: 800; color: $primary-dark; }
   &__empty p  { margin: 0; font-size: 0.85rem; color: $text-secondary; }
+
+  // ── Mismatch ─────────────────────────────────────────────────
+  &__mismatch {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 5rem 2rem; gap: 0.75rem;
+  }
+  &__mismatch-icon {
+    width: 72px; height: 72px; border-radius: 20px;
+    background: rgba(#ef4444, 0.07); border: 2px dashed rgba(#ef4444, 0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.75rem; color: #ef4444; opacity: 0.8; margin-bottom: 0.5rem;
+  }
+  &__mismatch h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #7f1d1d; }
+  &__mismatch p  { margin: 0; font-size: 0.9rem; color: #991b1b; max-width: 400px; line-height: 1.5; }
+  &__mismatch-btn {
+    margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;
+    background: #ef4444; color: $white; border: none; padding: 0.6rem 1.25rem;
+    border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    transition: all 0.2s;
+    &:hover { background: #dc2626; transform: translateY(-1px); }
+  }
 
   // ── Body: two-column ─────────────────────────────────────────
   &__body {

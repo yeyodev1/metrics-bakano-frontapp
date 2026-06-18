@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { VideoItem } from '@/types/videoPlanning'
+import { EstadoPublicacion } from '@/types/videoPlanning'
 import { planningService } from '@/services/planning.service'
 
 const props = defineProps<{
@@ -15,7 +16,7 @@ const emit = defineEmits<{
     linkVideo: string
     fechaPublicacion: string
     copyPublicacion: string
-    estadoPublicacion?: string
+    estadoPublicacion?: EstadoPublicacion
     publishToInstagram?: boolean
     publishToFacebook?: boolean
   }): void
@@ -157,7 +158,7 @@ function handleSave() {
     linkVideo: localLink.value,
     fechaPublicacion: fechaISO,
     copyPublicacion: localCopy.value,
-    ...(fechaISO ? { estadoPublicacion: 'PROGRAMADO' } : {}),
+    ...(fechaISO ? { estadoPublicacion: EstadoPublicacion.PROGRAMADO } : {}),
     ...(wantsSchedule ? {
       publishToInstagram: publishToInstagram.value,
       publishToFacebook: publishToFacebook.value,
