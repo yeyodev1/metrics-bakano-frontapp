@@ -35,6 +35,10 @@ const props = defineProps({
     type: String as () => 'month' | 'week' | 'global-week' | 'global-month',
     default: 'month',
   },
+  allowGlobal: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Stores & Composables
@@ -43,7 +47,11 @@ const toast = useToast()
 const confirm = useConfirm()
 
 // State: View & Navigation
-const viewMode = ref(props.defaultView)
+const viewMode = ref(
+  !props.allowGlobal && props.defaultView.includes('global')
+    ? (props.defaultView.replace('global-', '') as 'month' | 'week')
+    : props.defaultView
+)
 const currentMonth = ref(new Date())
 const currentWeekStart = ref(getThisMonday(new Date()))
 
@@ -342,6 +350,12 @@ function refreshCurrentView() {
 
 // ── Watchers & Lifecycle ────────────────────────────────────
 
+watch(() => props.allowGlobal, (newVal) => {
+  if (!newVal && viewMode.value.includes('global')) {
+    viewMode.value = viewMode.value.replace('global-', '') as any
+  }
+})
+
 watch(viewMode, refreshCurrentView, { immediate: true })
 watch(currentMonth, () => {
   if (viewMode.value.includes('month')) refreshCurrentView()
@@ -373,7 +387,7 @@ function getThisMonday(d: Date) {
       v-model:showMineOnly="showMineOnly"
       :current-month="currentMonth"
       :current-week-start="currentWeekStart"
-      :is-internal="userStore.role === 'superadmin' || userStore.isInternal"
+      :is-internal="allowGlobal && (userStore.role === 'superadmin' || userStore.isInternal)"
       :workspace-name="workspaceMeta?.name || ''"
       :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
       :can-manage="canManage"

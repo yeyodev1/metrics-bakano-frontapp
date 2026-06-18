@@ -97,6 +97,7 @@ onMounted(() => fetchWorkspaces(1))
           :key="selectedWorkspaceId"
           :workspace-id="selectedWorkspaceId"
           :default-view="calendarDefaultView"
+          allow-global
         />
       </section>
     </main>

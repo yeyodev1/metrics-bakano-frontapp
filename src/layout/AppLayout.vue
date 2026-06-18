@@ -22,6 +22,8 @@ const isSidebarOpen = ref(false)
 const wsSearch = ref('')
 const isBookingModalOpen = ref(false)
 const showInvasiveOnboardingModal = ref(false)
+const showWsSearch = ref(false)
+const isWsSearching = ref(false)
 
 const INTERNAL_ROLE_LABELS: Record<string, string> = {
   director: 'Director',
@@ -50,9 +52,17 @@ const userRoleLabel = computed(() => {
 })
 
 const filteredDropdownWorkspaces = computed(() => {
-  if (!wsSearch.value.trim()) return workspaces.value
-  const q = wsSearch.value.toLowerCase()
+  const q = wsSearch.value.toLowerCase().trim()
+  if (!q) return workspaces.value
   return workspaces.value.filter(w => w.name.toLowerCase().includes(q))
+})
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+watch(wsSearch, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    fetchWorkspaces()
+  }, 300)
 })
 
 const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace']
@@ -71,6 +81,26 @@ const currentWorkspaceId = computed(() => {
 
 const activeWorkspace = computed(() => {
   return workspaces.value.find(w => w._id === currentWorkspaceId.value)
+})
+
+const isSubAccountMode = computed(() => {
+  if (!userStore.isInternal && userStore.role !== 'superadmin') {
+    return true
+  }
+  return !!route.params.workspaceId
+})
+
+const globalBackRoute = computed(() => {
+  if (userStore.role === 'superadmin') {
+    return { name: 'AdminWorkspaces' }
+  }
+  if (userStore.isInternal) {
+    if (userStore.internalRole === 'trafficker') {
+      return { name: 'TraffickerDashboard' }
+    }
+    return { name: 'ClientsGlobal' }
+  }
+  return null
 })
 
 const isWorkspaceDeactivated = computed(() => {
@@ -115,13 +145,38 @@ const isContractPending = computed(() => {
 })
 
 async function fetchWorkspaces() {
+  isWsSearching.value = true
   try {
-    const res = await workspaceService.listWorkspaces()
-    workspaces.value = res.workspaces
+    const limit = (userStore.role === 'superadmin' || userStore.isInternal) ? 100 : 10
+    const res = await workspaceService.listWorkspaces({ 
+      limit,
+      search: wsSearch.value.trim() || undefined
+    })
+    
+    let list = res.workspaces || []
+    
+    // Ensure the currently active workspace is in the list
+    const activeId = route.params.workspaceId as string
+    if (activeId && !list.some(w => w._id === activeId)) {
+      try {
+        const { workspace: activeWs } = await workspaceService.getWorkspace(activeId)
+        if (activeWs) {
+          list.push(activeWs)
+        }
+      } catch (err) {
+        console.error('Error fetching active workspace for sidebar', err)
+      }
+    }
+    
+    workspaces.value = list
+    if (!wsSearch.value.trim()) {
+      showWsSearch.value = list.length > 5
+    }
   } catch (e) {
     console.error('Error fetching workspaces for sidebar', e)
   } finally {
     workspacesLoaded.value = true
+    isWsSearching.value = false
   }
 }
 
@@ -196,6 +251,13 @@ watch(() => route.fullPath, () => {
   }
 })
 
+// Fetch the active workspace if it's not in the loaded list
+watch(() => route.params.workspaceId, async (newId) => {
+  if (newId && !workspaces.value.some(w => w._id === newId)) {
+    await fetchWorkspaces()
+  }
+})
+
 </script>
 
 <template>
@@ -227,69 +289,43 @@ watch(() => route.fullPath, () => {
       <!-- WORKSPACE SELECTOR -->
       <div class="app-layout__ws-selector">
         <button 
-          v-if="activeWorkspace"
-          class="app-layout__ws-button app-layout__ws-button--interactive"
+          v-if="isSubAccountMode"
+          class="app-layout__ws-button"
+          :class="{ 'app-layout__ws-button--interactive': workspacesLoaded }"
+          :disabled="!workspacesLoaded"
           @click="toggleDropdown"
         >
-          <div class="app-layout__ws-avatar">
-            <img 
-              v-if="activeWorkspace.metaAds?.pageId" 
-              :src="`https://graph.facebook.com/${activeWorkspace.metaAds.pageId}/picture?type=normal`" 
-              alt="Logo" 
-              class="app-layout__ws-page-img"
-              @error="handleImgError"
-            />
-            <span v-else>{{ activeWorkspace.name.substring(0, 2).toUpperCase() }}</span>
+          <div class="app-layout__ws-avatar" :class="{ 'app-layout__ws-avatar--fallback': !activeWorkspace }">
+            <template v-if="activeWorkspace">
+              <img 
+                v-if="activeWorkspace.metaAds?.pageId" 
+                :src="`https://graph.facebook.com/${activeWorkspace.metaAds.pageId}/picture?type=normal`" 
+                alt="Logo" 
+                class="app-layout__ws-page-img"
+                @error="handleImgError"
+              />
+              <span v-else>{{ activeWorkspace.name.substring(0, 2).toUpperCase() }}</span>
+            </template>
+            <template v-else>
+              <i class="fa-solid fa-spinner fa-spin" />
+            </template>
           </div>
           <div class="app-layout__ws-info">
             <span class="app-layout__ws-label">Entorno Actual</span>
-            <span class="app-layout__ws-name">{{ activeWorkspace.name }}</span>
+            <span class="app-layout__ws-name">
+              {{ activeWorkspace ? activeWorkspace.name : 'Cargando entorno...' }}
+            </span>
           </div>
           <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
         </button>
 
-        <!-- ClientsGlobal: vista global de clientes -->
-        <div v-else-if="route.name === 'ClientsGlobal'" class="app-layout__ws-button app-layout__ws-button--global app-layout__ws-button--clients">
-          <div class="app-layout__ws-avatar app-layout__ws-avatar--clients">
-            <i class="fa-solid fa-users" />
-          </div>
-          <div class="app-layout__ws-info">
-            <span class="app-layout__ws-label">Herramienta Global</span>
-            <span class="app-layout__ws-name">Clientes</span>
-          </div>
-          <span class="app-layout__ws-global-tag">GLOBAL</span>
-        </div>
-
-        <!-- Surveys: global tool — no workspace binding -->
-        <div v-else-if="isSurveyRoute" class="app-layout__ws-button app-layout__ws-button--global app-layout__ws-button--surveys">
-          <div class="app-layout__ws-avatar app-layout__ws-avatar--surveys">
-            <i class="fa-solid fa-clipboard-list" />
-          </div>
-          <div class="app-layout__ws-info">
-            <span class="app-layout__ws-label">Herramienta Global</span>
-            <span class="app-layout__ws-name">Encuestas</span>
-          </div>
-          <span class="app-layout__ws-global-tag">GLOBAL</span>
-        </div>
-
-        <!-- InternalPlanning: interactive selector to navigate to any client -->
         <button
-          v-else-if="route.name === 'InternalPlanning' && workspaces.length > 0"
-          class="app-layout__ws-button app-layout__ws-button--interactive app-layout__ws-button--internal-nav"
+          v-else
+          class="app-layout__ws-button"
+          :class="{ 'app-layout__ws-button--interactive app-layout__ws-button--global': userStore.isInternal || userStore.role === 'superadmin' }"
+          :disabled="!userStore.isInternal && userStore.role !== 'superadmin'"
           @click="toggleDropdown"
         >
-          <div class="app-layout__ws-avatar app-layout__ws-avatar--internal">
-            <i class="fa-solid fa-calendar-range" />
-          </div>
-          <div class="app-layout__ws-info">
-            <span class="app-layout__ws-label">Equipo Interno</span>
-            <span class="app-layout__ws-name">Ir a un cliente…</span>
-          </div>
-          <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
-        </button>
-
-        <!-- Static placeholder (AdminWorkspaces or no workspaces loaded) -->
-        <div v-else class="app-layout__ws-button app-layout__ws-button--global">
           <div class="app-layout__ws-avatar app-layout__ws-avatar--global">
             <i class="fa-solid fa-earth-americas" />
           </div>
@@ -297,13 +333,29 @@ watch(() => route.fullPath, () => {
             <span class="app-layout__ws-label">Control Central</span>
             <span class="app-layout__ws-name">Vista Global</span>
           </div>
-        </div>
+          <i v-if="userStore.isInternal || userStore.role === 'superadmin'" class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
+        </button>
 
         <Transition name="dropdown-fade">
           <div v-if="isDropdownOpen" class="app-layout__ws-dropdown">
-            <!-- Search — only shown when > 5 workspaces -->
-            <div v-if="workspaces.length > 5" class="app-layout__ws-search">
-              <i class="fa-solid fa-magnifying-glass" />
+            <!-- Switch back to Agency/Global View at the top of dropdown -->
+            <RouterLink
+              v-if="globalBackRoute && activeWorkspace"
+              :to="globalBackRoute"
+              class="app-layout__ws-option app-layout__ws-option--global-switch"
+              @click="isDropdownOpen = false"
+            >
+              <div class="app-layout__ws-avatar app-layout__ws-avatar--global app-layout__ws-avatar--sm">
+                <i class="fa-solid fa-earth-americas" />
+              </div>
+              <span class="app-layout__ws-option-name">Vista Global (Agencia)</span>
+            </RouterLink>
+            <div v-if="globalBackRoute && activeWorkspace" class="app-layout__nav-divider" style="margin: 4px 0;" />
+
+            <!-- Search — only shown when > 5 workspaces initially -->
+            <div v-if="showWsSearch" class="app-layout__ws-search">
+              <i v-if="isWsSearching" class="fa-solid fa-spinner fa-spin" />
+              <i v-else class="fa-solid fa-magnifying-glass" />
               <input
                 v-model="wsSearch"
                 type="text"
@@ -312,117 +364,267 @@ watch(() => route.fullPath, () => {
                 @click.stop
               />
             </div>
-            <div v-if="filteredDropdownWorkspaces.length === 0" class="app-layout__ws-no-results">
+            <div v-if="isWsSearching" class="app-layout__ws-loading-state">
+              <i class="fa-solid fa-spinner fa-spin" />
+              <span>Buscando entornos...</span>
+            </div>
+            <div v-else-if="filteredDropdownWorkspaces.length === 0" class="app-layout__ws-no-results">
               Sin resultados
             </div>
-            <button
-              v-for="ws in filteredDropdownWorkspaces"
-              :key="ws._id"
-              class="app-layout__ws-option"
-              :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace?._id }"
-              @click="selectWorkspace(ws)"
-            >
-               <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
-                 <img
-                   v-if="ws.metaAds?.pageId"
-                   :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`"
-                   alt="Logo"
-                   class="app-layout__ws-page-img"
-                   @error="handleImgError"
-                 />
-                 <span v-else>{{ ws.name.substring(0, 2).toUpperCase() }}</span>
-               </div>
-               <span class="app-layout__ws-option-name">{{ ws.name }}</span>
-               <i v-if="ws._id === activeWorkspace?._id" class="fa-solid fa-check" />
-            </button>
+            <template v-else>
+              <button
+                v-for="ws in filteredDropdownWorkspaces"
+                :key="ws._id"
+                class="app-layout__ws-option"
+                :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace?._id }"
+                @click="selectWorkspace(ws)"
+              >
+                 <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
+                   <img
+                     v-if="ws.metaAds?.pageId"
+                     :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`"
+                     alt="Logo"
+                     class="app-layout__ws-page-img"
+                     @error="handleImgError"
+                   />
+                   <span v-else>{{ ws.name.substring(0, 2).toUpperCase() }}</span>
+                 </div>
+                 <span class="app-layout__ws-option-name">{{ ws.name }}</span>
+                 <i v-if="ws._id === activeWorkspace?._id" class="fa-solid fa-check" />
+              </button>
+            </template>
           </div>
         </Transition>
       </div>
 
+      <!-- Switch to Agency View Button (Go High Level style) -->
+      <div v-if="isSubAccountMode && globalBackRoute" class="app-layout__agency-switch">
+        <RouterLink :to="globalBackRoute" class="app-layout__agency-switch-btn">
+          <i class="fa-solid fa-arrow-left" />
+          <span>Volver a Control Central</span>
+        </RouterLink>
+      </div>
+
       <nav class="app-layout__nav">
-        <RouterLink v-if="userStore.role === 'superadmin'" class="app-layout__nav-item" :to="{ name: 'AdminWorkspaces' }">
-          <i class="fa-solid fa-grid-2" aria-hidden="true" />
-          <span>Vista Global (Superadmin)</span>
-        </RouterLink>
+        <!-- ========================================== -->
+        <!-- AGENCY VIEW LINKS (Visible when not in Sub-Account mode) -->
+        <!-- ========================================== -->
+        <template v-if="!isSubAccountMode">
+          <!-- Control Central / Vista Global (Superadmin) -->
+          <RouterLink
+            v-if="userStore.role === 'superadmin'"
+            class="app-layout__nav-item"
+            :to="{ name: 'AdminWorkspaces' }"
+          >
+            <i class="fa-solid fa-grid-2" aria-hidden="true" />
+            <span>Vista Global (Superadmin)</span>
+          </RouterLink>
 
-        <RouterLink
-          v-if="userStore.role === 'superadmin'"
-          class="app-layout__nav-item app-layout__nav-item--global-tool"
-          :to="{ name: 'SuperadminPublicMetrics' }"
-        >
-          <i class="fa-solid fa-chart-bar" aria-hidden="true" />
-          <span>Métricas & Alertas</span>
-          <span class="app-layout__nav-global-tag">API</span>
-        </RouterLink>
+          <!-- Métricas & Alertas -->
+          <RouterLink
+            v-if="userStore.role === 'superadmin'"
+            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            :to="{ name: 'SuperadminPublicMetrics' }"
+          >
+            <i class="fa-solid fa-chart-bar" aria-hidden="true" />
+            <span>Métricas & Alertas</span>
+            <span class="app-layout__nav-global-tag">API</span>
+          </RouterLink>
 
-        <RouterLink
-          v-if="userStore.role === 'superadmin'"
-          class="app-layout__nav-item app-layout__nav-item--global-tool"
-          :to="{ name: 'SuperadminApiKeys' }"
-        >
-          <i class="fa-solid fa-key" aria-hidden="true" />
-          <span>API Keys</span>
-          <span class="app-layout__nav-global-tag">API</span>
-        </RouterLink>
+          <!-- API Keys -->
+          <RouterLink
+            v-if="userStore.role === 'superadmin'"
+            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            :to="{ name: 'SuperadminApiKeys' }"
+          >
+            <i class="fa-solid fa-key" aria-hidden="true" />
+            <span>API Keys</span>
+            <span class="app-layout__nav-global-tag">API</span>
+          </RouterLink>
 
-        <!-- Global tools label -->
-        <div v-if="userStore.isInternal || userStore.role === 'superadmin'" class="app-layout__nav-section-label">Herramientas globales</div>
+          <div class="app-layout__nav-section-label">Herramientas globales</div>
 
-        <!-- Global planner — internal team only -->
-        <RouterLink
-          v-if="userStore.isInternal"
-          class="app-layout__nav-item app-layout__nav-item--global-planning"
-          :to="{ name: 'InternalPlanning' }"
-        >
-          <i class="fa-solid fa-calendar-range" aria-hidden="true" />
-          <span>Planificador Global</span>
-        </RouterLink>
+          <!-- Global planner — internal team only -->
+          <RouterLink
+            v-if="userStore.isInternal"
+            class="app-layout__nav-item app-layout__nav-item--global-planning"
+            :to="{ name: 'InternalPlanning' }"
+          >
+            <i class="fa-solid fa-calendar-range" aria-hidden="true" />
+            <span>Planificador Global</span>
+          </RouterLink>
 
-        <!-- Clients global view — internal team only -->
-        <RouterLink
-          v-if="userStore.isInternal"
-          class="app-layout__nav-item app-layout__nav-item--global-tool"
-          :to="{ name: 'ClientsGlobal' }"
-        >
-          <i class="fa-solid fa-users" aria-hidden="true" />
-          <span>Vista de Clientes</span>
-          <span class="app-layout__nav-global-tag">GLOBAL</span>
-        </RouterLink>
+          <!-- Clients global view — internal team only -->
+          <RouterLink
+            v-if="userStore.isInternal"
+            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            :to="{ name: 'ClientsGlobal' }"
+          >
+            <i class="fa-solid fa-users" aria-hidden="true" />
+            <span>Vista de Clientes</span>
+            <span class="app-layout__nav-global-tag">GLOBAL</span>
+          </RouterLink>
 
-        <!-- Meetings calendar — internal team only -->
-        <RouterLink
-          v-if="userStore.isInternal"
-          class="app-layout__nav-item app-layout__nav-item--global-tool"
-          :to="{ name: 'PMCalendar' }"
-        >
-          <i class="fa-solid fa-handshake" aria-hidden="true" />
-          <span>Reuniones</span>
-          <span class="app-layout__nav-global-tag">GLOBAL</span>
-        </RouterLink>
+          <!-- Meetings calendar — internal team only -->
+          <RouterLink
+            v-if="userStore.isInternal"
+            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            :to="{ name: 'PMCalendar' }"
+          >
+            <i class="fa-solid fa-handshake" aria-hidden="true" />
+            <span>Reuniones</span>
+            <span class="app-layout__nav-global-tag">GLOBAL</span>
+          </RouterLink>
 
-        <!-- Trafficker panel — trafficker + project_manager + superadmin -->
-        <RouterLink
-          v-if="(userStore.isInternal && ['trafficker', 'project_manager'].includes(userStore.internalRole || '')) || userStore.role === 'superadmin'"
-          class="app-layout__nav-item app-layout__nav-item--trafficker"
-          :to="{ name: 'TraffickerDashboard' }"
-        >
-          <i class="fa-solid fa-bullseye-arrow" aria-hidden="true" />
-          <span>Panel Trafficker</span>
-          <span class="app-layout__nav-global-tag">ADS</span>
-        </RouterLink>
+          <!-- Trafficker panel — trafficker + project_manager + superadmin -->
+          <RouterLink
+            v-if="(userStore.isInternal && ['trafficker', 'project_manager'].includes(userStore.internalRole || '')) || userStore.role === 'superadmin'"
+            class="app-layout__nav-item app-layout__nav-item--trafficker"
+            :to="{ name: 'TraffickerDashboard' }"
+          >
+            <i class="fa-solid fa-bullseye-arrow" aria-hidden="true" />
+            <span>Panel Trafficker</span>
+            <span class="app-layout__nav-global-tag">ADS</span>
+          </RouterLink>
 
-        <!-- Team KPIs — superadmin and project_manager only -->
-        <RouterLink
-          v-if="userStore.role === 'superadmin' || (userStore.isInternal && userStore.internalRole === 'project_manager')"
-          class="app-layout__nav-item app-layout__nav-item--kpis"
-          :to="{ name: 'TeamKpis' }"
-        >
-          <i class="fa-solid fa-chart-bar" aria-hidden="true" />
-          <span>KPIs del Equipo</span>
-          <span class="app-layout__nav-global-tag">GLOBAL</span>
-        </RouterLink>
+          <!-- Team KPIs — superadmin and project_manager only -->
+          <RouterLink
+            v-if="userStore.role === 'superadmin' || (userStore.isInternal && userStore.internalRole === 'project_manager')"
+            class="app-layout__nav-item app-layout__nav-item--kpis"
+            :to="{ name: 'TeamKpis' }"
+          >
+            <i class="fa-solid fa-chart-bar" aria-hidden="true" />
+            <span>KPIs del Equipo</span>
+            <span class="app-layout__nav-global-tag">GLOBAL</span>
+          </RouterLink>
 
-        <!-- Notifications — all authenticated users -->
+          <!-- Surveys — internal + superadmin (global tool) -->
+          <RouterLink
+            v-if="userStore.isInternal || userStore.role === 'superadmin'"
+            class="app-layout__nav-item app-layout__nav-item--global-tool"
+            :to="{ name: 'SurveyList' }"
+          >
+            <i class="fa-solid fa-clipboard-list" aria-hidden="true" />
+            <span>Encuestas</span>
+            <span class="app-layout__nav-global-tag">GLOBAL</span>
+          </RouterLink>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- SUB-ACCOUNT VIEW LINKS (Visible when in Sub-Account mode) -->
+        <!-- ========================================== -->
+        <template v-else>
+          <!-- Informativo CRM (solo clientes) -->
+          <div v-if="currentWorkspaceId && !userStore.isInternal && userStore.role !== 'superadmin'" class="app-layout__crm-notice">
+            <div class="app-layout__crm-notice-header">
+              <i class="fa-solid fa-chart-pie" />
+              <strong>Analítica en el CRM</strong>
+            </div>
+            <p class="app-layout__crm-notice-body">
+              Tus tableros y analítica avanzada ahora viven en 
+              <a href="https://crm.bakano.ec" target="_blank" rel="noopener noreferrer">crm.bakano.ec</a>. 
+              Esta plataforma se mantiene para tu <strong>operativa diaria</strong>.
+            </p>
+            
+            <div class="app-layout__crm-notice-contact">
+              <span class="app-layout__crm-notice-label">¿Ayuda con el CRM?</span>
+              <div class="app-layout__crm-notice-actions">
+                <a href="https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm" target="_blank" rel="noopener noreferrer" class="app-layout__crm-btn app-layout__crm-btn--primary">
+                  <i class="fa-solid fa-calendar-plus" /> Agendar
+                </a>
+                <div class="app-layout__crm-notice-links">
+                  <a href="https://wa.me/593939380957" target="_blank" rel="noopener noreferrer" class="app-layout__crm-link" title="Soporte WhatsApp">
+                    <i class="fa-brands fa-whatsapp" />
+                  </a>
+                  <a href="mailto:cjurado@bakano.ec" class="app-layout__crm-link" title="Correo de soporte">
+                    <i class="fa-solid fa-envelope" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 1. Facturación & ROAS — superadmin, admin y colaborador externo -->
+          <RouterLink
+            v-if="currentWorkspaceId && (userStore.role === 'superadmin' || !userStore.isInternal)"
+            class="app-layout__nav-item app-layout__nav-item--billing"
+            :to="{ name: 'BillingRoas', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-chart-column" aria-hidden="true" />
+            <span>Facturación & ROAS</span>
+          </RouterLink>
+
+          <!-- 2. Sucursales (Puntos de venta) -->
+          <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'WorkspaceBranches', params: { workspaceId: currentWorkspaceId } }">
+            <i class="fa-solid fa-store" aria-hidden="true" />
+            <span>Sucursales</span>
+          </RouterLink>
+
+          <!-- 3. Planificación -->
+          <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: currentWorkspaceId } }">
+            <i class="fa-solid fa-calendar-days" aria-hidden="true" />
+            <span>Planificación</span>
+          </RouterLink>
+
+          <!-- Mi Equipo (Client assigned team) -->
+          <RouterLink
+            v-if="currentWorkspaceId"
+            class="app-layout__nav-item app-layout__nav-item--team"
+            :to="{ name: 'WorkspaceTeam', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-users-viewfinder" aria-hidden="true" />
+            <span>Mi Equipo</span>
+          </RouterLink>
+
+          <!-- Perfil de Marca — IA para community/content -->
+          <RouterLink
+            v-if="currentWorkspaceId"
+            class="app-layout__nav-item app-layout__nav-item--brand-profile"
+            :to="{ name: 'WorkspaceBrandProfile', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-palette" aria-hidden="true" />
+            <span>Perfil de Marca</span>
+            <span class="app-layout__nav-ai-tag">IA</span>
+          </RouterLink>
+
+          <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'WorkspaceLegal', params: { workspaceId: currentWorkspaceId } }">
+            <i class="fa-solid fa-file-contract" aria-hidden="true" />
+            <span>Legalidades</span>
+          </RouterLink>
+
+          <!-- Surveys — clients (My Surveys) -->
+          <RouterLink
+            v-if="!userStore.isInternal && userStore.role !== 'superadmin' && currentWorkspaceId"
+            class="app-layout__nav-item app-layout__nav-item--surveys"
+            :to="{ name: 'MySurveys', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <div class="app-layout__nav-icon-container">
+              <i class="fa-solid fa-clipboard-check" aria-hidden="true" />
+              <span v-if="userStore.pendingSurveysCount > 0" class="app-layout__nav-badge">
+                {{ userStore.pendingSurveysCount }}
+              </span>
+            </div>
+            <span>Mis Encuestas</span>
+          </RouterLink>
+
+          <!-- Book a meeting — clients only -->
+          <button
+            v-if="!userStore.isInternal && userStore.role !== 'superadmin'"
+            class="app-layout__nav-item app-layout__nav-item--booking"
+            @click="isBookingModalOpen = true"
+          >
+            <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
+            <span>Agendar Reunión</span>
+            <span class="app-layout__nav-booking-tag">NUEVO</span>
+          </button>
+
+          <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: currentWorkspaceId } }">
+            <i class="fa-solid fa-gear" aria-hidden="true" />
+            <span>Configuración</span>
+          </RouterLink>
+        </template>
+
+        <!-- Notifications — all authenticated users, shown in both modes -->
         <RouterLink
           class="app-layout__nav-item"
           :to="{ name: 'Notifications' }"
@@ -434,131 +636,6 @@ watch(() => route.fullPath, () => {
             </span>
           </div>
           <span>Notificaciones</span>
-        </RouterLink>
-
-        <!-- Surveys — internal + superadmin (global tool) -->
-        <RouterLink
-          v-if="userStore.isInternal || userStore.role === 'superadmin'"
-          class="app-layout__nav-item app-layout__nav-item--global-tool"
-          :to="{ name: 'SurveyList' }"
-        >
-          <i class="fa-solid fa-clipboard-list" aria-hidden="true" />
-          <span>Encuestas</span>
-          <span class="app-layout__nav-global-tag">GLOBAL</span>
-        </RouterLink>
-
-        <!-- Surveys — clients (My Surveys) -->
-        <RouterLink
-          v-if="!userStore.isInternal && userStore.role !== 'superadmin' && activeWorkspace"
-          class="app-layout__nav-item app-layout__nav-item--surveys"
-          :to="{ name: 'MySurveys', params: { workspaceId: activeWorkspace._id } }"
-        >
-          <div class="app-layout__nav-icon-container">
-            <i class="fa-solid fa-clipboard-check" aria-hidden="true" />
-            <span v-if="userStore.pendingSurveysCount > 0" class="app-layout__nav-badge">
-              {{ userStore.pendingSurveysCount }}
-            </span>
-          </div>
-          <span>Mis Encuestas</span>
-        </RouterLink>
-
-        <!-- Book a meeting — clients only -->
-        <button
-          v-if="!userStore.isInternal && userStore.role !== 'superadmin'"
-          class="app-layout__nav-item app-layout__nav-item--booking"
-          @click="isBookingModalOpen = true"
-        >
-          <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
-          <span>Agendar Reunión</span>
-          <span class="app-layout__nav-booking-tag">NUEVO</span>
-        </button>
-
-        <!-- Divider with "Este cliente" label -->
-        <div v-if="(userStore.isInternal || userStore.role === 'superadmin') && activeWorkspace" class="app-layout__nav-divider">
-          <span class="app-layout__nav-divider-label">Este cliente</span>
-        </div>
-
-        <!-- Informativo CRM (solo clientes) -->
-        <div v-if="activeWorkspace && !userStore.isInternal && userStore.role !== 'superadmin'" class="app-layout__crm-notice">
-          <div class="app-layout__crm-notice-header">
-            <i class="fa-solid fa-chart-pie" />
-            <strong>Analítica en el CRM</strong>
-          </div>
-          <p class="app-layout__crm-notice-body">
-            Tus tableros y analítica avanzada ahora viven en 
-            <a href="https://crm.bakano.ec" target="_blank" rel="noopener noreferrer">crm.bakano.ec</a>. 
-            Esta plataforma se mantiene para tu <strong>operativa diaria</strong>.
-          </p>
-          
-          <div class="app-layout__crm-notice-contact">
-            <span class="app-layout__crm-notice-label">¿Ayuda con el CRM?</span>
-            <div class="app-layout__crm-notice-actions">
-              <a href="https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm" target="_blank" rel="noopener noreferrer" class="app-layout__crm-btn app-layout__crm-btn--primary">
-                <i class="fa-solid fa-calendar-plus" /> Agendar
-              </a>
-              <div class="app-layout__crm-notice-links">
-                <a href="https://wa.me/593939380957" target="_blank" rel="noopener noreferrer" class="app-layout__crm-link" title="Soporte WhatsApp">
-                  <i class="fa-brands fa-whatsapp" />
-                </a>
-                <a href="mailto:cjurado@bakano.ec" class="app-layout__crm-link" title="Correo de soporte">
-                  <i class="fa-solid fa-envelope" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 1. Facturación & ROAS — superadmin, admin y colaborador externo -->
-        <RouterLink
-          v-if="activeWorkspace && (userStore.role === 'superadmin' || !userStore.isInternal)"
-          class="app-layout__nav-item app-layout__nav-item--billing"
-          :to="{ name: 'BillingRoas', params: { workspaceId: activeWorkspace._id } }"
-        >
-          <i class="fa-solid fa-chart-column" aria-hidden="true" />
-          <span>Facturación & ROAS</span>
-        </RouterLink>
-
-        <!-- 2. Sucursales (Puntos de venta) -->
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceBranches', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-store" aria-hidden="true" />
-          <span>Sucursales</span>
-        </RouterLink>
-
-        <!-- 3. Planificación -->
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-calendar-days" aria-hidden="true" />
-          <span>Planificación</span>
-        </RouterLink>
-
-        <!-- Mi Equipo (Client assigned team) -->
-        <RouterLink
-          v-if="activeWorkspace && !userStore.isInternal && userStore.role !== 'superadmin'"
-          class="app-layout__nav-item app-layout__nav-item--team"
-          :to="{ name: 'WorkspaceTeam', params: { workspaceId: activeWorkspace._id } }"
-        >
-          <i class="fa-solid fa-users-viewfinder" aria-hidden="true" />
-          <span>Mi Equipo</span>
-        </RouterLink>
-
-        <!-- Perfil de Marca — IA para community/content -->
-        <RouterLink
-          v-if="activeWorkspace && (userStore.role === 'superadmin' || ['community_manager', 'content_manager', 'copywriter'].includes(userStore.internalRole || ''))"
-          class="app-layout__nav-item app-layout__nav-item--brand-profile"
-          :to="{ name: 'WorkspaceBrandProfile', params: { workspaceId: activeWorkspace._id } }"
-        >
-          <i class="fa-solid fa-palette" aria-hidden="true" />
-          <span>Perfil de Marca</span>
-          <span class="app-layout__nav-ai-tag">IA</span>
-        </RouterLink>
-
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item" :to="{ name: 'WorkspaceLegal', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-file-contract" aria-hidden="true" />
-          <span>Legalidades</span>
-        </RouterLink>
-
-        <RouterLink v-if="activeWorkspace" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: activeWorkspace._id } }">
-          <i class="fa-solid fa-gear" aria-hidden="true" />
-          <span>Configuración</span>
         </RouterLink>
       </nav>
 
@@ -581,7 +658,7 @@ watch(() => route.fullPath, () => {
 
     <main class="app-layout__main">
       <div
-        v-if="!userStore.isInternal && userStore.role !== 'superadmin' && isContractPending && activeWorkspace"
+        v-if="!userStore.isInternal && userStore.role !== 'superadmin' && isContractPending && currentWorkspaceId"
         class="app-layout__onboarding-banner"
       >
         <i class="fa-solid fa-file-signature" />
@@ -589,12 +666,12 @@ watch(() => route.fullPath, () => {
           <strong>Actualización de Términos y Condiciones</strong>
           <span>Por favor, revisa y acepta los términos actualizados con tu firma. Este paso es importante para tu servicio.</span>
         </div>
-        <RouterLink :to="`/onboarding/${activeWorkspace._id}`" class="app-layout__onboarding-btn">
+        <RouterLink :to="`/onboarding/${currentWorkspaceId}`" class="app-layout__onboarding-btn">
           Revisar y Firmar
         </RouterLink>
       </div>
       <div
-        v-else-if="!userStore.isInternal && userStore.role !== 'superadmin' && !isBrandProfileCompleted && activeWorkspace"
+        v-else-if="!userStore.isInternal && userStore.role !== 'superadmin' && !isBrandProfileCompleted && currentWorkspaceId"
         class="app-layout__onboarding-banner"
       >
         <i class="fa-solid fa-circle-exclamation" />
@@ -602,7 +679,7 @@ watch(() => route.fullPath, () => {
           <strong>Completa tu perfil de marca</strong>
           <span>Para activar todas las funcionalidades de la plataforma, necesitas completar la información de tu negocio.</span>
         </div>
-        <RouterLink :to="`/app/workspaces/${activeWorkspace._id}/brand-profile`" class="app-layout__onboarding-btn">
+        <RouterLink :to="`/app/workspaces/${currentWorkspaceId}/brand-profile`" class="app-layout__onboarding-btn">
           Completar ahora
         </RouterLink>
       </div>
@@ -652,7 +729,7 @@ watch(() => route.fullPath, () => {
             Hemos actualizado nuestros términos y condiciones. Por favor, tómate un minuto para revisarlos y firmar el nuevo acuerdo. Es muy importante para asegurar la continuidad de tu servicio.
           </p>
           <div class="app-layout__invasive-actions">
-            <RouterLink :to="`/onboarding/${activeWorkspace?._id}`" class="app-layout__invasive-btn-primary" @click="showInvasiveOnboardingModal = false">
+            <RouterLink :to="`/onboarding/${currentWorkspaceId}`" class="app-layout__invasive-btn-primary" @click="showInvasiveOnboardingModal = false">
               Revisar y Firmar Ahora
             </RouterLink>
             <button class="app-layout__invasive-btn-secondary" @click="showInvasiveOnboardingModal = false">
@@ -1011,6 +1088,20 @@ watch(() => route.fullPath, () => {
     color: rgba($white, 0.4);
     font-style: italic;
     text-align: center;
+  }
+
+  &__ws-loading-state {
+    padding: 0.8rem 0.75rem;
+    font-size: 0.8rem;
+    color: rgba($white, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    i {
+      color: $primary;
+    }
   }
 
   &__ws-option {
@@ -1695,6 +1786,57 @@ watch(() => route.fullPath, () => {
 
   &:hover {
     color: #1e293b;
+  }
+}
+
+.app-layout__agency-switch {
+  padding: 0 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.app-layout__agency-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba($white, 0.04);
+  border: 1.5px dashed rgba($primary, 0.3);
+  border-radius: 10px;
+  color: rgba($white, 0.85);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  i {
+    color: $primary;
+    font-size: 0.95rem;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover {
+    background: rgba($primary, 0.12);
+    border-color: $primary;
+    color: $white;
+    box-shadow: 0 0 12px rgba($primary, 0.25);
+    
+    i {
+      transform: translateX(-4px);
+    }
+  }
+}
+
+.app-layout__ws-option--global-switch {
+  background: rgba($primary, 0.08) !important;
+  border: 1.5px dashed rgba($primary, 0.2) !important;
+  color: $primary-light !important;
+  font-weight: 700 !important;
+
+  &:hover {
+    background: rgba($primary, 0.15) !important;
+    color: $white !important;
+    border-color: $primary !important;
   }
 }
 </style>

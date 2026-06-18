@@ -243,7 +243,7 @@ function handleSave() {
 
     &--client {
       background: rgba($secondary, 0.1);
-      color: $secondary-dark;
+      color: $primary-dark;
     }
   }
 
@@ -278,7 +278,7 @@ function handleSave() {
     }
     &--client {
       background: $secondary;
-      color: $secondary-dark;
+      color: #ffffff;
     }
   }
 

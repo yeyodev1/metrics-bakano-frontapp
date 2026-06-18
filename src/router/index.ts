@@ -21,6 +21,33 @@ const routes: Array<RouteRecordRaw> = [
     ],
   },
 
+  // ── Superadmin — dedicated layout ─────────────────────────
+  {
+    path: '/superadmin',
+    component: () => import('../layout/AppLayout.vue'),
+    meta: { requiresAuth: true, requiresRole: 'superadmin' },
+    children: [
+      {
+        path: '/app/workspaces',
+        name: 'AdminWorkspaces',
+        component: () => import('../views/SuperadminDashboard/index.vue'),
+        meta: { title: 'Bakano Ads: Gestión de Entornos', requiresAuth: true, requiresRole: 'superadmin' },
+      },
+      {
+        path: '/app/superadmin/public-metrics',
+        name: 'SuperadminPublicMetrics',
+        component: () => import('../views/superadmin/PublicMetricsView.vue'),
+        meta: { title: 'Bakano Ads: Métricas Públicas', requiresAuth: true, requiresRole: 'superadmin' },
+      },
+      {
+        path: '/app/superadmin/api-keys',
+        name: 'SuperadminApiKeys',
+        component: () => import('../views/superadmin/ApiKeysView.vue'),
+        meta: { title: 'Bakano Ads: API Keys', requiresAuth: true, requiresRole: 'superadmin' },
+      },
+    ]
+  },
+
   // ── App — authenticated ───────────────────────────────────
   {
     path: '/app',
@@ -38,24 +65,6 @@ const routes: Array<RouteRecordRaw> = [
         name: 'InternalPlanning',
         component: () => import('../views/InternalPlanningView.vue'),
         meta: { title: 'Bakano Ads: Planificador Global', requiresAuth: true, requiresInternal: true },
-      },
-      {
-        path: 'workspaces',
-        name: 'AdminWorkspaces',
-        component: () => import('../views/SuperadminDashboard.vue'),
-        meta: { title: 'Bakano Ads: Gestión de Entornos', requiresAuth: true, requiresRole: 'superadmin' },
-      },
-      {
-        path: 'superadmin/public-metrics',
-        name: 'SuperadminPublicMetrics',
-        component: () => import('../views/superadmin/PublicMetricsView.vue'),
-        meta: { title: 'Bakano Ads: Métricas Públicas', requiresAuth: true, requiresRole: 'superadmin' },
-      },
-      {
-        path: 'superadmin/api-keys',
-        name: 'SuperadminApiKeys',
-        component: () => import('../views/superadmin/ApiKeysView.vue'),
-        meta: { title: 'Bakano Ads: API Keys', requiresAuth: true, requiresRole: 'superadmin' },
       },
       {
         path: 'workspaces/:workspaceId',
