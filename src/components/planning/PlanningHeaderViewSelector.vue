@@ -40,6 +40,7 @@ function getMetaPictureUrl(pageId: string): string {
   <div class="view-selector">
     <!-- Individual Workspace Toggle -->
     <div
+      v-if="workspaceName !== 'Agencia'"
       class="view-selector__group"
       :class="{ 'is-dimmed': viewMode.includes('global') }"
     >
@@ -71,7 +72,7 @@ function getMetaPictureUrl(pageId: string): string {
       </div>
     </div>
 
-    <div v-if="isInternal" class="view-selector__divider" />
+    <div v-if="isInternal && workspaceName !== 'Agencia'" class="view-selector__divider" />
 
     <!-- Global Toggle (Internal only) -->
     <div
