@@ -149,13 +149,13 @@ async function fetchWorkspaces() {
   isWsSearching.value = true
   try {
     const limit = (userStore.role === 'superadmin' || userStore.isInternal) ? 100 : 10
-    const res = await workspaceService.listWorkspaces({ 
+    const res = await workspaceService.listWorkspaces({
       limit,
       search: wsSearch.value.trim() || undefined
     })
-    
+
     let list = res.workspaces || []
-    
+
     // Ensure the currently active workspace is in the list
     const activeId = route.params.workspaceId as string
     if (activeId && !list.some(w => w._id === activeId)) {
@@ -168,7 +168,7 @@ async function fetchWorkspaces() {
         console.error('Error fetching active workspace for sidebar', err)
       }
     }
-    
+
     workspaces.value = list
     if (!wsSearch.value.trim()) {
       showWsSearch.value = list.length > 5
@@ -183,7 +183,7 @@ async function fetchWorkspaces() {
 
 onMounted(async () => {
   await fetchWorkspaces()
-  
+
   if (isContractPending.value && currentWorkspaceId.value) {
     showInvasiveOnboardingModal.value = true
   }
@@ -307,14 +307,19 @@ watch(() => route.params.workspaceId, async (newId) => {
               />
               <span v-else>{{ activeWorkspace.name.substring(0, 2).toUpperCase() }}</span>
             </template>
-            <template v-else>
+            <template v-else-if="!workspacesLoaded || isWsSearching">
               <i class="fa-solid fa-spinner fa-spin" />
+            </template>
+            <template v-else>
+              <i class="fa-solid fa-link-slash" />
             </template>
           </div>
           <div class="app-layout__ws-info">
             <span class="app-layout__ws-label">Entorno Actual</span>
             <span class="app-layout__ws-name">
-              {{ activeWorkspace ? activeWorkspace.name : 'Cargando entorno...' }}
+              <template v-if="activeWorkspace">{{ activeWorkspace.name }}</template>
+              <template v-else-if="!workspacesLoaded || isWsSearching">Cargando entorno...</template>
+              <template v-else>Acceso Denegado</template>
             </span>
           </div>
           <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
@@ -684,30 +689,30 @@ watch(() => route.params.workspaceId, async (newId) => {
           Completar ahora
         </RouterLink>
       </div>
-      <div v-if="isWorkspaceDeactivated" class="app-layout__deactivated">
+      <div v-if="isWorkspaceDeactivated && route.name !== 'VideoPlanningClient' && route.name !== 'VideoPlanning'" class="app-layout__deactivated">
         <div class="app-layout__deactivated-card">
           <div class="app-layout__deactivated-icon">🚧</div>
-          <h2 class="app-layout__deactivated-title">¡Ups! Este entorno está desactivado</h2>
+          <h2 class="app-layout__deactivated-title">Entorno no disponible</h2>
           <p class="app-layout__deactivated-body">
-            Tu entorno ha sido temporalmente desactivado.<br>
-            Si crees que algo está mal, comunícate con soporte.
+            No tienes acceso a este entorno o ha sido desactivado.<br>
+            Verifica el enlace o comunícate con soporte.
           </p>
           <div class="app-layout__deactivated-actions">
+            <button
+              class="app-layout__deactivated-btn app-layout__deactivated-btn--logout"
+              @click="logout"
+            >
+              <i class="fa-solid fa-arrow-right-from-bracket" />
+              Cerrar sesión y cambiar de cuenta
+            </button>
             <a
-              href="https://wa.me/593963681303"
+              href="https://wa.me/593939380957"
               target="_blank"
               rel="noopener noreferrer"
               class="app-layout__deactivated-btn app-layout__deactivated-btn--whatsapp"
             >
               <i class="fa-brands fa-whatsapp" />
-              Escríbenos por WhatsApp
-            </a>
-            <a
-              href="mailto:dreyes@bakano.ec"
-              class="app-layout__deactivated-btn app-layout__deactivated-btn--email"
-            >
-              <i class="fa-solid fa-envelope" />
-              dreyes@bakano.ec
+              Contactar a soporte
             </a>
           </div>
         </div>
@@ -1064,7 +1069,11 @@ watch(() => route.params.workspaceId, async (newId) => {
     border-bottom: 1px solid rgba($white, 0.07);
     margin-bottom: 0.25rem;
 
-    i { color: rgba($white, 0.35); font-size: 0.8rem; flex-shrink: 0; }
+    i {
+      color: rgba($white, 0.35);
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
   }
 
   &__ws-search-input {
@@ -1079,8 +1088,14 @@ watch(() => route.params.workspaceId, async (newId) => {
     outline: none;
     transition: border-color 0.2s;
 
-    &::placeholder { color: rgba($white, 0.35); }
-    &:focus { border-color: rgba($primary, 0.5); background: rgba($white, 0.1); }
+    &::placeholder {
+      color: rgba($white, 0.35);
+    }
+
+    &:focus {
+      border-color: rgba($primary, 0.5);
+      background: rgba($white, 0.1);
+    }
   }
 
   &__ws-no-results {
@@ -1210,7 +1225,9 @@ watch(() => route.params.workspaceId, async (newId) => {
       color: rgba($white, 0.85);
       margin-bottom: 0.5rem;
 
-      i { color: $primary; }
+      i {
+        color: $primary;
+      }
 
       &:hover,
       &.router-link-active {
@@ -1231,7 +1248,9 @@ watch(() => route.params.workspaceId, async (newId) => {
       border: 1px solid rgba($primary, 0.12);
       color: rgba($white, 0.85);
 
-      i { color: $primary; }
+      i {
+        color: $primary;
+      }
 
       &:hover,
       &.router-link-active {
@@ -1277,8 +1296,16 @@ watch(() => route.params.workspaceId, async (newId) => {
     align-items: center;
     gap: 0.5rem;
 
-    i { color: $primary; font-size: 1.1rem; }
-    strong { font-size: 0.9rem; color: $white; font-weight: 700; }
+    i {
+      color: $primary;
+      font-size: 1.1rem;
+    }
+
+    strong {
+      font-size: 0.9rem;
+      color: $white;
+      font-weight: 700;
+    }
   }
 
   &__crm-notice-body {
@@ -1292,10 +1319,14 @@ watch(() => route.params.workspaceId, async (newId) => {
       text-decoration: underline;
       font-weight: 600;
 
-      &:hover { color: lighten($primary, 25%); }
+      &:hover {
+        color: lighten($primary, 25%);
+      }
     }
-    
-    strong { color: rgba($white, 0.9); }
+
+    strong {
+      color: rgba($white, 0.9);
+    }
   }
 
   &__crm-notice-contact {
@@ -1371,8 +1402,10 @@ watch(() => route.params.workspaceId, async (newId) => {
       color: $white;
       transform: translateY(-1px);
     }
-    
-    .fa-whatsapp { color: #25d366; }
+
+    .fa-whatsapp {
+      color: #25d366;
+    }
   }
 
   &__nav-booking-tag {
@@ -1398,7 +1431,9 @@ watch(() => route.params.workspaceId, async (newId) => {
     color: #34d399 !important;
     margin-top: 0.25rem;
 
-    i { color: #34d399 !important; }
+    i {
+      color: #34d399 !important;
+    }
 
     &:hover {
       background: rgba(52, 211, 153, 0.15) !important;
@@ -1412,7 +1447,9 @@ watch(() => route.params.workspaceId, async (newId) => {
     border: 1px solid rgba(#6366f1, 0.18);
     color: #3730a3 !important;
 
-    i { color: #6366f1 !important; }
+    i {
+      color: #6366f1 !important;
+    }
 
     &.router-link-active,
     &:hover {
@@ -1427,7 +1464,9 @@ watch(() => route.params.workspaceId, async (newId) => {
     border: 1px solid rgba(#d97706, 0.18);
     color: #92400e !important;
 
-    i { color: #d97706 !important; }
+    i {
+      color: #d97706 !important;
+    }
 
     .app-layout__nav-global-tag {
       color: #d97706;
@@ -1590,7 +1629,7 @@ watch(() => route.params.workspaceId, async (newId) => {
   padding: 14px 18px;
   margin: 16px 16px 0;
 
-  > i {
+  >i {
     font-size: 22px;
     color: #d97706;
     flex-shrink: 0;
@@ -1626,7 +1665,9 @@ watch(() => route.params.workspaceId, async (newId) => {
   text-decoration: none;
   white-space: nowrap;
 
-  &:hover { background: #b45309; }
+  &:hover {
+    background: #b45309;
+  }
 }
 
 .app-layout__deactivated {
@@ -1690,7 +1731,9 @@ watch(() => route.params.workspaceId, async (newId) => {
   justify-content: center;
   transition: opacity 0.15s;
 
-  &:hover { opacity: 0.85; }
+  &:hover {
+    opacity: 0.85;
+  }
 
   &--whatsapp {
     background: #25d366;
@@ -1700,6 +1743,14 @@ watch(() => route.params.workspaceId, async (newId) => {
   &--email {
     background: rgba(#0f172a, 0.06);
     color: #0f172a;
+  }
+
+  &--logout {
+    background: #0f172a;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
   }
 }
 
@@ -1728,8 +1779,15 @@ watch(() => route.params.workspaceId, async (newId) => {
 }
 
 @keyframes invasivePop {
-  0% { opacity: 0; transform: scale(0.9) translateY(20px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .app-layout__invasive-icon {
@@ -1821,7 +1879,7 @@ watch(() => route.params.workspaceId, async (newId) => {
     border-color: $primary;
     color: $white;
     box-shadow: 0 0 12px rgba($primary, 0.25);
-    
+
     i {
       transform: translateX(-4px);
     }

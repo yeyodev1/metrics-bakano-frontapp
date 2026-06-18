@@ -136,6 +136,8 @@ export interface UpdateVideoItemPayload {
   linkVideo?: string
   fechaPublicacion?: string
   copyPublicacion?: string
+  publishToInstagram?: boolean
+  publishToFacebook?: boolean
 }
 
 export interface ClientApprovalPayload {

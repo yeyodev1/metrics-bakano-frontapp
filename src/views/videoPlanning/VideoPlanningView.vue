@@ -5,7 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { videoPlanningService } from '@/services/videoPlanning.service'
 import { brandProfileService } from '@/services/brandProfile.service'
 import type { BrandProfile } from '@/types'
-import type { VideoPlanning, VideoItem, CreateVideoItemPayload } from '@/types/videoPlanning'
+import type { VideoPlanning, VideoItem, CreateVideoItemPayload, EstadoPublicacion } from '@/types/videoPlanning'
 import VideoPlanningStats from '@/components/videoPlanning/VideoPlanningStats.vue'
 import VideoPlanningTable from '@/components/videoPlanning/VideoPlanningTable.vue'
 import VideoPlanningItemModal from '@/components/videoPlanning/VideoPlanningItemModal.vue'
@@ -25,6 +25,7 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
 const backendMissing = ref(false)
+const workspaceMismatch = ref(false)
 const hasBrandProfile = ref(false)
 const brandProfile = ref<BrandProfile | null>(null)
 
@@ -67,9 +68,10 @@ async function loadPlanning() {
   backendMissing.value = false
   try {
     const loaded = await videoPlanningService.getByEntry(entryId)
-    // Warn on workspace mismatch (backend bug: may store wrong workspaceId from JWT)
     if (loaded && loaded.workspaceId && loaded.workspaceId !== workspaceId) {
       console.warn(`[VideoPlanningView] workspaceId mismatch: loaded=${loaded.workspaceId}, route=${workspaceId}`)
+      workspaceMismatch.value = true
+      return
     }
     planning.value = loaded
   } catch (err) {
@@ -155,7 +157,7 @@ async function handleFieldUpdate(itemId: string, field: string, value: string) {
   }
 }
 
-async function handleSaveLinkVideo(itemId: string, payload: { linkVideo: string; fechaPublicacion: string; copyPublicacion: string; estadoPublicacion?: string }) {
+async function handleSaveLinkVideo(itemId: string, payload: { linkVideo: string; fechaPublicacion: string; copyPublicacion: string; estadoPublicacion?: EstadoPublicacion; publishToInstagram?: boolean; publishToFacebook?: boolean }) {
   if (!planning.value) return
   savingLink.value = true
   try {
@@ -383,6 +385,14 @@ function exportPdfScripts() {
   }
 }
 
+function goBack() {
+  if (window.history.state && window.history.state.back) {
+    router.back()
+  } else {
+    router.push({ name: 'AppPlanning', params: { workspaceId } })
+  }
+}
+
 function copyClientLink() {
   const clientUrl = router.resolve({
     name: 'VideoPlanningClient',
@@ -427,7 +437,7 @@ onMounted(async () => {
     <div class="vp-view__hero">
       <div class="vp-view__hero-inner">
         <div class="vp-view__hero-left">
-          <button class="vp-view__back-btn" @click="router.back()">
+          <button class="vp-view__back-btn" @click="goBack">
             <i class="fa-solid fa-arrow-left" />
           </button>
           <div class="vp-view__hero-text">
@@ -523,6 +533,19 @@ onMounted(async () => {
             <code>POST /api/video-planning/:id/client-approval</code>
           </p>
         </div>
+      </div>
+
+      <!-- Mismatch de Entorno -->
+      <div v-else-if="workspaceMismatch" class="vp-view__mismatch">
+        <div class="vp-view__mismatch-icon">
+          <i class="fa-solid fa-link-slash" />
+        </div>
+        <h3>Enlace incorrecto</h3>
+        <p>Esta planificación pertenece a otro entorno de trabajo. Verifica el enlace o selecciona la marca correcta.</p>
+        <button class="vp-view__mismatch-btn" @click="router.push('/')">
+          <i class="fa-solid fa-house" />
+          Ir al Inicio
+        </button>
       </div>
 
       <!-- Error genérico -->
@@ -788,6 +811,28 @@ onMounted(async () => {
     }
   }
   &__backend-banner-routes { font-size: 0.75rem !important; }
+
+  // ── Mismatch ──────────────────────────────────────────────
+  &__mismatch {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 5rem 2rem; gap: 0.75rem;
+    background: $white; border-radius: 16px; border: 1.5px solid rgba(#ef4444, 0.15);
+  }
+  &__mismatch-icon {
+    width: 72px; height: 72px; border-radius: 20px;
+    background: rgba(#ef4444, 0.07); border: 2px dashed rgba(#ef4444, 0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.75rem; color: #ef4444; opacity: 0.8; margin-bottom: 0.5rem;
+  }
+  &__mismatch h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #7f1d1d; }
+  &__mismatch p  { margin: 0; font-size: 0.9rem; color: #991b1b; max-width: 400px; line-height: 1.5; }
+  &__mismatch-btn {
+    margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;
+    background: #ef4444; color: $white; border: none; padding: 0.6rem 1.25rem;
+    border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    transition: all 0.2s;
+    &:hover { background: #dc2626; transform: translateY(-1px); }
+  }
 
   // ── Error genérico ────────────────────────────────────────
   &__error {
