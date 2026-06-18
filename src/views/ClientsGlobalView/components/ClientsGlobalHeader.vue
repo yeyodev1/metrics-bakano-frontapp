@@ -34,14 +34,12 @@ function onSearchInput() {
 </script>
 
 <template>
-  <div>
-    <div class="clients-global__header">
-      <div class="clients-global__header-text">
-        <h1 class="clients-global__title">Vista Global de Clientes</h1>
-        <p class="clients-global__subtitle">
-          {{ total > 0 ? `${total} clientes en total` : 'Explora todos los entornos y sus usuarios.' }}
-        </p>
-      </div>
+  <div class="clients-global__header">
+    <div class="clients-global__header-text">
+      <h1 class="clients-global__title">Vista Global de Clientes</h1>
+      <p class="clients-global__subtitle">
+        {{ total > 0 ? `${total} clientes en total` : 'Explora todos los entornos y sus usuarios.' }}
+      </p>
     </div>
 
     <div class="clients-global__search-bar">
@@ -61,9 +59,15 @@ function onSearchInput() {
 .clients-global {
   &__header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 1.5rem;
     margin-bottom: 2rem;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
   }
 
   &__header-text {
@@ -73,7 +77,7 @@ function onSearchInput() {
   }
 
   &__title {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     font-weight: 800;
     color: $primary-dark;
     margin: 0;
@@ -81,15 +85,18 @@ function onSearchInput() {
   }
 
   &__subtitle {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: rgba($primary-dark, 0.6);
     margin: 0;
   }
 
   &__search-bar {
     position: relative;
-    margin-bottom: 2rem;
-    max-width: 500px;
+    width: 100%;
+    
+    @media (min-width: 768px) {
+      width: 320px;
+    }
 
     i {
       position: absolute;
@@ -102,14 +109,13 @@ function onSearchInput() {
 
   &__search-input {
     width: 100%;
-    padding: 0.8rem 1rem 0.8rem 2.8rem;
+    padding: 0.75rem 1rem 0.75rem 2.8rem;
     border-radius: 12px;
     border: 1px solid rgba($primary-dark, 0.1);
     background: #fff;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-family: inherit;
     color: $primary-dark;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
     transition: all 0.2s;
     outline: none;
 
