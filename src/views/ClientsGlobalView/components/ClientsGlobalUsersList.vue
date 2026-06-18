@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Workspace, WorkspaceUser } from '@/types'
 
 const props = defineProps<{
@@ -47,8 +47,22 @@ function getInitials(user: WorkspaceUser): string {
   return src.substring(0, 2).toUpperCase()
 }
 
-const internalUsersCount = computed(() => props.users.filter(u => u.isInternal).length)
-const clientUsersCount = computed(() => props.users.filter(u => !u.isInternal).length)
+const internalUsers = computed(() => props.users.filter(u => u.isInternal))
+const clientUsers = computed(() => props.users.filter(u => !u.isInternal))
+
+const internalUsersCount = computed(() => internalUsers.value.length)
+const clientUsersCount = computed(() => clientUsers.value.length)
+
+// ── Accordeon State ───────────────────────────────────────────
+const showInternal = ref(true)
+const showClient = ref(true)
+
+function toggleInternal() {
+  showInternal.value = !showInternal.value
+}
+function toggleClient() {
+  showClient.value = !showClient.value
+}
 </script>
 
 <template>
@@ -86,43 +100,92 @@ const clientUsersCount = computed(() => props.users.filter(u => !u.isInternal).l
       <p>Este entorno aún no tiene usuarios asignados.</p>
     </div>
 
-    <div v-else class="clients-global-users__list">
-      <button
-        v-for="user in users"
-        :key="user._id"
-        class="clients-global-users__row"
-        :class="user.isInternal ? 'clients-global-users__row--internal' : 'clients-global-users__row--client'"
-        @click="emit('open-user-modal', { user, workspaceName: workspace.name })"
-      >
-        <div class="clients-global-users__avatar">
-          {{ getInitials(user) }}
+    <div v-else class="clients-global-users__accordion-container">
+      
+      <!-- Usuarios Internos -->
+      <div v-if="internalUsersCount > 0" class="clients-global-users__accordion">
+        <button class="clients-global-users__accordion-toggle clients-global-users__accordion-toggle--internal" @click="toggleInternal">
+          <div class="clients-global-users__accordion-title">
+            <i class="fa-solid fa-building" />
+            Equipo Bakano (Internos)
+            <span class="clients-global-users__count-badge">{{ internalUsersCount }}</span>
+          </div>
+          <i :class="showInternal ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" />
+        </button>
+        <div class="clients-global-users__accordion-content" :class="{ 'clients-global-users__accordion-content--open': showInternal }">
+          <div class="clients-global-users__list">
+            <button
+              v-for="user in internalUsers"
+              :key="user._id"
+              class="clients-global-users__row clients-global-users__row--internal"
+              @click="emit('open-user-modal', { user, workspaceName: workspace.name })"
+            >
+              <div class="clients-global-users__avatar">
+                <img v-if="user.photoUrl" :src="user.photoUrl" :alt="user.name" class="clients-global-users__avatar-img" />
+                <span v-else>{{ getInitials(user) }}</span>
+              </div>
+              <div class="clients-global-users__info">
+                <span class="clients-global-users__name">{{ user.name || user.email }}</span>
+                <span class="clients-global-users__email">{{ user.email }}</span>
+              </div>
+              <div class="clients-global-users__meta">
+                <span class="clients-global-users__role">{{ getUserRoleLabel(user) }}</span>
+              </div>
+              <div class="clients-global-users__status">
+                <span
+                  class="clients-global-users__status-dot"
+                  :class="user.isActive ? 'clients-global-users__status-dot--active' : 'clients-global-users__status-dot--inactive'"
+                  :title="user.isActive ? 'Activo' : 'Inactivo'"
+                />
+              </div>
+              <i class="fa-solid fa-chevron-right clients-global-users__arrow" />
+            </button>
+          </div>
         </div>
-        <div class="clients-global-users__info">
-          <span class="clients-global-users__name">{{ user.name || user.email }}</span>
-          <span class="clients-global-users__email">{{ user.email }}</span>
-        </div>
-        
-        <div class="clients-global-users__meta">
-          <span class="clients-global-users__role">{{ getUserRoleLabel(user) }}</span>
-          <span
-            class="clients-global-users__type"
-            :class="user.isInternal ? 'clients-global-users__type--internal' : 'clients-global-users__type--client'"
-          >
-            <i :class="user.isInternal ? 'fa-solid fa-building' : 'fa-solid fa-user'" />
-            {{ getUserTypeLabel(user) }}
-          </span>
-        </div>
+      </div>
 
-        <div class="clients-global-users__status">
-          <span
-            class="clients-global-users__status-dot"
-            :class="user.isActive ? 'clients-global-users__status-dot--active' : 'clients-global-users__status-dot--inactive'"
-            :title="user.isActive ? 'Activo' : 'Inactivo'"
-          />
+      <!-- Usuarios Externos -->
+      <div v-if="clientUsersCount > 0" class="clients-global-users__accordion">
+        <button class="clients-global-users__accordion-toggle clients-global-users__accordion-toggle--client" @click="toggleClient">
+          <div class="clients-global-users__accordion-title">
+            <i class="fa-solid fa-user" />
+            Usuarios del Cliente (Entorno)
+            <span class="clients-global-users__count-badge">{{ clientUsersCount }}</span>
+          </div>
+          <i :class="showClient ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" />
+        </button>
+        <div class="clients-global-users__accordion-content" :class="{ 'clients-global-users__accordion-content--open': showClient }">
+          <div class="clients-global-users__list">
+            <button
+              v-for="user in clientUsers"
+              :key="user._id"
+              class="clients-global-users__row clients-global-users__row--client"
+              @click="emit('open-user-modal', { user, workspaceName: workspace.name })"
+            >
+              <div class="clients-global-users__avatar">
+                <img v-if="user.photoUrl" :src="user.photoUrl" :alt="user.name" class="clients-global-users__avatar-img" />
+                <span v-else>{{ getInitials(user) }}</span>
+              </div>
+              <div class="clients-global-users__info">
+                <span class="clients-global-users__name">{{ user.name || user.email }}</span>
+                <span class="clients-global-users__email">{{ user.email }}</span>
+              </div>
+              <div class="clients-global-users__meta">
+                <span class="clients-global-users__role">{{ getUserRoleLabel(user) }}</span>
+              </div>
+              <div class="clients-global-users__status">
+                <span
+                  class="clients-global-users__status-dot"
+                  :class="user.isActive ? 'clients-global-users__status-dot--active' : 'clients-global-users__status-dot--inactive'"
+                  :title="user.isActive ? 'Activo' : 'Inactivo'"
+                />
+              </div>
+              <i class="fa-solid fa-chevron-right clients-global-users__arrow" />
+            </button>
+          </div>
         </div>
-        
-        <i class="fa-solid fa-chevron-right clients-global-users__arrow" />
-      </button>
+      </div>
+
     </div>
   </div>
 </template>
@@ -246,7 +309,80 @@ const clientUsersCount = computed(() => props.users.filter(u => !u.isInternal).l
     }
   }
 
+  &__accordion-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  &__accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__accordion-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: rgba($primary-dark, 0.03);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba($primary-dark, 0.05);
+    }
+
+    &--internal {
+      border-left: 4px solid $primary;
+    }
+    
+    &--client {
+      border-left: 4px solid $secondary;
+    }
+  }
+
+  &__accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: $primary-dark;
+
+    i {
+      color: rgba($primary-dark, 0.5);
+    }
+  }
+
+  &__count-badge {
+    background: rgba($primary-dark, 0.1);
+    color: $primary-dark;
+    padding: 0.1rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+
+  &__accordion-content {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    opacity: 0;
+    
+    &--open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      padding-top: 0.5rem;
+    }
+  }
+
   &__list {
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -292,6 +428,13 @@ const clientUsersCount = computed(() => props.users.filter(u => !u.isInternal).l
     font-weight: 700;
     font-size: 1rem;
     flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   &__info {
@@ -329,26 +472,6 @@ const clientUsersCount = computed(() => props.users.filter(u => !u.isInternal).l
     font-size: 0.85rem;
     font-weight: 600;
     color: $primary-dark;
-  }
-
-  &__type {
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 0.15rem 0.4rem;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    text-transform: uppercase;
-
-    &--internal {
-      background: rgba($primary, 0.1);
-      color: $primary;
-    }
-    &--client {
-      background: rgba($secondary, 0.1);
-      color: $secondary-dark;
-    }
   }
 
   &__status {

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { Workspace, ClientMeeting } from '@/types'
 
 const userStore = useUserStore()
+const imageError = ref(false)
 
 const props = defineProps({
   workspace: {
@@ -50,11 +52,11 @@ function meetingChipClass(meeting: ClientMeeting | undefined): string {
     <div class="clients-global__card-header">
       <div class="clients-global__card-avatar">
         <img
-          v-if="workspace.metaAds?.pageId"
+          v-if="workspace.metaAds?.pageId && !imageError"
           :src="`https://graph.facebook.com/${workspace.metaAds.pageId}/picture?type=normal`"
           alt="Logo"
           class="clients-global__card-img"
-          @error="($event.target as HTMLImageElement).style.display = 'none'"
+          @error="imageError = true"
         />
         <span v-else>{{ workspace.name.substring(0, 2).toUpperCase() }}</span>
       </div>
