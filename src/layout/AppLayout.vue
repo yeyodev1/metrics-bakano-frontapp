@@ -87,7 +87,8 @@ const isSubAccountMode = computed(() => {
   if (!userStore.isInternal && userStore.role !== 'superadmin') {
     return true
   }
-  return !!route.params.workspaceId
+  // Robust check for sub-account mode using path, in case params are delayed on direct load
+  return route.path.includes('/workspaces/') && !isGlobalView.value
 })
 
 const globalBackRoute = computed(() => {
@@ -594,7 +595,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- Surveys — clients (My Surveys) -->
           <RouterLink
-            v-if="!userStore.isInternal && userStore.role !== 'superadmin' && currentWorkspaceId"
+            v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
             class="app-layout__nav-item app-layout__nav-item--surveys"
             :to="{ name: 'MySurveys', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -609,7 +610,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- Book a meeting — clients only -->
           <button
-            v-if="!userStore.isInternal && userStore.role !== 'superadmin'"
+            v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
             class="app-layout__nav-item app-layout__nav-item--booking"
             @click="isBookingModalOpen = true"
           >

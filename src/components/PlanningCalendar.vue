@@ -383,19 +383,21 @@ function getThisMonday(d: Date) {
 <template>
   <div class="planning-calendar">
     <PlanningHeader
-      v-model:viewMode="viewMode"
-      v-model:showMineOnly="showMineOnly"
+      :view-mode="viewMode"
       :current-month="currentMonth"
       :current-week-start="currentWeekStart"
-      :is-internal="allowGlobal && (userStore.role === 'superadmin' || userStore.isInternal)"
-      :workspace-name="workspaceMeta?.name || ''"
-      :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
+      :show-mine-only="showMineOnly"
+      :is-internal="allowGlobal && (userStore.isInternal || userStore.role === 'superadmin')"
+      :workspace-name="workspaceMeta?.name || 'Cliente sin nombre'"
+      :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId"
       :can-manage="canManage"
       :can-create="canCreate"
+      @update:view-mode="viewMode = $event"
+      @update:show-mine-only="showMineOnly = $event"
       @prev="handlePrev"
       @next="handleNext"
       @today="handleToday"
-      @create="openCreate()"
+      @create="openCreate"
     />
 
     <PlanningTypeFilters v-model="calendarFilter" />

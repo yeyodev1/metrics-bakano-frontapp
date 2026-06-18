@@ -63,7 +63,8 @@ function getBpLabel(ws: any): string {
         <span class="superadmin-dashboard__count">{{ workspaces.length }}</span>
       </div>
       <div class="superadmin-dashboard__search-wrap">
-        <i class="fa-solid fa-magnifying-glass" />
+        <i v-if="isLoadingWorkspaces" class="fa-solid fa-spinner fa-spin" />
+        <i v-else class="fa-solid fa-magnifying-glass" />
         <input 
           v-model="localSearchQuery" 
           type="text" 
@@ -73,12 +74,12 @@ function getBpLabel(ws: any): string {
       </div>
     </div>
 
-    <div v-if="isLoadingWorkspaces" class="superadmin-dashboard__loading">
+    <div v-if="isLoadingWorkspaces && workspaces.length === 0" class="superadmin-dashboard__loading">
       <span class="superadmin-dashboard__spinner" />
-      <p>Cargando entornos...</p>
+      <p>Buscando entornos...</p>
     </div>
 
-    <div v-else-if="workspaces.length === 0" class="superadmin-dashboard__empty-state">
+    <div v-else-if="workspaces.length === 0 && !isLoadingWorkspaces" class="superadmin-dashboard__empty-state">
       <div class="superadmin-dashboard__empty-state-icon">
         <i class="fa-solid fa-layer-group" aria-hidden="true" />
       </div>
@@ -89,7 +90,7 @@ function getBpLabel(ws: any): string {
       </button>
     </div>
 
-    <ul v-else class="superadmin-dashboard__workspace-list" role="list">
+    <ul v-else class="superadmin-dashboard__workspace-list" :class="{ 'is-loading': isLoadingWorkspaces }" role="list">
       <li
         v-for="ws in workspaces"
         :key="ws._id"

@@ -81,12 +81,12 @@ function getMetaPictureUrl(pageId: string): string {
     >
       <div class="view-selector__label-row">
         <span class="view-selector__label">
-          <i class="fa-solid fa-globe" />
-          Global Bakano
+          <i class="fa-solid fa-building" />
+          Vista Agencia
         </span>
         <Transition name="fade">
           <span v-if="viewMode.includes('global')" class="view-selector__badge">
-            Todos los clientes
+            Todas las cuentas
           </span>
         </Transition>
       </div>
