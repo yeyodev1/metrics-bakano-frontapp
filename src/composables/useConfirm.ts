@@ -9,20 +9,23 @@ export interface ConfirmOptions {
   requireInput?: string // if provided, requires the user to type this exact text to confirm
 }
 
-const isVisible = ref(false)
-const options = ref<ConfirmOptions>({
+const DEFAULT_OPTIONS: ConfirmOptions = {
   title: '¿Estás seguro?',
   message: 'Esta acción no se puede deshacer.',
   confirmText: 'Confirmar',
   cancelText: 'Cancelar',
   requireHold: false,
-})
+  requireInput: undefined,
+}
+
+const isVisible = ref(false)
+const options = ref<ConfirmOptions>({ ...DEFAULT_OPTIONS })
 
 let resolvePromise: ((value: boolean) => void) | null = null
 
 export function useConfirm() {
   const confirm = (opts: ConfirmOptions): Promise<boolean> => {
-    options.value = { ...options.value, ...opts }
+    options.value = { ...DEFAULT_OPTIONS, ...opts }
     isVisible.value = true
 
     return new Promise((resolve) => {

@@ -9,6 +9,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
+  (e: 'back'): void
   (e: 'openCreateUser'): void
   (e: 'openEditUser', user: WorkspaceUser): void
   (e: 'confirmDeleteUser', user: WorkspaceUser): void
@@ -18,93 +19,83 @@ const router = useRouter()
 </script>
 
 <template>
-  <section class="superadmin-dashboard__users">
-    <div v-if="!selectedWorkspace" class="superadmin-dashboard__placeholder">
-      <div class="superadmin-dashboard__placeholder-content">
-        <div class="superadmin-dashboard__placeholder-orb">
-          <i class="fa-solid fa-briefcase" />
-          <div class="superadmin-dashboard__placeholder-arrow">
-            <i class="fa-solid fa-arrow-pointer" />
-          </div>
-        </div>
-        <h3>Gestión de Usuarios</h3>
-        <p>Selecciona un entorno de la lista para ver y gestionar sus miembros.</p>
-      </div>
-    </div>
-
-    <template v-else>
-      <div class="superadmin-dashboard__users-header">
+  <section v-if="selectedWorkspace" class="superadmin-dashboard__users">
+    <div class="superadmin-dashboard__users-header">
+      <div class="superadmin-dashboard__users-header-left">
+        <button class="superadmin-dashboard__btn-back" @click="emit('back')">
+          <i class="fa-solid fa-arrow-left" /> Volver a Entornos
+        </button>
         <div>
           <h2 class="superadmin-dashboard__users-title">Usuarios en {{ selectedWorkspace.name }}</h2>
           <p class="superadmin-dashboard__users-sub">{{ users.length }} usuarios registrados</p>
         </div>
-        <div class="superadmin-dashboard__users-actions-top">
-          <button
-            class="superadmin-dashboard__btn-outline"
-            type="button"
-            @click="router.push({ name: 'BillingRoas', params: { workspaceId: selectedWorkspace?._id } })"
-          >
-            <i class="fa-solid fa-right-to-bracket" />
-            Ingresar al entorno
-          </button>
-          <button
-            class="superadmin-dashboard__btn-primary"
-            type="button"
-            @click="emit('openCreateUser')"
-          >
-            <i class="fa-solid fa-user-plus" />
-            Nuevo usuario
-          </button>
-        </div>
       </div>
-
-      <div v-if="isLoadingUsers" class="superadmin-dashboard__loading">
-        <span class="superadmin-dashboard__spinner" />
-      </div>
-
-      <div v-else-if="users.length === 0" class="superadmin-dashboard__empty-state">
-        <div class="superadmin-dashboard__empty-state-icon superadmin-dashboard__empty-state-icon--users">
-          <i class="fa-solid fa-users" />
-        </div>
-        <h4 class="superadmin-dashboard__empty-state-title">Sin usuarios registrados</h4>
-        <p class="superadmin-dashboard__empty-state-desc">Este entorno está vacío. Añade administradores y colaboradores para que puedan analizar los datos.</p>
-        <button class="superadmin-dashboard__btn-primary superadmin-dashboard__btn-primary--sm" @click="emit('openCreateUser')">
-          <i class="fa-solid fa-user-plus" /> Invitar Usuario
+      <div class="superadmin-dashboard__users-actions-top">
+        <button
+          class="superadmin-dashboard__btn-outline"
+          type="button"
+          @click="router.push({ name: 'BillingRoas', params: { workspaceId: selectedWorkspace?._id } })"
+        >
+          <i class="fa-solid fa-right-to-bracket" />
+          Ingresar al entorno
+        </button>
+        <button
+          class="superadmin-dashboard__btn-primary"
+          type="button"
+          @click="emit('openCreateUser')"
+        >
+          <i class="fa-solid fa-user-plus" />
+          Nuevo usuario
         </button>
       </div>
+    </div>
 
-      <div v-else class="superadmin-dashboard__user-grid">
-        <div
-          v-for="user in users"
-          :key="user._id"
-          class="superadmin-dashboard__user-card"
-        >
-          <div class="superadmin-dashboard__user-main">
-            <div class="superadmin-dashboard__user-avatar" :class="`superadmin-dashboard__user-avatar--${user.role}`">
-              {{ (user.name || user.email).charAt(0).toUpperCase() }}
-            </div>
-            <div class="superadmin-dashboard__user-info">
-              <div class="superadmin-dashboard__user-name-row">
-                <span class="superadmin-dashboard__user-name">{{ user.name || 'Sin nombre' }}</span>
-                <span class="superadmin-dashboard__role-badge" :class="`superadmin-dashboard__role-badge--${user.role}`">
-                  {{ user.role }}
-                </span>
-              </div>
-              <span class="superadmin-dashboard__user-email">{{ user.email }}</span>
-            </div>
+    <div v-if="isLoadingUsers" class="superadmin-dashboard__loading">
+      <span class="superadmin-dashboard__spinner" />
+    </div>
+
+    <div v-else-if="users.length === 0" class="superadmin-dashboard__empty-state">
+      <div class="superadmin-dashboard__empty-state-icon superadmin-dashboard__empty-state-icon--users">
+        <i class="fa-solid fa-users" />
+      </div>
+      <h4 class="superadmin-dashboard__empty-state-title">Sin usuarios registrados</h4>
+      <p class="superadmin-dashboard__empty-state-desc">Este entorno está vacío. Añade administradores y colaboradores para que puedan analizar los datos.</p>
+      <button class="superadmin-dashboard__btn-primary superadmin-dashboard__btn-primary--sm" @click="emit('openCreateUser')">
+        <i class="fa-solid fa-user-plus" /> Invitar Usuario
+      </button>
+    </div>
+
+    <div v-else class="superadmin-dashboard__user-grid">
+      <div
+        v-for="user in users"
+        :key="user._id"
+        class="superadmin-dashboard__user-card"
+      >
+        <div class="superadmin-dashboard__user-main">
+          <div class="superadmin-dashboard__user-avatar" :class="`superadmin-dashboard__user-avatar--${user.role}`">
+            {{ (user.name || user.email).charAt(0).toUpperCase() }}
           </div>
-          
-          <div class="superadmin-dashboard__user-actions">
-            <button class="superadmin-dashboard__action-btn" title="Editar" @click="emit('openEditUser', user)">
-              <i class="fa-solid fa-pen-to-square" />
-            </button>
-            <button class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--danger" title="Eliminar" @click="emit('confirmDeleteUser', user)">
-              <i class="fa-solid fa-trash-can" />
-            </button>
+          <div class="superadmin-dashboard__user-info">
+            <div class="superadmin-dashboard__user-name-row">
+              <span class="superadmin-dashboard__user-name">{{ user.name || 'Sin nombre' }}</span>
+              <span class="superadmin-dashboard__role-badge" :class="`superadmin-dashboard__role-badge--${user.role}`">
+                {{ user.role }}
+              </span>
+            </div>
+            <span class="superadmin-dashboard__user-email">{{ user.email }}</span>
           </div>
         </div>
+        
+        <div class="superadmin-dashboard__user-actions">
+          <button class="superadmin-dashboard__action-btn" title="Editar" @click="emit('openEditUser', user)">
+            <i class="fa-solid fa-pen-to-square" />
+          </button>
+          <button class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--danger" title="Eliminar" @click="emit('confirmDeleteUser', user)">
+            <i class="fa-solid fa-trash-can" />
+          </button>
+        </div>
       </div>
-    </template>
+    </div>
   </section>
 </template>
 
@@ -116,10 +107,6 @@ const router = useRouter()
   box-shadow: 0 4px 20px rgba($primary-dark, 0.05);
   border: 1px solid rgba($primary-dark, 0.05);
   min-height: 400px;
-
-  @media (min-width: 1024px) {
-    min-height: 600px;
-  }
 }
 
 .superadmin-dashboard__users-header {
@@ -128,7 +115,7 @@ const router = useRouter()
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 1.5rem;
   border-bottom: 1px solid rgba($primary-dark, 0.05);
 
   @media (min-width: 640px) {
@@ -137,20 +124,43 @@ const router = useRouter()
   }
 }
 
+.superadmin-dashboard__users-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.superadmin-dashboard__btn-back {
+  background: rgba($primary-dark, 0.04);
+  color: $text-secondary;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba($primary-dark, 0.08);
+    color: $primary-dark;
+  }
+}
+
 .superadmin-dashboard__users-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   color: $primary-dark;
-  font-weight: 700;
-
-  @media (min-width: 640px) {
-    font-size: 1.25rem;
-  }
+  font-weight: 800;
 }
 
 .superadmin-dashboard__users-sub {
   margin: 0.25rem 0 0;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: $text-secondary;
 }
 
@@ -180,38 +190,34 @@ const router = useRouter()
   padding: 1.5rem;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: 1.25rem;
 
   @media (min-width: 768px) {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
 }
 
 .superadmin-dashboard__user-card {
-  padding: 1rem;
+  padding: 1.25rem;
   border: 1px solid rgba($primary-dark, 0.08);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   min-width: 0;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
   background: $white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 
   &:hover {
-    box-shadow: 0 4px 12px rgba($primary-dark, 0.05);
+    box-shadow: 0 8px 24px rgba($primary-dark, 0.06);
+    transform: translateY(-2px);
   }
 
   @media (min-width: 640px) {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    padding: 1.25rem;
-  }
-
-  @media (min-width: 1024px) and (max-width: 1150px) {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 
@@ -223,13 +229,14 @@ const router = useRouter()
 }
 
 .superadmin-dashboard__user-avatar {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
+  font-size: 1.2rem;
   background: $primary-light;
   color: $primary;
 
@@ -259,7 +266,8 @@ const router = useRouter()
 }
 
 .superadmin-dashboard__user-name {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.05rem;
   color: $primary-dark;
   white-space: nowrap;
   overflow: hidden;
@@ -271,7 +279,7 @@ const router = useRouter()
   font-size: 0.65rem;
   text-transform: uppercase;
   font-weight: 800;
-  padding: 0.1rem 0.4rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 4px;
   background: #eee;
 
@@ -306,17 +314,12 @@ const router = useRouter()
     padding-top: 0;
     border-top: none;
   }
-
-  @media (min-width: 1024px) and (max-width: 1150px) {
-    padding-top: 0.75rem;
-    border-top: 1px solid rgba($primary-dark, 0.05);
-  }
 }
 
 .superadmin-dashboard__action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   border: none;
   background: rgba($primary-dark, 0.05);
   color: $text-secondary;
@@ -325,6 +328,7 @@ const router = useRouter()
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1rem;
 
   &:hover {
     background: rgba($primary, 0.1);
@@ -332,8 +336,8 @@ const router = useRouter()
   }
 
   &--danger:hover {
-    background: $alert-error-bg;
-    color: $alert-error;
+    background: rgba(#ef4444, 0.1);
+    color: #ef4444;
   }
 }
 
@@ -343,41 +347,35 @@ const router = useRouter()
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 6rem 2rem;
   color: $text-secondary;
 
   &-icon {
-    width: 72px;
-    height: 72px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba($primary, 0.05) 0%, rgba($primary, 0.1) 100%);
-    color: $primary;
+    background: linear-gradient(135deg, rgba($BAKANO-GREEN, 0.05) 0%, rgba($BAKANO-GREEN, 0.1) 100%);
+    color: darken($BAKANO-GREEN, 10%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 2.5rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 8px 24px rgba($primary, 0.1);
-
-    &--users {
-      background: linear-gradient(135deg, rgba($BAKANO-GREEN, 0.05) 0%, rgba($BAKANO-GREEN, 0.1) 100%);
-      color: darken($BAKANO-GREEN, 10%);
-      box-shadow: 0 8px 24px rgba($BAKANO-GREEN, 0.15);
-    }
+    box-shadow: 0 8px 24px rgba($BAKANO-GREEN, 0.15);
   }
 
   &-title {
-    font-size: 1.2rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 800;
     color: $primary-dark;
     margin: 0 0 0.5rem;
   }
 
   &-desc {
-    font-size: 0.95rem;
-    max-width: 320px;
-    margin: 0 0 1.5rem;
-    line-height: 1.5;
+    font-size: 1rem;
+    max-width: 380px;
+    margin: 0 0 2rem;
+    line-height: 1.6;
   }
 }
 
@@ -421,95 +419,8 @@ const router = useRouter()
 
   &--sm {
     padding: 0.5rem 1rem;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
   }
-}
-
-.superadmin-dashboard__placeholder {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  background: radial-gradient(circle at center, rgba($primary, 0.02) 0%, transparent 70%);
-
-  &-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    max-width: 320px;
-    gap: 1.25rem;
-    animation: fadeIn 0.8s ease-out;
-
-    h3 {
-      margin: 0;
-      font-size: 1.25rem;
-      color: $primary-dark;
-      font-weight: 700;
-    }
-
-    p {
-      margin: 0;
-      color: $text-secondary;
-      line-height: 1.6;
-      font-size: 0.95rem;
-    }
-  }
-
-  &-orb {
-    position: relative;
-    width: 80px;
-    height: 80px;
-    background: $white;
-    border-radius: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2.25rem;
-    color: $primary;
-    box-shadow:
-      0 10px 25px rgba($primary, 0.1),
-      0 4px 10px rgba($primary, 0.05);
-    margin-bottom: 0.5rem;
-
-    &::after {
-      content: '';
-      position: absolute;
-      inset: -10px;
-      border-radius: 30px;
-      border: 2px dashed rgba($primary, 0.1);
-      animation: rotate 20s linear infinite;
-    }
-  }
-
-  &-arrow {
-    position: absolute;
-    bottom: -5px;
-    right: -5px;
-    width: 32px;
-    height: 32px;
-    background: $primary;
-    color: $white;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    border: 3px solid $white;
-    box-shadow: 0 4px 10px rgba($primary, 0.3);
-    animation: bounceSmall 2s infinite;
-  }
-}
-
-@keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes bounceSmall {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
 }
 
 .superadmin-dashboard__loading {
@@ -517,14 +428,14 @@ const router = useRouter()
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
+  padding: 4rem;
   gap: 1rem;
   color: $text-secondary;
 }
 
 .superadmin-dashboard__spinner {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: 3px solid rgba($primary, 0.2);
   border-top-color: $primary;
   border-radius: 50%;
@@ -533,16 +444,5 @@ const router = useRouter()
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 </style>

@@ -114,8 +114,8 @@ async function handleDeleteWorkspace(ws: Workspace, e: Event): Promise<void> {
   }
 }
 
-async function selectWorkspace(workspace: Workspace): Promise<void> {
-  if (selectedWorkspace.value?._id === workspace._id) {
+async function selectWorkspace(workspace: Workspace | null): Promise<void> {
+  if (!workspace || selectedWorkspace.value?._id === workspace._id) {
     selectedWorkspace.value = null
     users.value = []
     return
@@ -198,8 +198,9 @@ onMounted(fetchWorkspaces)
 
 <template>
   <div class="superadmin-dashboard__body">
-    <!-- Left: workspaces panel -->
+    <!-- View: Workspaces Grid -->
     <WorkspaceList
+      v-if="!selectedWorkspace"
       v-model:search-query="searchQuery"
       :workspaces="workspaces"
       :is-loading-workspaces="isLoadingWorkspaces"
@@ -215,11 +216,13 @@ onMounted(fetchWorkspaces)
       @fetch-workspaces="fetchWorkspaces"
     />
 
-    <!-- Right: Users panel -->
+    <!-- View: Workspace Users -->
     <WorkspaceUsersList
+      v-else
       :selected-workspace="selectedWorkspace"
       :users="users"
       :is-loading-users="isLoadingUsers"
+      @back="selectWorkspace(null)"
       @open-create-user="openCreateUser"
       @open-edit-user="openEditUser"
       @confirm-delete-user="confirmDeleteUser"
@@ -234,14 +237,5 @@ onMounted(fetchWorkspaces)
   gap: 2rem;
   align-items: start;
   width: 100%;
-
-  @media (min-width: 1024px) {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-  }
-
-  @media (min-width: 1280px) {
-    grid-template-columns: 350px 1fr;
-  }
 }
 </style>

@@ -29,7 +29,13 @@ import VideoInstagramPreviewModal from './videoPlanning/VideoInstagramPreviewMod
 const props = defineProps({
   workspaceId: {
     type: String,
-    required: true,
+    required: false,
+    default: '',
+  },
+  filterWorkspaceId: {
+    type: String,
+    required: false,
+    default: '',
   },
   defaultView: {
     type: String as () => 'month' | 'week' | 'global-week' | 'global-month',
@@ -84,6 +90,28 @@ const selectedMeeting = ref<any>(null)
 const showInstagramPreviewModal = ref(false)
 const selectedVideoCalendarItem = ref<VideoCalendarItem | null>(null)
 
+// Modal dynamic workspace info
+const modalWorkspaceId = computed(() => {
+  if (selectedEntry.value && (selectedEntry.value as any).workspaceId) {
+    return (selectedEntry.value as any).workspaceId
+  }
+  return props.workspaceId
+})
+
+const modalWorkspaceName = computed(() => {
+  if (selectedEntry.value && (selectedEntry.value as any).workspaceName) {
+    return (selectedEntry.value as any).workspaceName
+  }
+  return workspaceMeta.value?.name || ''
+})
+
+const modalWorkspacePageId = computed(() => {
+  if (selectedEntry.value && (selectedEntry.value as any).workspaceMetaPageId) {
+    return (selectedEntry.value as any).workspaceMetaPageId
+  }
+  return workspaceMeta.value?.metaAds?.pageId || ''
+})
+
 // Permissions & Filters
 const showMineOnly = ref(userStore.role !== 'superadmin' && !userStore.isInternal)
 const canManage = computed(() => {
@@ -120,20 +148,34 @@ const filteredGlobalMonthEntries = computed(() => globalMonthEntries.value.filte
 const activeViewEntries = computed(() => {
   if (calendarFilter.value === 'publication') return []
   
-  if (viewMode.value === 'global-month') return filteredGlobalMonthEntries.value
-  if (viewMode.value === 'global-week') return filteredGlobalEntries.value
-  if (viewMode.value === 'week') return filteredWeekEntries.value
-  return filteredEntries.value
+  let result = []
+  if (viewMode.value === 'global-month') result = filteredGlobalMonthEntries.value
+  else if (viewMode.value === 'global-week') result = filteredGlobalEntries.value
+  else if (viewMode.value === 'week') result = filteredWeekEntries.value
+  else result = filteredEntries.value
+
+  if (props.filterWorkspaceId) {
+    result = result.filter(e => {
+      const wId = (e as any).workspaceId || props.workspaceId
+      return wId === props.filterWorkspaceId
+    })
+  }
+  return result
 })
 
 const activeVideoItems = computed(() => {
   if (calendarFilter.value === 'production') return []
-  return videoCalendarItems.value
+  let result = videoCalendarItems.value
+  if (props.filterWorkspaceId) {
+    result = result.filter(v => v.workspaceId === props.filterWorkspaceId)
+  }
+  return result
 })
 
 // ── Data Fetching ───────────────────────────────────────────
 
 async function fetchEntries() {
+  if (!props.workspaceId) return
   isLoading.value = true
   const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1).toISOString()
   const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59).toISOString()
@@ -151,6 +193,7 @@ async function fetchEntries() {
 }
 
 async function fetchWeekEntries() {
+  if (!props.workspaceId) return
   isWeekLoading.value = true
   const start = new Date(currentWeekStart.value)
   const end = new Date(currentWeekStart.value)
@@ -196,6 +239,7 @@ async function fetchGlobalMonth() {
 }
 
 async function fetchWorkspaceUsers() {
+  if (!props.workspaceId) return
   try {
     const res = await workspaceService.listUsers(props.workspaceId)
     workspaceUsers.value = res.users
@@ -203,6 +247,7 @@ async function fetchWorkspaceUsers() {
 }
 
 async function fetchWorkspaceMeta() {
+  if (!props.workspaceId) return
   try {
     const res = await workspaceService.getWorkspace(props.workspaceId)
     workspaceMeta.value = res.workspace
@@ -210,6 +255,7 @@ async function fetchWorkspaceMeta() {
 }
 
 async function fetchVideoCalendarItems(startDate: string, endDate: string) {
+  if (!props.workspaceId) return
   try {
     const items = await videoPlanningService.getCalendarItems(
       props.workspaceId,
@@ -224,6 +270,7 @@ async function fetchVideoCalendarItems(startDate: string, endDate: string) {
 }
 
 async function fetchGhlMeetings(startDate: string, endDate: string) {
+  if (!props.workspaceId) return
   try {
     const res = await ghlService.getWorkspaceMeetings(props.workspaceId, { startDate, endDate })
     ghlMeetings.value = res.meetings || []
@@ -311,7 +358,12 @@ async function handleSave(formData: any) {
       await planningService.updateEntry(selectedEntry.value._id, payload)
       toast.success('Entrada actualizada')
     } else {
-      await planningService.createEntry(props.workspaceId, payload)
+      const targetWorkspaceId = formData.workspaceId || props.workspaceId
+      if (!targetWorkspaceId) {
+        toast.error('Debe seleccionar un cliente')
+        return
+      }
+      await planningService.createEntry(targetWorkspaceId, payload)
       toast.success('Entrada creada')
     }
     showModal.value = false
@@ -388,8 +440,8 @@ function getThisMonday(d: Date) {
       :current-week-start="currentWeekStart"
       :show-mine-only="showMineOnly"
       :is-internal="allowGlobal && (userStore.isInternal || userStore.role === 'superadmin')"
-      :workspace-name="workspaceMeta?.name || 'Cliente sin nombre'"
-      :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId"
+      :workspace-name="!workspaceId ? 'Agencia' : (workspaceMeta?.name || 'Cliente sin nombre')"
+      :workspace-meta-page-id="!workspaceId ? undefined : workspaceMeta?.metaAds?.pageId"
       :can-manage="canManage"
       :can-create="canCreate"
       @update:view-mode="viewMode = $event"
@@ -463,9 +515,9 @@ function getThisMonday(d: Date) {
       v-if="userStore.isInternal || userStore.role === 'superadmin'"
       :show="showModal"
       :entry="selectedEntry"
-      :workspace-id="workspaceId"
-      :workspace-name="workspaceMeta?.name || ''"
-      :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
+      :workspace-id="modalWorkspaceId"
+      :workspace-name="modalWorkspaceName"
+      :workspace-meta-page-id="modalWorkspacePageId"
       :workspace-users="workspaceUsers"
       :is-saving="isSaving"
       :can-manage="canManage"
@@ -480,12 +532,12 @@ function getThisMonday(d: Date) {
       v-else
       :show="showModal"
       :entry="selectedEntry"
-      :workspace-id="workspaceId"
-      :workspace-name="workspaceMeta?.name || ''"
-      :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
+      :workspace-id="modalWorkspaceId"
+      :workspace-name="modalWorkspaceName"
+      :workspace-meta-page-id="modalWorkspacePageId"
       :workspace-users="workspaceUsers"
       :video-items="selectedEntry ? videoCalendarItems.filter(v => v.entryId === selectedEntry!._id) : []"
-      @close="showModal = false" @saved="refresh"
+      @close="showModal = false" @saved="refreshCurrentView"
     />
 
     <GhlMeetingDetailModal

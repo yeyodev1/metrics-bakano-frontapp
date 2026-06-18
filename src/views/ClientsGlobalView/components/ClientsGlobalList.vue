@@ -24,18 +24,6 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  expandedWorkspaceId: {
-    type: String as PropType<string | null>,
-    default: null,
-  },
-  workspaceUsers: {
-    type: Object as () => Record<string, WorkspaceUser[]>,
-    default: () => ({}),
-  },
-  loadingUsers: {
-    type: Object as () => Record<string, boolean>,
-    default: () => ({}),
-  },
   meetingMap: {
     type: Object as PropType<Map<string, ClientMeeting>>,
     required: true,
@@ -46,7 +34,6 @@ const emit = defineEmits<{
   (e: 'load-more'): void
   (e: 'toggle-workspace', workspace: Workspace): void
   (e: 'open-meeting-modal', workspace: Workspace, event: Event): void
-  (e: 'open-user-modal', payload: { user: WorkspaceUser; workspaceName: string }): void
 }>()
 </script>
 
@@ -72,13 +59,9 @@ const emit = defineEmits<{
         v-for="ws in workspaces"
         :key="ws._id"
         :workspace="ws"
-        :isExpanded="expandedWorkspaceId === ws._id"
         :meeting="meetingMap.get(ws._id)"
-        :users="workspaceUsers[ws._id] || []"
-        :loadingUsers="loadingUsers[ws._id] || false"
-        @toggle="emit('toggle-workspace', ws)"
+        @select-workspace="emit('toggle-workspace', ws)"
         @open-meeting-modal="(wsParam, ev) => emit('open-meeting-modal', wsParam, ev)"
-        @open-user-modal="emit('open-user-modal', $event)"
       />
 
       <div v-if="hasMore" class="clients-global__load-more">
@@ -122,9 +105,10 @@ const emit = defineEmits<{
   }
 
   &__list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+    align-items: stretch;
   }
 
   &__load-more {

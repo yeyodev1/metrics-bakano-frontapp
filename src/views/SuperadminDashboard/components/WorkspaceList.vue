@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Workspace } from '@/types'
 
 const props = defineProps<{
@@ -21,6 +22,8 @@ const emit = defineEmits<{
   (e: 'fetchWorkspaces', loadMore: boolean): void
   (e: 'openCreateWorkspace'): void
 }>()
+
+const router = useRouter()
 
 const localSearchQuery = computed({
   get: () => props.searchQuery,
@@ -62,15 +65,20 @@ function getBpLabel(ws: any): string {
         <h3>Entornos</h3>
         <span class="superadmin-dashboard__count">{{ workspaces.length }}</span>
       </div>
-      <div class="superadmin-dashboard__search-wrap">
-        <i v-if="isLoadingWorkspaces" class="fa-solid fa-spinner fa-spin" />
-        <i v-else class="fa-solid fa-magnifying-glass" />
-        <input 
-          v-model="localSearchQuery" 
-          type="text" 
-          placeholder="Buscar..." 
-          class="superadmin-dashboard__search-input"
-        />
+      <div class="superadmin-dashboard__header-actions">
+        <div class="superadmin-dashboard__search-wrap">
+          <i v-if="isLoadingWorkspaces" class="fa-solid fa-spinner fa-spin" />
+          <i v-else class="fa-solid fa-magnifying-glass" />
+          <input 
+            v-model="localSearchQuery" 
+            type="text" 
+            placeholder="Buscar entorno..." 
+            class="superadmin-dashboard__search-input"
+          />
+        </div>
+        <button class="superadmin-dashboard__btn-primary" @click="emit('openCreateWorkspace')">
+          <i class="fa-solid fa-plus" /> Crear Entorno
+        </button>
       </div>
     </div>
 
@@ -85,73 +93,87 @@ function getBpLabel(ws: any): string {
       </div>
       <h4 class="superadmin-dashboard__empty-state-title">No hay entornos de trabajo</h4>
       <p class="superadmin-dashboard__empty-state-desc">Crea un nuevo entorno para empezar a organizar a tus clientes y colaboradores.</p>
-      <button class="superadmin-dashboard__btn-outline superadmin-dashboard__btn-outline--sm" @click="emit('openCreateWorkspace')">
-        <i class="fa-solid fa-plus" /> Crear primer entorno
-      </button>
     </div>
 
-    <ul v-else class="superadmin-dashboard__workspace-list" :class="{ 'is-loading': isLoadingWorkspaces }" role="list">
-      <li
+    <div v-else class="superadmin-dashboard__workspace-grid" :class="{ 'is-loading': isLoadingWorkspaces }">
+      <div
         v-for="ws in workspaces"
         :key="ws._id"
         class="superadmin-dashboard__workspace-card"
         :class="{
-          'superadmin-dashboard__workspace-card--active': selectedWorkspace?._id === ws._id,
           'superadmin-dashboard__workspace-card--inactive': !ws.isActive
         }"
-        role="button"
-        @click="emit('selectWorkspace', ws)"
       >
-        <div class="superadmin-dashboard__ws-icon">
-          <img
-            v-if="ws.metaAds?.pageId"
-            :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=normal`"
-            :alt="ws.name"
-            class="superadmin-dashboard__ws-icon-img"
-            @error="($event.target as HTMLImageElement).style.display = 'none'"
-          />
-          <i v-else class="fa-solid fa-building" />
+        <div class="superadmin-dashboard__workspace-card-header">
+          <div class="superadmin-dashboard__ws-icon">
+            <img
+              v-if="ws.metaAds?.pageId"
+              :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=normal`"
+              :alt="ws.name"
+              class="superadmin-dashboard__ws-icon-img"
+              @error="($event.target as HTMLImageElement).style.display = 'none'"
+            />
+            <i v-else class="fa-solid fa-building" />
+          </div>
+          <div class="superadmin-dashboard__ws-info-top">
+            <span class="superadmin-dashboard__ws-name">
+              {{ ws.name }}
+              <span v-if="!ws.isActive" class="superadmin-dashboard__ws-inactive-badge">Inactivo</span>
+            </span>
+            <span v-if="ws.adminId" class="superadmin-dashboard__ws-admin-email">{{ ws.adminId.email }}</span>
+            <span v-else class="superadmin-dashboard__ws-meta-empty">Sin admin asignado</span>
+          </div>
+          <div class="superadmin-dashboard__ws-actions-menu">
+            <button
+              class="superadmin-dashboard__ws-toggle-btn"
+              :class="ws.isActive ? 'superadmin-dashboard__ws-toggle-btn--deactivate' : 'superadmin-dashboard__ws-toggle-btn--activate'"
+              :disabled="togglingWorkspaceId === ws._id"
+              :title="ws.isActive ? 'Desactivar entorno' : 'Activar entorno'"
+              @click.stop="emit('handleToggleWorkspaceActive', ws, $event)"
+            >
+              <span v-if="togglingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+              <i v-else :class="ws.isActive ? 'fa-solid fa-ban' : 'fa-solid fa-circle-play'" />
+            </button>
+            <button
+              class="superadmin-dashboard__ws-toggle-btn superadmin-dashboard__ws-toggle-btn--delete"
+              :disabled="deletingWorkspaceId === ws._id"
+              title="Eliminar entorno"
+              @click.stop="emit('handleDeleteWorkspace', ws, $event)"
+            >
+              <span v-if="deletingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
+              <i v-else class="fa-solid fa-trash-can" />
+            </button>
+          </div>
         </div>
-        <div class="superadmin-dashboard__ws-info">
-          <span class="superadmin-dashboard__ws-name">
-            {{ ws.name }}
-            <span v-if="!ws.isActive" class="superadmin-dashboard__ws-inactive-badge">Inactivo</span>
-          </span>
-          <span class="superadmin-dashboard__ws-meta">
+        
+        <div class="superadmin-dashboard__workspace-card-body">
+          <div class="superadmin-dashboard__ws-tags">
             <span v-if="ws.metaAds?.pageId" class="superadmin-dashboard__ws-meta-badge">
               <i class="fa-brands fa-meta" /> Meta
             </span>
-            <span v-if="ws.adminId">{{ ws.adminId.email }}</span>
-            <span v-else class="superadmin-dashboard__ws-meta-empty">Sin admin asignado</span>
-          </span>
-          <span :class="['superadmin-dashboard__ws-bp', getBpBadgeClass(ws)]">
-            <i :class="getBrandProfileCompletion(ws) === 100 ? 'fa-solid fa-circle-check' : getBrandProfileCompletion(ws) > 0 ? 'fa-solid fa-circle-half-stroke' : ws.brandProfileInviteSentAt ? 'fa-solid fa-envelope' : 'fa-regular fa-circle'" />
-            {{ getBpLabel(ws) }}
-          </span>
+            <span :class="['superadmin-dashboard__ws-bp', getBpBadgeClass(ws)]">
+              <i :class="getBrandProfileCompletion(ws) === 100 ? 'fa-solid fa-circle-check' : getBrandProfileCompletion(ws) > 0 ? 'fa-solid fa-circle-half-stroke' : ws.brandProfileInviteSentAt ? 'fa-solid fa-envelope' : 'fa-regular fa-circle'" />
+              {{ getBpLabel(ws) }}
+            </span>
+          </div>
         </div>
-        <div class="superadmin-dashboard__ws-actions-inline">
+
+        <div class="superadmin-dashboard__workspace-card-footer">
           <button
-            class="superadmin-dashboard__ws-toggle-btn"
-            :class="ws.isActive ? 'superadmin-dashboard__ws-toggle-btn--deactivate' : 'superadmin-dashboard__ws-toggle-btn--activate'"
-            :disabled="togglingWorkspaceId === ws._id"
-            :title="ws.isActive ? 'Desactivar entorno' : 'Activar entorno'"
-            @click.stop="emit('handleToggleWorkspaceActive', ws, $event)"
+            class="superadmin-dashboard__btn-outline superadmin-dashboard__btn-outline--sm"
+            @click="emit('selectWorkspace', ws)"
           >
-            <span v-if="togglingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
-            <i v-else :class="ws.isActive ? 'fa-solid fa-ban' : 'fa-solid fa-circle-play'" />
+            <i class="fa-solid fa-users" /> Gestionar
           </button>
           <button
-            class="superadmin-dashboard__ws-toggle-btn superadmin-dashboard__ws-toggle-btn--delete"
-            :disabled="deletingWorkspaceId === ws._id"
-            title="Eliminar entorno (Irreversible)"
-            @click.stop="emit('handleDeleteWorkspace', ws, $event)"
+            class="superadmin-dashboard__btn-primary superadmin-dashboard__btn-primary--sm"
+            @click="router.push({ name: 'BillingRoas', params: { workspaceId: ws._id } })"
           >
-            <span v-if="deletingWorkspaceId === ws._id" class="superadmin-dashboard__spinner superadmin-dashboard__spinner--sm" />
-            <i v-else class="fa-solid fa-trash-can" />
+            <i class="fa-solid fa-right-to-bracket" /> Ingresar
           </button>
         </div>
-      </li>
-    </ul>
+      </div>
+    </div>
 
     <!-- Load More -->
     <div v-if="hasMore" class="superadmin-dashboard__load-more">
@@ -175,18 +197,20 @@ function getBpLabel(ws: any): string {
   box-shadow: 0 4px 20px rgba($primary-dark, 0.05);
   border: 1px solid rgba($primary-dark, 0.05);
   min-height: 400px;
-
-  @media (min-width: 1024px) {
-    min-height: 600px;
-  }
 }
 
 .superadmin-dashboard__section-header {
-  padding: 1.25rem;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid rgba($primary-dark, 0.05);
   display: flex;
   flex-direction: column;
   gap: 1rem;
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .superadmin-dashboard__section-title {
@@ -196,8 +220,29 @@ function getBpLabel(ws: any): string {
 
   h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     color: $primary-dark;
+    font-weight: 800;
+  }
+}
+
+.superadmin-dashboard__count {
+  background: rgba($primary, 0.1);
+  color: $primary;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.superadmin-dashboard__header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: center;
   }
 }
 
@@ -206,6 +251,7 @@ function getBpLabel(ws: any): string {
   display: flex;
   align-items: center;
   width: 100%;
+  min-width: 250px;
 
   i {
     position: absolute;
@@ -233,46 +279,96 @@ function getBpLabel(ws: any): string {
   }
 }
 
-.superadmin-dashboard__count {
-  background: rgba($primary, 0.1);
-  color: $primary;
-  padding: 0.2rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
+.superadmin-dashboard__workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  padding: 1.5rem;
 
-.superadmin-dashboard__workspace-list {
-  list-style: none;
-  padding: 0.75rem;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
 }
 
 .superadmin-dashboard__workspace-card {
+  background: $white;
+  border: 1px solid rgba($primary-dark, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 1rem;
-  padding: 1rem;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 
   &:hover {
-    background: rgba($primary, 0.03);
-  }
-
-  &--active {
-    background: rgba($primary, 0.08) !important;
-    border: 1px solid rgba($primary, 0.2);
+    box-shadow: 0 8px 24px rgba($primary-dark, 0.06);
+    transform: translateY(-2px);
   }
 
   &--inactive {
-    opacity: 0.55;
+    opacity: 0.6;
+    background: #fdfdfd;
   }
+}
+
+.superadmin-dashboard__workspace-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.superadmin-dashboard__ws-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, $primary-light 0%, rgba($primary, 0.1) 100%);
+  color: $primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba($primary, 0.1);
+}
+
+.superadmin-dashboard__ws-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.superadmin-dashboard__ws-info-top {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.superadmin-dashboard__ws-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: $primary-dark;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.1rem;
+}
+
+.superadmin-dashboard__ws-admin-email {
+  font-size: 0.8rem;
+  color: $text-secondary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.superadmin-dashboard__ws-meta-empty {
+  font-size: 0.8rem;
+  color: rgba($text-secondary, 0.6);
+  font-style: italic;
 }
 
 .superadmin-dashboard__ws-inactive-badge {
@@ -289,44 +385,40 @@ function getBpLabel(ws: any): string {
   margin-left: 0.4rem;
 }
 
-.superadmin-dashboard__ws-actions-inline {
+.superadmin-dashboard__ws-actions-menu {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
+  gap: 0.4rem;
 }
 
 .superadmin-dashboard__ws-toggle-btn {
-  flex-shrink: 0;
-  padding: 0.4rem 0.5rem;
+  width: 32px;
+  height: 32px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  transition: background 0.15s;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
+  transition: all 0.2s;
+  background: rgba($primary-dark, 0.04);
+  color: $text-secondary;
+
+  &:hover:not(:disabled) {
+    background: rgba($primary-dark, 0.1);
+    color: $primary-dark;
+  }
 
   &--deactivate {
-    background: rgba(#ef4444, 0.08);
-    color: #ef4444;
-    &:hover:not(:disabled) { background: rgba(#ef4444, 0.18); }
+    &:hover:not(:disabled) { background: rgba(#ef4444, 0.1); color: #ef4444; }
   }
 
   &--delete {
-    background: rgba(#dc2626, 0.1);
-    color: #dc2626;
-    border: 1px solid rgba(#dc2626, 0.2);
-    &:hover:not(:disabled) { background: rgba(#b91c1c, 0.8); color: #fff; }
+    &:hover:not(:disabled) { background: rgba(#dc2626, 0.1); color: #dc2626; }
   }
 
   &--activate {
-    background: rgba(#16a34a, 0.08);
-    color: #16a34a;
-    &:hover:not(:disabled) { background: rgba(#16a34a, 0.18); }
+    &:hover:not(:disabled) { background: rgba(#16a34a, 0.1); color: #16a34a; }
   }
 
   &:disabled {
@@ -335,77 +427,37 @@ function getBpLabel(ws: any): string {
   }
 }
 
-.superadmin-dashboard__ws-icon {
-  width: 40px;
-  height: 40px;
-  background: $primary-light;
-  color: $primary;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  overflow: hidden;
+.superadmin-dashboard__workspace-card-body {
+  padding-top: 0.5rem;
 }
 
-.superadmin-dashboard__ws-icon-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 8px;
+.superadmin-dashboard__ws-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .superadmin-dashboard__ws-meta-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #1877f2;
   background: rgba(#1877f2, 0.08);
-  padding: 0.1rem 0.4rem;
+  padding: 0.25rem 0.6rem;
   border-radius: 100px;
-}
-
-.superadmin-dashboard__ws-meta-empty {
-  color: rgba($text-secondary, 0.6);
-  font-style: italic;
-}
-
-.superadmin-dashboard__ws-info {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.superadmin-dashboard__ws-name {
-  font-weight: 600;
-  color: $primary-dark;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.superadmin-dashboard__ws-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: $text-secondary;
 }
 
 .superadmin-dashboard__ws-bp {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.12rem 0.45rem;
-  border-radius: 20px;
-  margin-top: 2px;
-  width: fit-content;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 100px;
 
   &--none {
     background: rgba($primary-dark, 0.06);
@@ -425,6 +477,19 @@ function getBpLabel(ws: any): string {
   &--complete {
     background: rgba(#22c55e, 0.1);
     color: darken(#22c55e, 15%);
+  }
+}
+
+.superadmin-dashboard__workspace-card-footer {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid rgba($primary-dark, 0.05);
+
+  button {
+    flex: 1;
+    justify-content: center;
   }
 }
 
@@ -486,8 +551,32 @@ function getBpLabel(ws: any): string {
   }
 
   &--sm {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+.superadmin-dashboard__btn-primary {
+  background: $primary;
+  color: $white;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: box-shadow 0.2s, opacity 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba($primary, 0.3);
+    opacity: 0.95;
+  }
+
+  &--sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
   }
 }
 

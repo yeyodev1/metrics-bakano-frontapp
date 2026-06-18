@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/user'
 
 import ClientsGlobalHeader from './components/ClientsGlobalHeader.vue'
 import ClientsGlobalList from './components/ClientsGlobalList.vue'
+import ClientsGlobalUsersList from './components/ClientsGlobalUsersList.vue'
 import ClientsGlobalMeetingModal from './components/ClientsGlobalMeetingModal.vue'
 import ClientsGlobalUserModal from './components/ClientsGlobalUserModal.vue'
 
@@ -19,11 +20,12 @@ const searchQuery = ref('')
 const page = ref(1)
 const hasMore = ref(false)
 const total = ref(0)
-const expandedWorkspaceId = ref<string | null>(null)
-const workspaceUsers = ref<Record<string, WorkspaceUser[]>>({})
+
+const selectedWorkspace = ref<Workspace | null>(null)
+const workspaceUsers = ref<WorkspaceUser[]>([])
 const loadingWorkspaces = ref(false)
 const loadingMore = ref(false)
-const loadingUsers = ref<Record<string, boolean>>({})
+const loadingUsers = ref(false)
 const error = ref<string | null>(null)
 
 // ── Meeting state ─────────────────────────────────────────────
@@ -72,8 +74,8 @@ async function fetchWorkspaces(append = false) {
 
 function handleSearch() {
   page.value = 1
-  expandedWorkspaceId.value = null
-  workspaceUsers.value = {}
+  selectedWorkspace.value = null
+  workspaceUsers.value = []
   fetchWorkspaces()
 }
 
@@ -82,25 +84,22 @@ async function loadMore() {
   await fetchWorkspaces(true)
 }
 
-// ── Expand Workspace ──────────────────────────────────────────
-async function toggleWorkspace(ws: Workspace) {
-  if (expandedWorkspaceId.value === ws._id) {
-    expandedWorkspaceId.value = null
+// ── Select Workspace (Drill-down) ─────────────────────────────
+async function selectWorkspace(ws: Workspace | null) {
+  selectedWorkspace.value = ws
+  if (!ws) {
+    workspaceUsers.value = []
     return
   }
 
-  expandedWorkspaceId.value = ws._id
-
-  if (!workspaceUsers.value[ws._id]) {
-    loadingUsers.value[ws._id] = true
-    try {
-      const res = await workspaceService.listUsers(ws._id)
-      workspaceUsers.value[ws._id] = res.users
-    } catch {
-      workspaceUsers.value[ws._id] = []
-    } finally {
-      loadingUsers.value[ws._id] = false
-    }
+  loadingUsers.value = true
+  try {
+    const res = await workspaceService.listUsers(ws._id)
+    workspaceUsers.value = res.users
+  } catch {
+    workspaceUsers.value = []
+  } finally {
+    loadingUsers.value = false
   }
 }
 
@@ -178,27 +177,34 @@ onUnmounted(() => {
 
 <template>
   <div class="clients-global">
-    <ClientsGlobalHeader
-      v-model="searchQuery"
-      :total="total"
-      @search="handleSearch"
-    />
+    <template v-if="!selectedWorkspace">
+      <ClientsGlobalHeader
+        v-model="searchQuery"
+        :total="total"
+        @search="handleSearch"
+      />
 
-    <ClientsGlobalList
-      :workspaces="workspaces"
-      :loading="loadingWorkspaces"
-      :error="error"
-      :hasMore="hasMore"
-      :loadingMore="loadingMore"
-      :expandedWorkspaceId="expandedWorkspaceId"
-      :workspaceUsers="workspaceUsers"
-      :loadingUsers="loadingUsers"
-      :meetingMap="meetingMap"
-      @load-more="loadMore"
-      @toggle-workspace="toggleWorkspace"
-      @open-meeting-modal="openMeetingModal"
-      @open-user-modal="openUserDetail"
-    />
+      <ClientsGlobalList
+        :workspaces="workspaces"
+        :loading="loadingWorkspaces"
+        :error="error"
+        :hasMore="hasMore"
+        :loadingMore="loadingMore"
+        :meetingMap="meetingMap"
+        @load-more="loadMore"
+        @toggle-workspace="selectWorkspace"
+        @open-meeting-modal="openMeetingModal"
+      />
+    </template>
+    <template v-else>
+      <ClientsGlobalUsersList
+        :workspace="selectedWorkspace"
+        :users="workspaceUsers"
+        :isLoadingUsers="loadingUsers"
+        @back="selectWorkspace(null)"
+        @open-user-modal="openUserDetail"
+      />
+    </template>
 
     <ClientsGlobalMeetingModal
       :isOpen="isMeetingModalOpen"
@@ -225,6 +231,6 @@ onUnmounted(() => {
   width: 100%;
   max-width: 1000px;
   margin: 0 auto;
-  padding-bottom: 4rem;
+  padding: 2rem 1rem 4rem;
 }
 </style>
