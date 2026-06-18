@@ -18,6 +18,10 @@ const props = defineProps({
     type: Array as () => VideoCalendarItem[],
     default: () => [],
   },
+  ghlMeetings: {
+    type: Array as () => any[],
+    default: () => [],
+  },
   isGlobal: {
     type: Boolean,
     default: false,
@@ -36,7 +40,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['edit-entry', 'click-video'])
+const emit = defineEmits(['click-day', 'edit-entry', 'click-video', 'click-meeting'])
 
 const WEEKDAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
@@ -93,6 +97,14 @@ function getVideoItemsForDay(day: Date): VideoCalendarItem[] {
     // Use the stored date string directly (first 10 chars = YYYY-MM-DD)
     // to avoid UTC-midnight shifting one day back in UTC-5 Ecuador
     const d = v.fechaPublicacion.substring(0, 10)
+    return d === targetDate
+  })
+}
+
+function getGhlMeetingsForDay(day: Date): any[] {
+  const targetDate = day.toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
+  return props.ghlMeetings.filter((m: any) => {
+    const d = new Date(m.startTime).toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
     return d === targetDate
   })
 }
@@ -182,6 +194,26 @@ function isPast(day: Date) {
           <i class="fa-solid fa-clapperboard planning-week__video-icon" />
           <span class="planning-week__video-name">{{ video.tema }}</span>
           <span v-if="video.estadoPublicacion === 'PUBLICADO'" class="planning-week__video-badge">✓</span>
+        </div>
+
+        <!-- GHL Meetings chips -->
+        <div
+          v-for="meeting in getGhlMeetingsForDay(day)"
+          :key="meeting._id"
+          class="planning-week__meeting-chip"
+          @click="emit('click-meeting', meeting)"
+          :title="meeting.title"
+        >
+          <div class="planning-week__meeting-header">
+            <i class="fa-brands fa-google planning-week__meeting-icon" />
+            <span class="planning-week__meeting-title">{{ meeting.title }}</span>
+          </div>
+          <div class="planning-week__meeting-avatars">
+            <div v-for="att in meeting.attendees" :key="att.email" class="planning-week__meeting-avatar">
+              <img v-if="att.photoUrl" :src="att.photoUrl" :alt="att.name" :title="att.name" />
+              <div v-else class="fallback" :title="att.name">{{ att.name ? att.name.charAt(0).toUpperCase() : 'U' }}</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -347,6 +379,87 @@ function isPast(day: Date) {
 
   &__video-badge {
     font-size: 0.7rem; font-weight: 900; flex-shrink: 0;
+  }
+
+  &__meeting-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 10px;
+    background: rgba(#8b5cf6, 0.1);
+    border: 1px solid rgba(#8b5cf6, 0.2);
+    cursor: default;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+
+    &:hover {
+      background: rgba(#8b5cf6, 0.15);
+      border-color: rgba(#8b5cf6, 0.3);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  &__meeting-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #6d28d9;
+  }
+
+  &__meeting-icon {
+    font-size: 0.8rem;
+  }
+
+  &__meeting-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__meeting-avatars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: -0.3rem;
+    padding-left: 0.2rem;
+  }
+
+  &__meeting-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid $white;
+    margin-left: -0.4rem;
+    position: relative;
+    z-index: 1;
+
+    img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .fallback {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #8b5cf6;
+      color: $white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+
+    &:hover {
+      z-index: 10;
+      transform: translateY(-2px);
+    }
   }
 }
 </style>

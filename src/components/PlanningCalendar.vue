@@ -13,11 +13,13 @@ import type {
   Workspace
 } from '@/types'
 import type { VideoCalendarItem, VideoItem } from '@/types/videoPlanning'
+import { ghlService, type GhlMeeting } from '@/services/ghl.service'
 
 // Sub-components
 import PlanningHeader from './planning/PlanningHeader.vue'
 import PlanningMonthView from './planning/PlanningMonthView.vue'
 import PlanningWeekView from './planning/PlanningWeekView.vue'
+import GhlMeetingDetailModal from './planning/GhlMeetingDetailModal.vue'
 import PlanningEventModal from './planning/PlanningEventModal.vue'
 import ClientPlanningEventModal from './planning/ClientPlanningEventModal.vue'
 import PlanningTypeFilters from './planning/PlanningTypeFilters.vue'
@@ -53,6 +55,7 @@ const globalMonthEntries = ref<GlobalPlanningEntry[]>([])
 const workspaceUsers = ref<WorkspaceUser[]>([])
 const workspaceMeta = ref<Workspace | null>(null)
 const videoCalendarItems = ref<VideoCalendarItem[]>([])
+const ghlMeetings = ref<GhlMeeting[]>([])
 
 // State: UI
 const isLoading = ref(false)
@@ -65,6 +68,10 @@ const calendarFilter = ref<'all' | 'production' | 'publication'>('all')
 
 const showVideoItemModal = ref(false)
 const selectedVideoItem = ref<VideoItem | null>(null)
+
+// Meeting Modal State
+const showMeetingModal = ref(false)
+const selectedMeeting = ref<any>(null)
 
 const showInstagramPreviewModal = ref(false)
 const selectedVideoCalendarItem = ref<VideoCalendarItem | null>(null)
@@ -122,10 +129,13 @@ async function fetchEntries() {
   isLoading.value = true
   const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1).toISOString()
   const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59).toISOString()
-  // Always fetch video calendar items independently — works for all roles including clients
-  fetchVideoCalendarItems(start, end)
+  
   try {
-    const res = await planningService.listEntries(props.workspaceId, { startDate: start, endDate: end })
+    const [res] = await Promise.all([
+      planningService.listEntries(props.workspaceId, { startDate: start, endDate: end }),
+      fetchVideoCalendarItems(start, end),
+      fetchGhlMeetings(start, end)
+    ])
     entries.value = res.entries
   } catch {
     toast.error('Error al cargar planificación')
@@ -138,10 +148,13 @@ async function fetchWeekEntries() {
   const end = new Date(currentWeekStart.value)
   end.setDate(end.getDate() + 6)
   end.setHours(23, 59, 59, 999)
-  // Always fetch video calendar items independently — works for all roles including clients
-  fetchVideoCalendarItems(start.toISOString(), end.toISOString())
+  
   try {
-    const res = await planningService.listEntries(props.workspaceId, { startDate: start.toISOString(), endDate: end.toISOString() })
+    const [res] = await Promise.all([
+      planningService.listEntries(props.workspaceId, { startDate: start.toISOString(), endDate: end.toISOString() }),
+      fetchVideoCalendarItems(start.toISOString(), end.toISOString()),
+      fetchGhlMeetings(start.toISOString(), end.toISOString())
+    ])
     weekEntries.value = res.entries
   } catch {
     toast.error('Error al cargar semana')
@@ -202,7 +215,21 @@ async function fetchVideoCalendarItems(startDate: string, endDate: string) {
   }
 }
 
+async function fetchGhlMeetings(startDate: string, endDate: string) {
+  try {
+    const res = await ghlService.getWorkspaceMeetings(props.workspaceId, { startDate, endDate })
+    ghlMeetings.value = res.meetings || []
+  } catch {
+    // Non-critical: meetings are supplementary
+  }
+}
+
 // ── Handlers ────────────────────────────────────────────────
+
+function handleMeetingClick(meeting: any) {
+  selectedMeeting.value = meeting
+  showMeetingModal.value = true
+}
 
 function handlePrev() {
   if (viewMode.value.includes('month')) {
@@ -371,6 +398,7 @@ function getThisMonday(d: Date) {
           :current-month="currentMonth"
           :entries="activeViewEntries"
           :video-items="activeVideoItems"
+          :ghl-meetings="ghlMeetings"
           :is-global="viewMode === 'global-month'"
           :can-manage="canManage"
           :workspace-name="workspaceMeta?.name || ''"
@@ -378,6 +406,7 @@ function getThisMonday(d: Date) {
           @click-day="openCreate"
           @edit-entry="openEdit"
           @click-video="handleVideoClick"
+          @click-meeting="handleMeetingClick"
         />
 
         <!-- Week Views -->
@@ -386,12 +415,14 @@ function getThisMonday(d: Date) {
           :monday="currentWeekStart"
           :entries="activeViewEntries"
           :video-items="activeVideoItems"
+          :ghl-meetings="ghlMeetings"
           :is-global="viewMode === 'global-week'"
           :can-manage="canManage"
           :workspace-name="workspaceMeta?.name || ''"
           :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
           @edit-entry="openEdit"
           @click-video="handleVideoClick"
+          @click-meeting="handleMeetingClick"
         />
       </div>
     </Transition>
@@ -438,7 +469,13 @@ function getThisMonday(d: Date) {
       :workspace-meta-page-id="workspaceMeta?.metaAds?.pageId || ''"
       :workspace-users="workspaceUsers"
       :video-items="selectedEntry ? videoCalendarItems.filter(v => v.entryId === selectedEntry!._id) : []"
-      @close="showModal = false"
+      @close="showModal = false" @saved="refresh"
+    />
+
+    <GhlMeetingDetailModal
+      :show="showMeetingModal"
+      :meeting="selectedMeeting"
+      @close="showMeetingModal = false"
     />
   </div>
 </template>

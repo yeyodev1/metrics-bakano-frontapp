@@ -228,11 +228,13 @@ const deletingWorkspaceId = ref<string | null>(null)
 
 async function handleDeleteWorkspace(ws: Workspace, e: Event): Promise<void> {
   e.stopPropagation()
+  const expectedText = `eliminar ${ws.name}`
   const isConfirmed = await confirm.confirm({
     title: 'Eliminar entorno (Irreversible)',
-    message: `¿Estás seguro de eliminar "${ws.name}"? Esta acción borrará el entorno y eliminará la referencia de todos los usuarios asignados permanentemente.`,
+    message: `¿Estás seguro de eliminar "${ws.name}"? Esta acción borrará el entorno y eliminará la referencia de todos los usuarios asignados permanentemente. (Usuarios de Bakano no serán eliminados).`,
     confirmText: 'Sí, Eliminar',
-    requireHold: true
+    requireHold: true,
+    requireInput: expectedText
   })
   if (!isConfirmed) return
 

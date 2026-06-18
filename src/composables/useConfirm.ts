@@ -6,6 +6,7 @@ export interface ConfirmOptions {
   confirmText?: string
   cancelText?: string
   requireHold?: boolean // if true, uses 1.2s hold-to-confirm button
+  requireInput?: string // if provided, requires the user to type this exact text to confirm
 }
 
 const isVisible = ref(false)

@@ -1,14 +1,28 @@
 <script setup lang="ts">
 import { useConfirm } from '@/composables/useConfirm'
 import HoldToConfirmButton from './HoldToConfirmButton.vue'
+import { ref, computed, watch } from 'vue'
 
 const { isVisible, options, proceed, cancel } = useConfirm()
 
+const userInput = ref('')
+
+watch(isVisible, (val) => {
+  if (val) userInput.value = ''
+})
+
+const isConfirmDisabled = computed(() => {
+  if (!options.value.requireInput) return false
+  return userInput.value !== options.value.requireInput
+})
+
 const handleHoldConfirm = () => {
+  if (isConfirmDisabled.value) return
   proceed()
 }
 
 const handleNormalConfirm = () => {
+  if (isConfirmDisabled.value) return
   proceed()
 }
 
@@ -25,8 +39,19 @@ const handleNormalConfirm = () => {
           <h3 class="global-confirm-title">{{ options.title }}</h3>
           <p class="global-confirm-message">{{ options.message }}</p>
           
-          <div v-if="options.requireHold" class="global-confirm-hint">
+          <div v-if="options.requireHold && !options.requireInput" class="global-confirm-hint">
             <i class="fa-solid fa-hand-pointer" /> Mantén presionado para confirmar
+          </div>
+
+          <div v-if="options.requireInput" class="global-confirm-input-group">
+            <label>Escribe <strong>{{ options.requireInput }}</strong> para confirmar:</label>
+            <input 
+              v-model="userInput" 
+              type="text" 
+              class="global-confirm-input" 
+              :placeholder="options.requireInput"
+              @keyup.enter="handleNormalConfirm"
+            />
           </div>
         </div>
         
@@ -36,6 +61,7 @@ const handleNormalConfirm = () => {
           <HoldToConfirmButton 
             v-if="options.requireHold"
             btnClass="btn-danger"
+            :disabled="isConfirmDisabled"
             @confirm="handleHoldConfirm"
           >
             {{ options.confirmText }}
@@ -44,6 +70,7 @@ const handleNormalConfirm = () => {
           <button 
             v-else 
             class="btn-danger" 
+            :disabled="isConfirmDisabled"
             @click="handleNormalConfirm"
           >
             {{ options.confirmText }}
@@ -125,6 +152,34 @@ const handleNormalConfirm = () => {
   margin-top: 0.5rem;
 }
 
+.global-confirm-input-group {
+  margin-top: 1.5rem;
+  text-align: left;
+  
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: $text-secondary;
+    margin-bottom: 0.5rem;
+    strong { color: $alert-error; }
+  }
+}
+
+.global-confirm-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba($primary-dark, 0.15);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s;
+  
+  &:focus {
+    border-color: $alert-error;
+    box-shadow: 0 0 0 3px rgba($alert-error, 0.1);
+  }
+}
+
 .global-confirm-footer {
   display: flex;
   justify-content: center;
@@ -159,8 +214,15 @@ const handleNormalConfirm = () => {
   transition: opacity 0.2s, transform 0.1s;
   box-shadow: 0 4px 12px rgba($alert-error, 0.3);
 
-  &:hover {
+  &:hover:not(:disabled) {
     opacity: 0.95;
+  }
+
+  &:disabled {
+    background: rgba($primary-dark, 0.2);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 }
 
