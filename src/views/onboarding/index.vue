@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 import OnboardingSidebar from './components/OnboardingSidebar.vue'
 import OnboardingStepVideo from './components/OnboardingStepVideo.vue'
 import OnboardingStepContract from './components/OnboardingStepContract.vue'
+import OnboardingStepResources from './components/OnboardingStepResources.vue'
 import OnboardingStepScheduling from './components/OnboardingStepScheduling.vue'
 import OnboardingStepDone from './components/OnboardingStepDone.vue'
 import OnboardingContractModal from './components/OnboardingContractModal.vue'
@@ -26,6 +27,7 @@ const currentStep = ref(1)
 // Status
 const videoAccepted = ref(false)
 const contractSubmitted = ref(false)
+const resourcesCompleted = ref(false)
 const meetingScheduled = ref(false)
 
 // Contract Data
@@ -67,16 +69,19 @@ onMounted(async () => {
     const status = response.onboardingStatus
     videoAccepted.value = status?.videoGenesisAccepted || false
     contractSubmitted.value = status?.contractSubmitted || false
+    resourcesCompleted.value = status?.resourcesCompleted || false
     meetingScheduled.value = status?.meetingScheduled || false
 
     if (meetingScheduled.value) {
-      currentStep.value = 4 // Done
+      currentStep.value = 5
       setTimeout(() => {
         router.push(`/app/workspaces/${workspaceId.value}`)
       }, 3000)
+    } else if (resourcesCompleted.value) {
+      currentStep.value = 4
+      startPolling()
     } else if (contractSubmitted.value) {
       currentStep.value = 3
-      startPolling()
     } else if (videoAccepted.value) {
       currentStep.value = 2
     }
@@ -116,6 +121,21 @@ function closePreviewModal() {
   showPreviewModal.value = false
 }
 
+async function onResourcesCompleted() {
+  isSubmitting.value = true
+  try {
+    await onboardingService.markResourcesCompleted(workspaceId.value)
+    resourcesCompleted.value = true
+    currentStep.value = 4
+    startPolling()
+  } catch (error) {
+    console.error(error)
+    toast.error('Hubo un error al guardar tus recursos.')
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
 async function onSubmitContract() {
   isSubmitting.value = true
   try {
@@ -126,7 +146,6 @@ async function onSubmitContract() {
     closePreviewModal()
     toast.success('¡Información Recibida! En breve se creará el grupo de WhatsApp y se te enviará el PDF del contrato con las firmas oficiales.')
     currentStep.value = 3
-    startPolling()
   } catch (error) {
     console.error(error)
     toast.error('Hubo un error al procesar tu contrato.')
@@ -141,7 +160,7 @@ async function onMeetingScheduled() {
     await onboardingService.markMeetingScheduled(workspaceId.value)
     meetingScheduled.value = true
     stopPolling()
-    currentStep.value = 4
+    currentStep.value = 5
     setTimeout(() => {
       router.push(`/app/workspaces/${workspaceId.value}`)
     }, 5000)
@@ -161,7 +180,7 @@ function startPolling() {
       if (status?.onboardingStatus?.meetingScheduled) {
         meetingScheduled.value = true
         stopPolling()
-        currentStep.value = 4
+        currentStep.value = 5
         setTimeout(() => {
           router.push(`/app/workspaces/${workspaceId.value}`)
         }, 5000)
@@ -215,13 +234,19 @@ function onLogout() {
               @preview="handlePreview"
             />
 
+            <OnboardingStepResources
+              v-else-if="currentStep === 3"
+              :workspaceId="workspaceId"
+              @continue="onResourcesCompleted"
+            />
+
             <OnboardingStepScheduling 
-              v-else-if="currentStep === 3" 
+              v-else-if="currentStep === 4" 
               @scheduled="onMeetingScheduled"
             />
 
             <OnboardingStepDone 
-              v-else-if="currentStep === 4" 
+              v-else-if="currentStep === 5" 
             />
           </Transition>
         </div>

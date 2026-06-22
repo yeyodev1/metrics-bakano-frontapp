@@ -5,49 +5,77 @@ import carlosPhoto from '@/assets/team/carlos.jpg'
 defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
-type Expert = 'denisse' | 'carlos' | null
+type Expert = 'soporte' | 'meta' | 'ventas' | null
 const selected = ref<Expert>(null)
+
+const fallbackImg = ref<Record<string, boolean>>({})
 
 const experts = [
   {
-    key: 'denisse' as Expert,
-    name: 'Denisse',
-    role: 'Experta en Meta Ads',
-    photo: 'https://res.cloudinary.com/dpjzfua3n/image/upload/q_auto/f_auto/v1775356095/sorbito-de-verdad/collaborators/bakano-team-denisse.webp',
-    color: '#E91E8C',
-    accentBg: 'rgba(233, 30, 140, 0.08)',
-    accentBorder: 'rgba(233, 30, 140, 0.25)',
-    shadowColor: 'rgba(233, 30, 140, 0.2)',
-    topics: [
-      { icon: 'fa-brands fa-meta', label: 'Meta Ads — Facebook e Instagram' },
-      { icon: 'fa-solid fa-bullseye', label: 'Estrategia y optimización de anuncios' },
-      { icon: 'fa-solid fa-images', label: 'Creativos, copy y audiencias' },
-      { icon: 'fa-solid fa-chart-line', label: 'Resultados y métricas de campañas' },
-    ],
-    notFor: 'Esta reunión NO es para temas de tecnología, CRM, reportes ni plataformas.',
-    url: 'https://api.leadconnectorhq.com/widget/bookings/bakano-tech-supportf7tixz',
-    warningTitle: 'Solo temas de Meta Ads',
-    warningBody: 'Si tu duda es sobre anuncios en Facebook o Instagram, estás en el lugar correcto. Cualquier otro tema será redirigido.',
-  },
-  {
-    key: 'carlos' as Expert,
-    name: 'Carlos Jurado',
-    role: 'Experto en Tecnología',
-    photo: carlosPhoto,
+    key: 'soporte' as Expert,
+    name: 'Diego Reyes',
+    role: 'Director de Tecnología',
+    photo: 'https://res.cloudinary.com/dpjzfua3n/image/upload/q_auto/f_auto/v1/sorbito-de-verdad/collaborators/bakano-team-diego',
+    initials: 'DR',
     color: '#3B5BDB',
     accentBg: 'rgba(59, 91, 219, 0.08)',
     accentBorder: 'rgba(59, 91, 219, 0.25)',
     shadowColor: 'rgba(59, 91, 219, 0.2)',
     topics: [
-      { icon: 'fa-solid fa-laptop-code', label: 'Tecnología, desarrollo y plataformas' },
-      { icon: 'fa-solid fa-database', label: 'CRM y automatizaciones' },
-      { icon: 'fa-solid fa-chart-bar', label: 'metrics.bakano.ec y reportes' },
-      { icon: 'fa-solid fa-robot', label: 'Integraciones y herramientas tech' },
+      { icon: 'fa-solid fa-laptop-code', label: 'Soporte técnico de la plataforma' },
+      { icon: 'fa-solid fa-database', label: 'CRM, reportes y metrics.bakano.ec' },
+      { icon: 'fa-solid fa-link', label: 'Integraciones y herramientas' },
+      { icon: 'fa-solid fa-life-ring', label: 'Resolución de incidencias' },
     ],
-    notFor: 'Esta reunión NO es para temas de Meta Ads, anuncios ni estrategia publicitaria.',
-    url: 'https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm',
-    warningTitle: 'Solo temas de Tecnología',
-    warningBody: 'Si tu duda es sobre la plataforma, CRM, reportes o cualquier tema técnico, estás en el lugar correcto. Cualquier otro tema será redirigido.',
+    notFor: 'Esta reunión NO es para temas de Meta Ads, estrategia publicitaria ni ventas.',
+    url: 'https://api.leadconnectorhq.com/widget/booking/aaHn06pmWuNFuF7tjDST',
+    warningTitle: 'Soporte Técnico',
+    warningBody: 'Si tu consulta es sobre la plataforma, CRM, reportes o cualquier tema técnico, estás en el lugar correcto.',
+    btnLabel: 'Agendar Soporte Técnico',
+  },
+  {
+    key: 'meta' as Expert,
+    name: 'Denisse Quimi',
+    role: 'Experta en Meta Ads',
+    photo: 'https://res.cloudinary.com/dpjzfua3n/image/upload/q_auto/f_auto/v1775356095/sorbito-de-verdad/collaborators/bakano-team-denisse.webp',
+    initials: 'DQ',
+    color: '#E91E8C',
+    accentBg: 'rgba(233, 30, 140, 0.08)',
+    accentBorder: 'rgba(233, 30, 140, 0.25)',
+    shadowColor: 'rgba(233, 30, 140, 0.2)',
+    topics: [
+      { icon: 'fa-brands fa-meta', label: 'Anuncios en Facebook e Instagram' },
+      { icon: 'fa-solid fa-bullseye', label: 'Estrategia y optimización de campañas' },
+      { icon: 'fa-solid fa-images', label: 'Creativos, copy y segmentación' },
+      { icon: 'fa-solid fa-chart-line', label: 'Resultados y métricas' },
+    ],
+    notFor: 'Esta reunión NO es para temas técnicos, de plataforma ni de ventas.',
+    url: 'https://api.leadconnectorhq.com/widget/booking/GNizdekhY5SQaYTPdKPP',
+    warningTitle: 'Sesión de Meta Ads',
+    warningBody: 'Si tu duda es sobre anuncios en Facebook o Instagram, estás en el lugar correcto.',
+    btnLabel: 'Agendar con Denisse',
+  },
+  {
+    key: 'ventas' as Expert,
+    name: 'Luis Reyes',
+    role: 'Director Comercial',
+    photo: 'https://res.cloudinary.com/dpjzfua3n/image/upload/q_auto/f_auto/v1/sorbito-de-verdad/collaborators/bakano-team-luis',
+    initials: 'LR',
+    color: '#0EA5E9',
+    accentBg: 'rgba(14, 165, 233, 0.08)',
+    accentBorder: 'rgba(14, 165, 233, 0.25)',
+    shadowColor: 'rgba(14, 165, 233, 0.2)',
+    topics: [
+      { icon: 'fa-solid fa-handshake', label: 'Nuevos servicios y contrataciones' },
+      { icon: 'fa-solid fa-file-invoice-dollar', label: 'Facturación y planes comerciales' },
+      { icon: 'fa-solid fa-arrow-trend-up', label: 'Escalabilidad y crecimiento' },
+      { icon: 'fa-solid fa-star', label: 'Propuestas y negociación' },
+    ],
+    notFor: 'EXCLUSIVO para ventas. Cualquier otro tema será cancelado.',
+    url: 'https://api.leadconnectorhq.com/widget/booking/nF8Yw6KCBE0R4a3B8XGy',
+    warningTitle: 'Sesión de Ventas',
+    warningBody: 'Exclusivo para temas comerciales. Cualquier otro tema será cancelado.',
+    btnLabel: 'Agendar Sesión de Ventas',
   },
 ]
 
@@ -65,6 +93,10 @@ function backToSelection() {
 }
 
 const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
+
+function imgError(key: string) {
+  fallbackImg.value[key] = true
+}
 </script>
 
 <template>
@@ -79,12 +111,12 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
           </button>
           <div class="bm-header-text">
             <h2 class="bm-title">
-              {{ selected ? `Agendar con ${selectedExpert()?.name}` : 'Agenda una reunión con el equipo' }}
+              {{ selected ? `Agendar con ${selectedExpert()?.name}` : 'Agenda una reunión con nuestro equipo' }}
             </h2>
             <p class="bm-subtitle">
               {{ selected
-                ? selectedExpert()?.warningTitle
-                : 'Selecciona el experto correcto según el tema — esto nos ayuda a preparar mejor cada reunión' }}
+                ? `Completa los datos para agendar tu ${selectedExpert()?.warningTitle?.toLowerCase()}`
+                : 'Elige la opción correcta según tu necesidad — esto nos ayuda a preparar mejor cada reunión' }}
             </p>
           </div>
           <button class="bm-close" @click="close">
@@ -97,7 +129,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
 
           <div class="bm-alert">
             <i class="fa-solid fa-triangle-exclamation" />
-            <span><strong>Importante:</strong> Elige al experto según el tema de tu reunión. Las reuniones fuera de tema serán redirigidas al especialista correcto.</span>
+            <span><strong>Importante:</strong> Selecciona el tipo de reunión según tu necesidad. Las reuniones fuera de tema serán canceladas para optimizar el tiempo de todos.</span>
           </div>
 
           <div class="bm-cards">
@@ -105,12 +137,22 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
               v-for="expert in experts"
               :key="expert.key!"
               class="bm-card"
+              :class="{ 'bm-card--ventas': expert.key === 'ventas' }"
               :style="{ '--accent': expert.color, '--accent-bg': expert.accentBg, '--accent-border': expert.accentBorder, '--shadow': expert.shadowColor }"
               @click="selectExpert(expert.key)"
             >
-              <!-- Photo -->
+              <!-- Photo / Initials -->
               <div class="bm-card__photo-wrap">
-                <img :src="expert.photo" :alt="expert.name" class="bm-card__photo" />
+                <img
+                  v-if="!fallbackImg[expert.key]"
+                  :src="expert.photo"
+                  :alt="expert.name"
+                  class="bm-card__photo"
+                  @error="imgError(expert.key)"
+                >
+                <div v-else class="bm-card__initials" :style="{ background: expert.color }">
+                  {{ expert.initials }}
+                </div>
                 <div class="bm-card__photo-ring" />
               </div>
 
@@ -130,29 +172,53 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
               </ul>
 
               <!-- Not-for notice -->
-              <div class="bm-card__notfor">
+              <div class="bm-card__notfor" :class="{ 'bm-card__notfor--ventas': expert.key === 'ventas' }">
                 <i class="fa-solid fa-ban" />
                 {{ expert.notFor }}
               </div>
 
               <!-- CTA -->
               <div class="bm-card__cta">
-                Agendar con {{ expert.name }} <i class="fa-solid fa-arrow-right" />
+                {{ expert.btnLabel }} <i class="fa-solid fa-arrow-right" />
               </div>
             </button>
+          </div>
+
+          <!-- ── VENTAS WARNING ── -->
+          <div class="bm-ventas-warning">
+            <i class="fa-solid fa-shield-halved"></i>
+            <div>
+              <strong>Política de reuniones de ventas:</strong> Esta reunión es <u>exclusivamente para tratar temas comerciales</u>.
+              Si se agenda y se utiliza para consultar sobre Meta Ads, soporte técnico u otros temas no comerciales,
+              se registrará como una <strong>mala utilización</strong> del espacio y <strong>no podrás agendar nuevamente</strong> una sesión de ventas.
+              Agradecemos tu comprensión para mantener la eficiencia del equipo comercial.
+            </div>
           </div>
         </div>
 
         <!-- ── CALENDAR EMBED ── -->
         <div v-else class="bm-calendar">
-          <div class="bm-expert-strip" :style="{ borderColor: selectedExpert()?.color }">
-            <img :src="selectedExpert()?.photo" :alt="selectedExpert()?.name" class="bm-expert-strip__photo" />
+          <div class="bm-expert-strip" :style="{ borderLeftColor: selectedExpert()?.color }">
+            <div class="bm-expert-strip__photo-wrap">
+              <img
+                v-if="!fallbackImg[selected]"
+                :src="selectedExpert()?.photo"
+                :alt="selectedExpert()?.name"
+                class="bm-expert-strip__photo"
+                @error="imgError(selected)"
+              >
+              <div v-else class="bm-expert-strip__initials" :style="{ background: selectedExpert()?.color }">
+                {{ selectedExpert()?.initials }}
+              </div>
+            </div>
             <div class="bm-expert-strip__info">
-              <div class="bm-expert-strip__name" :style="{ color: selectedExpert()?.color }">{{ selectedExpert()?.name }} — {{ selectedExpert()?.role }}</div>
+              <div class="bm-expert-strip__name" :style="{ color: selectedExpert()?.color }">
+                {{ selectedExpert()?.name }} — {{ selectedExpert()?.role }}
+              </div>
               <div class="bm-expert-strip__body">{{ selectedExpert()?.warningBody }}</div>
             </div>
             <div class="bm-expert-strip__badge" :style="{ background: selectedExpert()?.accentBg, borderColor: selectedExpert()?.accentBorder, color: selectedExpert()?.color }">
-              <i class="fa-solid fa-shield-check" /> Solo {{ selectedExpert()?.warningTitle?.split(' ').slice(-2).join(' ') }}
+              <i class="fa-solid fa-shield-check" /> {{ selectedExpert()?.warningTitle }}
             </div>
           </div>
 
@@ -170,6 +236,8 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
 </template>
 
 <style lang="scss" scoped>
+$danger: $alert-error;
+
 .bm-overlay {
   position: fixed;
   inset: 0;
@@ -187,7 +255,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   border-radius: 20px;
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.28);
   width: 100%;
-  max-width: 760px;
+  max-width: 820px;
   max-height: 92vh;
   display: flex;
   flex-direction: column;
@@ -225,14 +293,10 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   margin-top: 2px;
   transition: background 0.2s;
 
-  &:hover {
-    background: #e4e4e4;
-  }
+  &:hover { background: #e4e4e4; }
 }
 
-.bm-header-text {
-  flex: 1;
-}
+.bm-header-text { flex: 1; }
 
 .bm-title {
   margin: 0 0 0.25rem;
@@ -261,9 +325,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   margin-top: 2px;
   transition: color 0.2s;
 
-  &:hover {
-    color: #333;
-  }
+  &:hover { color: #333; }
 }
 
 // ── Alert ────────────────────────────────────────────────
@@ -285,10 +347,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     flex-shrink: 0;
     color: #f59e0b;
   }
-
-  strong {
-    font-weight: 700;
-  }
+  strong { font-weight: 700; }
 }
 
 // ── Selection ────────────────────────────────────────────
@@ -299,10 +358,10 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
 
 .bm-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 1rem;
 
-  @media (max-width: 560px) {
+  @media (max-width: 720px) {
     grid-template-columns: 1fr;
   }
 }
@@ -318,12 +377,14 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   align-items: center;
   text-align: center;
   gap: 0.7rem;
-  padding: 1.5rem 1.25rem 1.25rem;
+  padding: 1.5rem 1rem 1.25rem;
   border: 2px solid #ebebeb;
   border-radius: 18px;
   background: #fafafa;
   cursor: pointer;
   transition: border-color 0.2s, transform 0.18s, box-shadow 0.2s, background 0.2s;
+  font-family: inherit;
+  font-size: inherit;
 
   &:hover {
     border-color: var(--accent);
@@ -332,23 +393,56 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     background: var(--accent-bg);
   }
 
-  // Photo
+  &--ventas {
+    position: relative;
+
+    &::after {
+      content: 'EXCLUSIVO';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 0.55rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: $danger;
+      background: rgba($danger, 0.1);
+      border: 1px solid rgba($danger, 0.2);
+      padding: 0.15rem 0.45rem;
+      border-radius: 100px;
+    }
+  }
+
+  // Photo / Initials
   &__photo-wrap {
     position: relative;
-    width: 88px;
-    height: 88px;
+    width: 80px;
+    height: 80px;
     flex-shrink: 0;
   }
 
   &__photo {
-    width: 88px;
-    height: 88px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     object-fit: cover;
     object-position: top center;
     border: 3px solid #fff;
     box-shadow: 0 4px 16px var(--shadow);
     display: block;
+  }
+
+  &__initials {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.5rem;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 16px var(--shadow);
   }
 
   &__photo-ring {
@@ -360,24 +454,20 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     transition: opacity 0.2s;
   }
 
-  &:hover &__photo-ring {
-    opacity: 1;
-  }
+  &:hover &__photo-ring { opacity: 1; }
 
   // Identity
-  &__identity {
-    width: 100%;
-  }
+  &__identity { width: 100%; }
 
   &__name {
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 800;
     color: #0d0d0d;
     margin-bottom: 0.2rem;
   }
 
   &__role {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: var(--accent);
     text-transform: uppercase;
@@ -386,7 +476,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
 
   // Section label
   &__section-label {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 700;
     color: #aaa;
     text-transform: uppercase;
@@ -403,25 +493,25 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.4rem;
     text-align: left;
 
     li {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.82rem;
+      gap: 0.45rem;
+      font-size: 0.78rem;
       color: #333;
-      padding: 0.35rem 0.5rem;
+      padding: 0.3rem 0.45rem;
       border-radius: 7px;
       background: rgba(0, 0, 0, 0.025);
 
       i {
         color: var(--accent);
-        width: 16px;
+        width: 15px;
         text-align: center;
         flex-shrink: 0;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
       }
     }
   }
@@ -431,37 +521,74 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     width: 100%;
     display: flex;
     align-items: flex-start;
-    gap: 0.45rem;
-    font-size: 0.75rem;
+    gap: 0.4rem;
+    font-size: 0.7rem;
     color: #c0392b;
     background: #fff5f5;
     border: 1px solid #fecaca;
     border-radius: 8px;
-    padding: 0.5rem 0.6rem;
+    padding: 0.45rem 0.55rem;
     text-align: left;
     line-height: 1.4;
 
     i {
       flex-shrink: 0;
       margin-top: 1px;
-      font-size: 0.72rem;
+      font-size: 0.68rem;
+    }
+
+    &--ventas {
+      background: #fff0f0;
+      border-color: rgba($danger, 0.25);
+      font-weight: 600;
     }
   }
 
   // CTA
   &__cta {
     width: 100%;
-    padding: 0.7rem 1rem;
+    padding: 0.65rem 1rem;
     border-radius: 10px;
     background: var(--accent);
     color: #fff;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.45rem;
     box-shadow: 0 4px 14px var(--shadow);
+  }
+}
+
+// ── Ventas warning block ─────────────────────────────────
+.bm-ventas-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba($danger, 0.06) 0%, rgba($danger, 0.02) 100%);
+  border: 1px solid rgba($danger, 0.18);
+  border-radius: 12px;
+  font-size: 0.78rem;
+  color: #7a1a1a;
+  line-height: 1.6;
+
+  i {
+    font-size: 1.2rem;
+    color: $danger;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  strong {
+    font-weight: 700;
+  }
+
+  u {
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 }
 
@@ -486,13 +613,33 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
   border-left: 4px solid #ccc;
   flex-shrink: 0;
 
+  &__photo-wrap {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+
   &__photo {
     width: 48px;
     height: 48px;
     border-radius: 50%;
     object-fit: cover;
     object-position: top center;
-    flex-shrink: 0;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    display: block;
+  }
+
+  &__initials {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 1rem;
     border: 2px solid #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
@@ -526,9 +673,7 @@ const selectedExpert = () => experts.find(e => e.key === selected.value) ?? null
     gap: 0.35rem;
     white-space: nowrap;
 
-    @media (max-width: 560px) {
-      display: none;
-    }
+    @media (max-width: 560px) { display: none; }
   }
 }
 

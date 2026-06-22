@@ -3,7 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { brandProfileService } from '@/services/brandProfile.service'
-import type { BrandProfile, BrandProfileFile } from '@/types'
+import { resourceService } from '@/services/resource.service'
+import type { BrandProfile, BrandProfileFile, Resource } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +35,14 @@ const dragOver = ref(false)
 const isEditing = ref(false)
 const originalProfile = ref<BrandProfile | null>(null)
 const wizardStep = ref(1)
+
+const brandResources = ref<Resource[]>([])
+const resourceUploading = ref<'logo' | 'linea_grafica' | null>(null)
+const resourcesLoading = ref(true)
+
+const brandLogos = computed(() => brandResources.value.filter(r => r.categoria === 'logo'))
+const brandLineas = computed(() => brandResources.value.filter(r => r.categoria === 'linea_grafica'))
+const brandCatalogs = computed(() => brandResources.value.filter(r => r.categoria === 'catalogo'))
 
 const PRESET_TONES = ['Profesional', 'Cercano', 'Divertido', 'Aspiracional', 'Educativo', 'Inspirador']
 
@@ -92,6 +101,15 @@ const completionScore = computed(() => {
 const hasBrandProfile = computed(() =>
   !!(profile.value.descripcion?.trim() || (profile.value.archivos?.length ?? 0) > 0)
 )
+
+const showSummary = computed(() =>
+  completionScore.value === 100 && hasBrandProfile.value && !isEditing.value
+)
+
+function editProfile() {
+  isEditing.value = true
+  wizardStep.value = 1
+}
 
 function selectTone(t: string) {
   if (!isEditing.value) return
@@ -236,7 +254,49 @@ function onDrop(e: DragEvent) {
   handleFileUpload(e.dataTransfer?.files || null)
 }
 
-onMounted(load)
+async function loadBrandResources() {
+  resourcesLoading.value = true
+  try {
+    brandResources.value = await resourceService.getResources(workspaceId)
+  } catch {
+    // silent
+  } finally {
+    resourcesLoading.value = false
+  }
+}
+
+async function uploadBrandResource(file: File, categoria: 'logo' | 'linea_grafica') {
+  const accepted = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/avif']
+  if (categoria === 'linea_grafica') accepted.push('application/pdf')
+  if (!accepted.includes(file.type)) return
+  if (file.size > 10 * 1024 * 1024) return
+  resourceUploading.value = categoria
+  try {
+    const r = await resourceService.uploadResource(workspaceId, file, categoria)
+    brandResources.value.push(r)
+  } catch {} finally {
+    resourceUploading.value = null
+  }
+}
+
+function handleBrandResourceFile(e: Event, categoria: 'logo' | 'linea_grafica' | 'catalogo') {
+  const input = e.target as HTMLInputElement
+  if (!input.files?.length) return
+  uploadBrandResource(input.files[0], categoria)
+  input.value = ''
+}
+
+async function deleteBrandResource(resource: Resource) {
+  try {
+    await resourceService.deleteResource(workspaceId, resource._id)
+    brandResources.value = brandResources.value.filter(r => r._id !== resource._id)
+  } catch {}
+}
+
+onMounted(() => {
+  load()
+  loadBrandResources()
+})
 </script>
 
 <template>
@@ -324,9 +384,193 @@ onMounted(load)
       </div>
 
       <!-- ══════════════════════════════════════════════════════════
-           CLIENT VIEW: 4-step wizard
+           CLIENT VIEW: summary or wizard
       ══════════════════════════════════════════════════════════════ -->
-      <div v-if="isClientView" class="bp__wizard-container">
+      <template v-if="isClientView">
+
+        <!-- ── Summary (profile complete) ── -->
+        <div v-if="showSummary" class="bp__summary">
+
+          <!-- Header -->
+          <div class="bp__summary-header">
+            <div class="bp__summary-header__left">
+              <div class="bp__summary-header__icon">
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+              <div>
+                <h2 class="bp__summary-header__title">Perfil de Marca</h2>
+                <p class="bp__summary-header__desc">Información de tu negocio configurada para crear contenido personalizado.</p>
+              </div>
+            </div>
+            <button class="bp__summary-edit-btn" type="button" @click="editProfile">
+              <i class="fa-solid fa-pen-to-square"></i>
+              Editar
+            </button>
+          </div>
+
+          <!-- Sección 1: Tu negocio -->
+          <div class="bp__summary-section">
+            <div class="bp__summary-section__head">
+              <i class="fa-solid fa-store" style="color: #3B5BDB"></i>
+              <span>Tu negocio</span>
+            </div>
+            <div class="bp__summary-section__body">
+              <div class="bp__summary-field">
+                <span class="bp__summary-field__label">Descripción</span>
+                <p class="bp__summary-field__value">{{ profile.descripcion }}</p>
+              </div>
+              <div v-if="profile.tipoNegocio || profile.vertical" class="bp__summary-field">
+                <span class="bp__summary-field__label">Tipo / Industria</span>
+                <p class="bp__summary-field__value">{{ [profile.tipoNegocio, profile.vertical].filter(Boolean).join(' · ') }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección 2: Audiencia y estrategia -->
+          <div class="bp__summary-section">
+            <div class="bp__summary-section__head">
+              <i class="fa-solid fa-bullseye" style="color: #8B5CF6"></i>
+              <span>Audiencia y estrategia</span>
+            </div>
+            <div class="bp__summary-section__body">
+              <div v-if="profile.publicoObjetivo" class="bp__summary-field">
+                <span class="bp__summary-field__label">Público objetivo</span>
+                <p class="bp__summary-field__value">{{ profile.publicoObjetivo }}</p>
+              </div>
+              <div v-if="profile.propuestaValor" class="bp__summary-field">
+                <span class="bp__summary-field__label">Propuesta de valor</span>
+                <p class="bp__summary-field__value">{{ profile.propuestaValor }}</p>
+              </div>
+              <div v-if="profile.problemaResuelto" class="bp__summary-field">
+                <span class="bp__summary-field__label">Problema que resuelves</span>
+                <p class="bp__summary-field__value">{{ profile.problemaResuelto }}</p>
+              </div>
+              <div v-if="profile.tono" class="bp__summary-field">
+                <span class="bp__summary-field__label">Tono de comunicación</span>
+                <p class="bp__summary-field__value">{{ profile.tono }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección 3: Productos y captación -->
+          <div class="bp__summary-section">
+            <div class="bp__summary-section__head">
+              <i class="fa-solid fa-tag" style="color: #10B981"></i>
+              <span>Productos y captación</span>
+            </div>
+            <div class="bp__summary-section__body">
+              <div v-if="profile.productosServicios" class="bp__summary-field">
+                <span class="bp__summary-field__label">Productos / Servicios</span>
+                <p class="bp__summary-field__value">{{ profile.productosServicios }}</p>
+              </div>
+              <div v-if="profile.trafficDirection" class="bp__summary-field">
+                <span class="bp__summary-field__label">Dirección de tráfico</span>
+                <p class="bp__summary-field__value">
+                  <i :class="profile.trafficDirection === 'WHATSAPP' ? 'fa-brands fa-whatsapp' : 'fa-solid fa-calendar-check'" style="margin-right: 0.35rem"></i>
+                  {{ profile.trafficDirection === 'WHATSAPP' ? 'WhatsApp' : 'GHL / Agenda' }}
+                  <span v-if="profile.trafficLink" style="color: #888; font-weight: 400; margin-left: 0.25rem">— {{ profile.trafficLink }}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección 4: Archivos de contexto -->
+          <div class="bp__summary-section">
+            <div class="bp__summary-section__head">
+              <i class="fa-solid fa-folder-open" style="color: #6366F1"></i>
+              <span>Archivos de contexto</span>
+            </div>
+            <div class="bp__summary-section__body">
+              <p v-if="(profile.archivos || []).length === 0" class="bp__summary-field__value" style="color: #aaa">Sin archivos</p>
+              <div v-else class="bp__summary-files">
+                <div v-for="f in profile.archivos" :key="f.publicId" class="bp__summary-file">
+                  <i :class="f.tipo === 'application/pdf' ? 'fa-solid fa-file-pdf' : 'fa-solid fa-file-image'" style="color: #6366F1"></i>
+                  <a :href="f.url" target="_blank">{{ f.nombre }}</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Recursos de Marca ── -->
+          <div class="bp__summary-section bp__summary-section--resources">
+            <div class="bp__summary-section__head">
+              <i class="fa-solid fa-folder-open" style="color: #E8590C"></i>
+              <span>Recursos de Marca</span>
+            </div>
+            <div class="bp__summary-section__body">
+              <p class="bp__summary-section__desc">Sube aquí los archivos visuales de tu marca para que el equipo los use en tus materiales publicitarios.</p>
+              <div class="bp__summary-resources-grid">
+                <!-- Logo -->
+                <div class="bp__summary-resource-card">
+                  <div class="bp__summary-resource-card__head">
+                    <i class="fa-solid fa-image" style="color: #3B5BDB"></i>
+                    <div>
+                      <strong>Logo</strong>
+                      <span>{{ brandLogos.length }} archivo{{ brandLogos.length !== 1 ? 's' : '' }}</span>
+                    </div>
+                  </div>
+                  <label class="bp__summary-resource-card__btn" :class="{ 'is-loading': resourceUploading === 'logo' }">
+                    <i :class="resourceUploading === 'logo' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                    {{ brandLogos.length ? 'Cambiar' : 'Subir logo' }}
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" hidden @change="handleBrandResourceFile($event, 'logo')" :disabled="!!resourceUploading">
+                  </label>
+                  <div v-if="brandLogos.length" class="bp__summary-resource-card__files">
+                    <div v-for="r in brandLogos" :key="r._id" class="bp__summary-resource-card__file">
+                      <a :href="r.url" target="_blank">{{ r.nombre }}</a>
+                      <button @click="deleteBrandResource(r)"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <!-- Línea Gráfica -->
+                <div class="bp__summary-resource-card">
+                  <div class="bp__summary-resource-card__head">
+                    <i class="fa-solid fa-pen-ruler" style="color: #8B5CF6"></i>
+                    <div>
+                      <strong>Línea Gráfica</strong>
+                      <span>{{ brandLineas.length }} archivo{{ brandLineas.length !== 1 ? 's' : '' }}</span>
+                    </div>
+                  </div>
+                  <label class="bp__summary-resource-card__btn" :class="{ 'is-loading': resourceUploading === 'linea_grafica' }">
+                    <i :class="resourceUploading === 'linea_grafica' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                    {{ brandLineas.length ? 'Cambiar' : 'Subir línea gráfica' }}
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif,application/pdf" hidden @change="handleBrandResourceFile($event, 'linea_grafica')" :disabled="!!resourceUploading">
+                  </label>
+                  <div v-if="brandLineas.length" class="bp__summary-resource-card__files">
+                    <div v-for="r in brandLineas" :key="r._id" class="bp__summary-resource-card__file">
+                      <a :href="r.url" target="_blank">{{ r.nombre }}</a>
+                      <button @click="deleteBrandResource(r)"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                  </div>
+                </div>
+                <!-- Catálogo (siempre visible) -->
+                <div class="bp__summary-resource-card bp__summary-resource-card--highlight">
+                  <div class="bp__summary-resource-card__head">
+                    <i class="fa-solid fa-receipt" style="color: #E8590C"></i>
+                    <div>
+                      <strong>Catálogo / Lista de Precios</strong>
+                      <span>{{ brandCatalogs.length }} archivo{{ brandCatalogs.length !== 1 ? 's' : '' }}</span>
+                    </div>
+                  </div>
+                  <label class="bp__summary-resource-card__btn" :class="{ 'is-loading': resourceUploading === 'catalogo' }">
+                    <i :class="resourceUploading === 'catalogo' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                    {{ brandCatalogs.length ? 'Cambiar' : 'Subir catálogo' }}
+                    <input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" hidden @change="handleBrandResourceFile($event, 'catalogo')" :disabled="!!resourceUploading">
+                  </label>
+                  <p class="bp__summary-resource-card__hint">Catálogo de productos, menú, lista de precios o servicios. Ayuda a la IA a generar guiones precisos.</p>
+                  <div v-if="brandCatalogs.length" class="bp__summary-resource-card__files">
+                    <div v-for="r in brandCatalogs" :key="r._id" class="bp__summary-resource-card__file">
+                      <a :href="r.url" target="_blank">{{ r.nombre }}</a>
+                      <button @click="deleteBrandResource(r)"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Wizard ── -->
+        <div v-else class="bp__wizard-container">
 
         <!-- Step indicator -->
         <div class="bp__step-indicator">
@@ -600,13 +844,63 @@ onMounted(load)
               </div>
             </div>
           </transition>
+
+          <!-- Brand Resources (clients) -->
+          <div v-if="saveSuccess" class="bp__brand-resources">
+            <h3 class="bp__brand-resources-title">
+              <i class="fa-solid fa-folder-open"></i>
+              Recursos de Marca
+            </h3>
+            <p class="bp__brand-resources-desc">Sube aquí el logo y la línea gráfica de tu marca para que nuestro equipo los use en tus materiales.</p>
+            <div class="bp__brand-resources-grid">
+              <div class="bp__brand-resource-card">
+                <div class="bp__brand-resource-card__icon">
+                  <i class="fa-solid fa-image"></i>
+                </div>
+                <div class="bp__brand-resource-card__info">
+                  <strong>Logo</strong>
+                  <span>{{ brandLogos.length }} archivo{{ brandLogos.length !== 1 ? 's' : '' }}</span>
+                </div>
+                <label class="bp__brand-resource-btn" :class="{ 'is-loading': resourceUploading === 'logo' }">
+                  <i :class="resourceUploading === 'logo' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" hidden @change="handleBrandResourceFile($event, 'logo')" :disabled="!!resourceUploading">
+                </label>
+                <div v-if="brandLogos.length" class="bp__brand-resource-card__files">
+                  <div v-for="r in brandLogos" :key="r._id" class="bp__brand-resource-file">
+                    <a :href="r.url" target="_blank">{{ r.nombre }}</a>
+                    <button @click="deleteBrandResource(r)"><i class="fa-solid fa-xmark"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div class="bp__brand-resource-card">
+                <div class="bp__brand-resource-card__icon">
+                  <i class="fa-solid fa-pen-ruler"></i>
+                </div>
+                <div class="bp__brand-resource-card__info">
+                  <strong>Línea Gráfica</strong>
+                  <span>{{ brandLineas.length }} archivo{{ brandLineas.length !== 1 ? 's' : '' }}</span>
+                </div>
+                <label class="bp__brand-resource-btn" :class="{ 'is-loading': resourceUploading === 'linea_grafica' }">
+                  <i :class="resourceUploading === 'linea_grafica' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif,application/pdf" hidden @change="handleBrandResourceFile($event, 'linea_grafica')" :disabled="!!resourceUploading">
+                </label>
+                <div v-if="brandLineas.length" class="bp__brand-resource-card__files">
+                  <div v-for="r in brandLineas" :key="r._id" class="bp__brand-resource-file">
+                    <a :href="r.url" target="_blank">{{ r.nombre }}</a>
+                    <button @click="deleteBrandResource(r)"><i class="fa-solid fa-xmark"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+      </template>
 
       <!-- ══════════════════════════════════════════════════════════
            ADMIN/INTERNAL VIEW: flat single-column
       ══════════════════════════════════════════════════════════════ -->
-      <div v-else class="bp__content">
+      <div v-if="!isClientView" class="bp__content">
 
         <!-- Card 1: Identidad del negocio -->
         <div class="bp__card">
@@ -828,6 +1122,59 @@ onMounted(load)
             </div>
           </div>
           <p v-else class="bp__no-files">No hay archivos cargados.</p>
+        </div>
+
+        <!-- ── Card 5: Recursos de Marca ── -->
+        <div class="bp__card">
+          <div class="bp__card-header">
+            <div class="bp__card-icon bp__card-icon--blue">
+              <i class="fa-solid fa-folder-open" />
+            </div>
+            <div>
+              <h3>Recursos de Marca</h3>
+              <p>Logo y línea gráfica para que el equipo de contenido los utilice</p>
+            </div>
+          </div>
+          <div class="bp__brand-resources-grid bp__brand-resources-grid--admin">
+            <div class="bp__brand-resource-card">
+              <div class="bp__brand-resource-card__icon">
+                <i class="fa-solid fa-image"></i>
+              </div>
+              <div class="bp__brand-resource-card__info">
+                <strong>Logo</strong>
+                <span>{{ brandLogos.length }} archivo{{ brandLogos.length !== 1 ? 's' : '' }}</span>
+              </div>
+              <label class="bp__brand-resource-btn" :class="{ 'is-loading': resourceUploading === 'logo' }">
+                <i :class="resourceUploading === 'logo' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" hidden @change="handleBrandResourceFile($event, 'logo')" :disabled="!!resourceUploading">
+              </label>
+              <div v-if="brandLogos.length" class="bp__brand-resource-card__files">
+                <div v-for="r in brandLogos" :key="r._id" class="bp__brand-resource-file">
+                  <a :href="r.url" target="_blank">{{ r.nombre }}</a>
+                  <button @click="deleteBrandResource(r)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="bp__brand-resource-card">
+              <div class="bp__brand-resource-card__icon">
+                <i class="fa-solid fa-pen-ruler"></i>
+              </div>
+              <div class="bp__brand-resource-card__info">
+                <strong>Línea Gráfica</strong>
+                <span>{{ brandLineas.length }} archivo{{ brandLineas.length !== 1 ? 's' : '' }}</span>
+              </div>
+              <label class="bp__brand-resource-btn" :class="{ 'is-loading': resourceUploading === 'linea_grafica' }">
+                <i :class="resourceUploading === 'linea_grafica' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif,application/pdf" hidden @change="handleBrandResourceFile($event, 'linea_grafica')" :disabled="!!resourceUploading">
+              </label>
+              <div v-if="brandLineas.length" class="bp__brand-resource-card__files">
+                <div v-for="r in brandLineas" :key="r._id" class="bp__brand-resource-file">
+                  <a :href="r.url" target="_blank">{{ r.nombre }}</a>
+                  <button @click="deleteBrandResource(r)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -1838,6 +2185,426 @@ onMounted(load)
       color: #334155;
       line-height: 1.5;
     }
+  }
+}
+
+// ── Brand Resources ──────────────────────────────────────
+.bp__brand-resources {
+  margin-top: 1.5rem;
+
+  &-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: $primary-dark;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.3rem;
+
+    i { color: $primary; }
+  }
+
+  &-desc {
+    font-size: 0.82rem;
+    color: $text-secondary;
+    margin: 0 0 1rem;
+  }
+}
+
+.bp__brand-resources-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+
+  &--admin {
+    margin-top: 0.5rem;
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bp__brand-resource-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  background: $white;
+  border: 1px solid rgba($primary-dark, 0.07);
+  border-radius: 12px;
+  position: relative;
+  flex-wrap: wrap;
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: $primary-light;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    i {
+      font-size: 0.9rem;
+      color: $primary;
+    }
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+
+    strong {
+      display: block;
+      font-size: 0.82rem;
+      color: $primary-dark;
+    }
+
+    span {
+      font-size: 0.7rem;
+      color: $text-secondary;
+    }
+  }
+
+  &__files {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid rgba($primary-dark, 0.05);
+  }
+}
+
+.bp__brand-resource-file {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+
+  a {
+    color: $primary;
+    text-decoration: none;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
+  }
+
+  button {
+    background: none;
+    border: none;
+    color: $text-secondary;
+    cursor: pointer;
+    padding: 2px;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+
+    &:hover { color: $alert-error; }
+  }
+}
+
+.bp__brand-resource-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba($primary, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba($primary, 0.15);
+  }
+
+  i {
+    color: $primary;
+    font-size: 0.85rem;
+  }
+
+  &.is-loading {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  input[type="file"] { display: none; }
+}
+
+/* ── Summary ──────────────────────────────────────────── */
+
+.bp__summary {
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.bp__summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba($alert-success, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    i {
+      color: $alert-success;
+      font-size: 1.15rem;
+    }
+  }
+
+  &__title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+  }
+
+  &__desc {
+    font-size: 0.8rem;
+    color: $text-secondary;
+    margin: 0.1rem 0 0;
+  }
+}
+
+.bp__summary-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba($primary, 0.25);
+  background: rgba($primary, 0.08);
+  color: $primary;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba($primary, 0.15);
+    border-color: rgba($primary, 0.4);
+  }
+}
+
+.bp__summary-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+
+    i { font-size: 0.95rem; }
+  }
+
+  &__body {
+    padding: 1rem 1.25rem;
+  }
+
+  &__desc {
+    font-size: 0.8rem;
+    color: $text-secondary;
+    margin: 0 0 1rem;
+  }
+}
+
+.bp__summary-section--resources {
+  border-color: rgba(#E8590C, 0.15);
+  background: rgba(#E8590C, 0.03);
+}
+
+.bp__summary-field {
+  & + & { margin-top: 0.85rem; }
+}
+
+.bp__summary-field__label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: $text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+
+.bp__summary-field__value {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bp__summary-files {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.bp__summary-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+
+  i { font-size: 0.9rem; }
+
+  a {
+    color: $primary;
+    text-decoration: none;
+
+    &:hover { text-decoration: underline; }
+  }
+}
+
+/* ── Summary Resource Cards ── */
+
+.bp__summary-resources-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bp__summary-resource-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+
+    i { font-size: 1rem; }
+
+    strong {
+      display: block;
+      font-size: 0.85rem;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    span {
+      font-size: 0.75rem;
+      color: $text-secondary;
+    }
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    background: rgba($primary, 0.08);
+    color: $primary;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: all 0.15s;
+
+    &:hover {
+      background: rgba($primary, 0.15);
+    }
+
+    i { font-size: 0.8rem; }
+
+    &.is-loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    input[type="file"] { display: none; }
+  }
+
+  &__hint {
+    font-size: 0.75rem;
+    color: $text-secondary;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  &__files {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  &__file {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+
+    a {
+      color: $primary;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
+
+    button {
+      background: none;
+      border: none;
+      color: $text-secondary;
+      cursor: pointer;
+      padding: 1px;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+      &:hover { color: $alert-error; }
+    }
+  }
+}
+
+.bp__summary-resource-card--highlight {
+  border-color: rgba(#E8590C, 0.25);
+  background: rgba(#E8590C, 0.05);
+
+  .bp__summary-resource-card__btn {
+    background: rgba(#E8590C, 0.12);
+    color: #E8590C;
+    &:hover { background: rgba(#E8590C, 0.2); }
   }
 }
 

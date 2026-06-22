@@ -15,6 +15,10 @@ class OnboardingService extends APIBase {
     await this.post(`onboarding/${workspaceId}/step2`, data)
   }
 
+  async markResourcesCompleted(workspaceId: string): Promise<void> {
+    await this.post(`onboarding/${workspaceId}/step-resources`, {})
+  }
+
   async markMeetingScheduled(workspaceId: string): Promise<void> {
     await this.post(`onboarding/${workspaceId}/step3`, {})
   }

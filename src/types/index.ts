@@ -72,9 +72,30 @@ export interface BrandProfile {
   updatedAt?: string
 }
 
+export interface Resource {
+  _id: string
+  nombre: string
+  url: string
+  publicId: string
+  tipo: string
+  categoria: 'logo' | 'linea_grafica' | 'catalogo' | 'otro'
+  uploadedBy: string
+  createdAt: string
+}
+
+export interface ResourceListResponse {
+  resources: Resource[]
+}
+
+export interface ResourceUploadResponse {
+  message: string
+  resource: Resource
+}
+
 export interface OnboardingStatus {
   videoGenesisAccepted: boolean
   contractSubmitted: boolean
+  resourcesCompleted: boolean
   meetingScheduled: boolean
 }
 

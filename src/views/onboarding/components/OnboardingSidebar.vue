@@ -26,12 +26,14 @@ function onLogout() {
           <h2 class="sidebar-title">
             {{ currentStep === 1 ? 'Tu viaje comienza aquí' :
               currentStep === 2 ? 'Formalicemos el acuerdo' :
-                currentStep === 3 ? 'Conecta con el equipo' : '¡Bienvenido a bordo!' }}
+                currentStep === 3 ? 'Comparte tus recursos' :
+                  currentStep === 4 ? 'Conecta con el equipo' : '¡Bienvenido a bordo!' }}
           </h2>
           <p class="sidebar-subtitle">
             {{ currentStep === 1 ? 'Alineemos expectativas para garantizar tu éxito.' :
               currentStep === 2 ? 'Ingresa los datos para generar tu contrato de servicios.' :
-                currentStep === 3 ? 'Agenda tu llamada de kickoff con tu estratega asignado.' : 'Tu entorno de trabajo está siendo preparado.' }}
+                currentStep === 3 ? 'Sube tu logo y línea gráfica para que nuestro equipo los use en tus contenidos.' :
+                  currentStep === 4 ? 'Agenda tu llamada de kickoff con tu estratega asignado.' : 'Tu entorno de trabajo está siendo preparado.' }}
           </p>
         </div>
       </Transition>
@@ -39,9 +41,9 @@ function onLogout() {
 
     <div class="sidebar-progress">
       <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: `${(currentStep / 4) * 100}%` }"></div>
+        <div class="progress-fill" :style="{ width: `${(currentStep / 5) * 100}%` }"></div>
       </div>
-      <span class="progress-text">Paso {{ currentStep }} de 4</span>
+      <span class="progress-text">Paso {{ currentStep }} de 5</span>
     </div>
   </div>
 </template>

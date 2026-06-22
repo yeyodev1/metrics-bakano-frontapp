@@ -152,6 +152,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/billing/BillingRoasView.vue'),
         meta: { title: 'Bakano Ads: Facturación & ROAS', requiresAuth: true },
       },
+      // ── Brand Resources ──────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/resources',
+        name: 'WorkspaceResources',
+        component: () => import('../views/resources/ResourcesView.vue'),
+        meta: { title: 'Bakano Ads: Recursos de Marca', requiresAuth: true },
+      },
       // ── Brand Profile ─────────────────────────────────────
       {
         path: 'workspaces/:workspaceId/brand-profile',
@@ -165,6 +172,13 @@ const routes: Array<RouteRecordRaw> = [
         name: 'WorkspaceLegal',
         component: () => import('../views/workspaces/WorkspaceLegalView.vue'),
         meta: { title: 'Bakano Ads: Legalidades y Contrato', requiresAuth: true },
+      },
+      // ── Booking ──────────────────────────────────────────
+      {
+        path: 'workspaces/:workspaceId/booking',
+        name: 'AppBooking',
+        component: () => import('../views/booking/BookingView.vue'),
+        meta: { title: 'Bakano Ads: Agendar Reunión', requiresAuth: true },
       },
       // ── Equipo Asignado ───────────────────────────────────
       {
