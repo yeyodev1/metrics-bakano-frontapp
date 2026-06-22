@@ -7,7 +7,7 @@ import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
 import logoDark from '@/assets/logos/bakano-light.png'
-import BookingModal from '@/components/common/BookingModal.vue'
+
 
 const router = useRouter()
 const route = useRoute()
@@ -20,7 +20,6 @@ const workspacesLoaded = ref(false)
 const isDropdownOpen = ref(false)
 const isSidebarOpen = ref(false)
 const wsSearch = ref('')
-const isBookingModalOpen = ref(false)
 const showInvasiveOnboardingModal = ref(false)
 const showWsSearch = ref(false)
 const isWsSearching = ref(false)
@@ -278,137 +277,136 @@ watch(() => route.params.workspaceId, async (newId) => {
     </Transition>
 
     <aside class="app-layout__sidebar" :class="{ 'app-layout__sidebar--open': isSidebarOpen }">
-      <div class="app-layout__sidebar-header">
-        <div class="app-layout__brand">
-          <img :src="logoDark" alt="Bakano" class="app-layout__logo" width="110" height="28" />
+      <div class="app-layout__sidebar-top">
+        <div class="app-layout__sidebar-header">
+          <div class="app-layout__brand">
+            <img :src="logoDark" alt="Bakano" class="app-layout__logo" width="110" height="28" />
+          </div>
+          <button class="app-layout__close-sidebar" @click="isSidebarOpen = false">
+            <i class="fa-solid fa-xmark" />
+          </button>
         </div>
-        <button class="app-layout__close-sidebar" @click="isSidebarOpen = false">
-          <i class="fa-solid fa-xmark" />
-        </button>
-      </div>
 
-      <!-- WORKSPACE SELECTOR -->
-      <div class="app-layout__ws-selector">
-        <button 
-          v-if="isSubAccountMode"
-          class="app-layout__ws-button"
-          :class="{ 'app-layout__ws-button--interactive': workspacesLoaded }"
-          :disabled="!workspacesLoaded"
-          @click="toggleDropdown"
-        >
-          <div class="app-layout__ws-avatar" :class="{ 'app-layout__ws-avatar--fallback': !activeWorkspace }">
-            <template v-if="activeWorkspace">
-              <img 
-                v-if="activeWorkspace.metaAds?.pageId" 
-                :src="`https://graph.facebook.com/${activeWorkspace.metaAds.pageId}/picture?type=normal`" 
-                alt="Logo" 
-                class="app-layout__ws-page-img"
-                @error="handleImgError"
-              />
-              <span v-else>{{ activeWorkspace.name.substring(0, 2).toUpperCase() }}</span>
-            </template>
-            <template v-else-if="!workspacesLoaded || isWsSearching">
-              <i class="fa-solid fa-spinner fa-spin" />
-            </template>
-            <template v-else>
-              <i class="fa-solid fa-link-slash" />
-            </template>
-          </div>
-          <div class="app-layout__ws-info">
-            <span class="app-layout__ws-label">Entorno Actual</span>
-            <span class="app-layout__ws-name">
-              <template v-if="activeWorkspace">{{ activeWorkspace.name }}</template>
-              <template v-else-if="!workspacesLoaded || isWsSearching">Cargando entorno...</template>
-              <template v-else>Acceso Denegado</template>
-            </span>
-          </div>
-          <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
-        </button>
-
-        <button
-          v-else
-          class="app-layout__ws-button"
-          :class="{ 'app-layout__ws-button--interactive app-layout__ws-button--global': userStore.isInternal || userStore.role === 'superadmin' }"
-          :disabled="!userStore.isInternal && userStore.role !== 'superadmin'"
-          @click="toggleDropdown"
-        >
-          <div class="app-layout__ws-avatar app-layout__ws-avatar--global">
-            <i class="fa-solid fa-earth-americas" />
-          </div>
-          <div class="app-layout__ws-info">
-            <span class="app-layout__ws-label">Control Central</span>
-            <span class="app-layout__ws-name">Vista Global</span>
-          </div>
-          <i v-if="userStore.isInternal || userStore.role === 'superadmin'" class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
-        </button>
-
-        <Transition name="dropdown-fade">
-          <div v-if="isDropdownOpen" class="app-layout__ws-dropdown">
-            <!-- Switch back to Agency/Global View at the top of dropdown -->
-            <RouterLink
-              v-if="globalBackRoute && activeWorkspace"
-              :to="globalBackRoute"
-              class="app-layout__ws-option app-layout__ws-option--global-switch"
-              @click="isDropdownOpen = false"
-            >
-              <div class="app-layout__ws-avatar app-layout__ws-avatar--global app-layout__ws-avatar--sm">
-                <i class="fa-solid fa-earth-americas" />
-              </div>
-              <span class="app-layout__ws-option-name">Vista Global (Agencia)</span>
-            </RouterLink>
-            <div v-if="globalBackRoute && activeWorkspace" class="app-layout__nav-divider" style="margin: 4px 0;" />
-
-            <!-- Search — only shown when > 5 workspaces initially -->
-            <div v-if="showWsSearch" class="app-layout__ws-search">
-              <i v-if="isWsSearching" class="fa-solid fa-spinner fa-spin" />
-              <i v-else class="fa-solid fa-magnifying-glass" />
-              <input
-                v-model="wsSearch"
-                type="text"
-                placeholder="Buscar cliente…"
-                class="app-layout__ws-search-input"
-                @click.stop
-              />
+        <!-- WORKSPACE SELECTOR -->
+        <div class="app-layout__ws-selector">
+          <button 
+            v-if="isSubAccountMode"
+            class="app-layout__ws-button"
+            :class="{ 'app-layout__ws-button--interactive': workspacesLoaded }"
+            :disabled="!workspacesLoaded"
+            @click="toggleDropdown"
+          >
+            <div class="app-layout__ws-avatar" :class="{ 'app-layout__ws-avatar--fallback': !activeWorkspace }">
+              <template v-if="activeWorkspace">
+                <img 
+                  v-if="activeWorkspace.metaAds?.pageId" 
+                  :src="`https://graph.facebook.com/${activeWorkspace.metaAds.pageId}/picture?type=normal`" 
+                  alt="Logo" 
+                  class="app-layout__ws-page-img"
+                  @error="handleImgError"
+                />
+                <span v-else>{{ activeWorkspace.name.substring(0, 2).toUpperCase() }}</span>
+              </template>
+              <template v-else-if="!workspacesLoaded || isWsSearching">
+                <i class="fa-solid fa-spinner fa-spin" />
+              </template>
+              <template v-else>
+                <i class="fa-solid fa-link-slash" />
+              </template>
             </div>
-            <div v-if="isWsSearching" class="app-layout__ws-loading-state">
-              <i class="fa-solid fa-spinner fa-spin" />
-              <span>Buscando entornos...</span>
+            <div class="app-layout__ws-info">
+              <span class="app-layout__ws-label">Entorno Actual</span>
+              <span class="app-layout__ws-name">
+                <template v-if="activeWorkspace">{{ activeWorkspace.name }}</template>
+                <template v-else-if="!workspacesLoaded || isWsSearching">Cargando entorno...</template>
+                <template v-else>Acceso Denegado</template>
+              </span>
             </div>
-            <div v-else-if="filteredDropdownWorkspaces.length === 0" class="app-layout__ws-no-results">
-              Sin resultados
+            <i class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
+          </button>
+
+          <button
+            v-else
+            class="app-layout__ws-button"
+            :class="{ 'app-layout__ws-button--interactive app-layout__ws-button--global': userStore.isInternal || userStore.role === 'superadmin' }"
+            :disabled="!userStore.isInternal && userStore.role !== 'superadmin'"
+            @click="toggleDropdown"
+          >
+            <div class="app-layout__ws-avatar app-layout__ws-avatar--global">
+              <i class="fa-solid fa-earth-americas" />
             </div>
-            <template v-else>
-              <button
-                v-for="ws in filteredDropdownWorkspaces"
-                :key="ws._id"
-                class="app-layout__ws-option"
-                :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace?._id }"
-                @click="selectWorkspace(ws)"
+            <div class="app-layout__ws-info">
+              <span class="app-layout__ws-label">Control Central</span>
+              <span class="app-layout__ws-name">Vista Global</span>
+            </div>
+            <i v-if="userStore.isInternal || userStore.role === 'superadmin'" class="fa-solid fa-chevron-down app-layout__ws-chevron" :class="{ 'app-layout__ws-chevron--open': isDropdownOpen }" />
+          </button>
+
+          <Transition name="dropdown-fade">
+            <div v-if="isDropdownOpen" class="app-layout__ws-dropdown">
+              <RouterLink
+                v-if="globalBackRoute && activeWorkspace"
+                :to="globalBackRoute"
+                class="app-layout__ws-option app-layout__ws-option--global-switch"
+                @click="isDropdownOpen = false"
               >
-                 <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
-                   <img
-                     v-if="ws.metaAds?.pageId"
-                     :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`"
-                     alt="Logo"
-                     class="app-layout__ws-page-img"
-                     @error="handleImgError"
-                   />
-                   <span v-else>{{ ws.name.substring(0, 2).toUpperCase() }}</span>
-                 </div>
-                 <span class="app-layout__ws-option-name">{{ ws.name }}</span>
-                 <i v-if="ws._id === activeWorkspace?._id" class="fa-solid fa-check" />
-              </button>
-            </template>
-          </div>
-        </Transition>
-      </div>
+                <div class="app-layout__ws-avatar app-layout__ws-avatar--global app-layout__ws-avatar--sm">
+                  <i class="fa-solid fa-earth-americas" />
+                </div>
+                <span class="app-layout__ws-option-name">Vista Global (Agencia)</span>
+              </RouterLink>
+              <div v-if="globalBackRoute && activeWorkspace" class="app-layout__nav-divider" style="margin: 4px 0;" />
+              <div v-if="showWsSearch" class="app-layout__ws-search">
+                <i v-if="isWsSearching" class="fa-solid fa-spinner fa-spin" />
+                <i v-else class="fa-solid fa-magnifying-glass" />
+                <input
+                  v-model="wsSearch"
+                  type="text"
+                  placeholder="Buscar cliente…"
+                  class="app-layout__ws-search-input"
+                  @click.stop
+                />
+              </div>
+              <div v-if="isWsSearching" class="app-layout__ws-loading-state">
+                <i class="fa-solid fa-spinner fa-spin" />
+                <span>Buscando entornos...</span>
+              </div>
+              <div v-else-if="filteredDropdownWorkspaces.length === 0" class="app-layout__ws-no-results">
+                Sin resultados
+              </div>
+              <template v-else>
+                <button
+                  v-for="ws in filteredDropdownWorkspaces"
+                  :key="ws._id"
+                  class="app-layout__ws-option"
+                  :class="{ 'app-layout__ws-option--active': ws._id === activeWorkspace?._id }"
+                  @click="selectWorkspace(ws)"
+                >
+                   <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
+                     <img
+                       v-if="ws.metaAds?.pageId"
+                       :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`"
+                       alt="Logo"
+                       class="app-layout__ws-page-img"
+                       @error="handleImgError"
+                     />
+                     <span v-else>{{ ws.name.substring(0, 2).toUpperCase() }}</span>
+                   </div>
+                   <span class="app-layout__ws-option-name">{{ ws.name }}</span>
+                   <i v-if="ws._id === activeWorkspace?._id" class="fa-solid fa-check" />
+                </button>
+              </template>
+            </div>
+          </Transition>
+        </div>
 
-      <!-- Switch to Agency View Button (Go High Level style) -->
-      <div v-if="isSubAccountMode && globalBackRoute" class="app-layout__agency-switch">
-        <RouterLink :to="globalBackRoute" class="app-layout__agency-switch-btn">
-          <i class="fa-solid fa-arrow-left" />
-          <span>Volver a Control Central</span>
-        </RouterLink>
+        <!-- Switch to Agency View Button -->
+        <div v-if="isSubAccountMode && globalBackRoute" class="app-layout__agency-switch">
+          <RouterLink :to="globalBackRoute" class="app-layout__agency-switch-btn">
+            <i class="fa-solid fa-arrow-left" />
+            <span>Volver a Control Central</span>
+          </RouterLink>
+        </div>
       </div>
 
       <nav class="app-layout__nav">
@@ -594,6 +592,16 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span class="app-layout__nav-tag">IA</span>
           </RouterLink>
 
+          <!-- Recursos de Marca — logo + línea gráfica para content managers y editores -->
+          <RouterLink
+            v-if="currentWorkspaceId"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspaceResources', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-folder-open" aria-hidden="true" />
+            <span>Recursos</span>
+          </RouterLink>
+
           <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'WorkspaceLegal', params: { workspaceId: currentWorkspaceId } }">
             <i class="fa-solid fa-file-contract" aria-hidden="true" />
             <span>Legalidades</span>
@@ -615,23 +623,30 @@ watch(() => route.params.workspaceId, async (newId) => {
           </RouterLink>
 
           <!-- Book a meeting — clients only -->
-          <button
+          <RouterLink
             v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
             class="app-layout__nav-item"
-            @click="isBookingModalOpen = true"
+            :to="{ name: 'AppBooking', params: { workspaceId: currentWorkspaceId } }"
           >
             <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
             <span>Agendar Reunión</span>
             <span class="app-layout__nav-tag">NUEVO</span>
-          </button>
-
-          <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item app-layout__nav-item--bottom" :to="{ name: 'AppSettings', params: { workspaceId: currentWorkspaceId } }">
-            <i class="fa-solid fa-gear" aria-hidden="true" />
-            <span>Configuración</span>
           </RouterLink>
         </template>
+      </nav>
 
-        <!-- Notifications — all authenticated users, shown in both modes -->
+      <div class="app-layout__sidebar-bottom">
+        <!-- Settings — client mode only -->
+        <RouterLink
+          v-if="currentWorkspaceId && isSubAccountMode"
+          class="app-layout__nav-item"
+          :to="{ name: 'AppSettings', params: { workspaceId: currentWorkspaceId } }"
+        >
+          <i class="fa-solid fa-gear" aria-hidden="true" />
+          <span>Configuración</span>
+        </RouterLink>
+
+        <!-- Notifications — all authenticated users -->
         <RouterLink
           class="app-layout__nav-item"
           :to="{ name: 'Notifications' }"
@@ -644,9 +659,8 @@ watch(() => route.params.workspaceId, async (newId) => {
           </div>
           <span>Notificaciones</span>
         </RouterLink>
-      </nav>
 
-      <div class="app-layout__footer">
+        <div class="app-layout__footer">
         <div class="app-layout__user">
           <div class="app-layout__user-avatar" aria-hidden="true">
             <img v-if="userStore.photoUrl" :src="userStore.photoUrl" :alt="userStore.name || 'User'" />
@@ -660,6 +674,7 @@ watch(() => route.params.workspaceId, async (newId) => {
         <button class="app-layout__logout" type="button" @click="logout" aria-label="Cerrar sesión" title="Cerrar sesión">
           <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true" />
         </button>
+      </div>
       </div>
     </aside>
 
@@ -720,9 +735,6 @@ watch(() => route.params.workspaceId, async (newId) => {
       </div>
       <RouterView v-else :key="$route.fullPath" />
     </main>
-
-    <!-- Booking modal (client-only) -->
-    <BookingModal v-model="isBookingModalOpen" />
 
     <!-- Invasive Onboarding Modal -->
     <Transition name="fade">
@@ -819,13 +831,13 @@ watch(() => route.params.workspaceId, async (newId) => {
     width: 280px;
     flex-shrink: 0;
     background-color: $primary-dark;
-    padding: 1.5rem 1rem;
+    padding: 0;
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
     z-index: 1000;
-    overflow-y: auto;
+    overflow: hidden;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -838,6 +850,25 @@ watch(() => route.params.workspaceId, async (newId) => {
 
     &--open {
       transform: translateX(0);
+    }
+  }
+
+  &__sidebar-top {
+    flex-shrink: 0;
+    padding: 1.5rem 1rem 0;
+  }
+
+  &__sidebar-bottom {
+    flex-shrink: 0;
+    padding: 0 1rem 1.25rem;
+    border-top: 1px solid rgba($white, 0.07);
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    .app-layout__nav-item {
+      border-radius: 0 8px 8px 0;
     }
   }
 
@@ -1177,7 +1208,21 @@ watch(() => route.params.workspaceId, async (newId) => {
     flex-direction: column;
     gap: 0.35rem;
     flex: 1;
-    padding: 0 0.5rem;
+    overflow-y: auto;
+    padding: 0.75rem 1rem 0.5rem;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba($white, 0.1);
+      border-radius: 2px;
+    }
   }
 
   &__nav-item {
@@ -1215,9 +1260,6 @@ watch(() => route.params.workspaceId, async (newId) => {
       padding-left: calc(1rem - 3px);
     }
 
-    &--bottom {
-      margin-top: auto;
-    }
   }
 
   &__nav-tag {
@@ -1393,9 +1435,7 @@ watch(() => route.params.workspaceId, async (newId) => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid rgba($white, 0.08);
-    margin-top: auto;
+    padding: 0.5rem 0 0;
   }
 
   &__user {
