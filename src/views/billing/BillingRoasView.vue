@@ -78,6 +78,11 @@
       :workspace-id="workspaceId"
     />
 
+    <FlorindaSalesSection
+      v-if="workspaceId === '69d7c73318a77b5e0db9f74e'"
+      :workspace-id="workspaceId"
+    />
+
     <template v-if="!analytics.isBoloncity.value">
       <!-- Sticky CTA -->
       <div v-if="analytics.isCurrentMonth.value && analytics.canEnterBilling.value && !analytics.todayHasMyEntry.value" class="today-cta">
@@ -134,6 +139,7 @@ import BillingChart from '@/components/billing/BillingChart.vue'
 import BillingDayList from '@/components/billing/BillingDayList.vue'
 import BillingEntryModal from '@/components/billing/BillingEntryModal.vue'
 import SalesDashboardSection from '@/components/billing/SalesDashboardSection.vue'
+import FlorindaSalesSection from '@/components/billing/FlorindaSalesSection.vue'
 
 const route = useRoute()
 const workspaceId = computed(() => route.params.workspaceId as string)
