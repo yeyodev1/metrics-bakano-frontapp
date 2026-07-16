@@ -1,7 +1,7 @@
 <template>
   <div class="billing-view">
     <!-- PREMIUM CRM ANNOUNCEMENT BANNER -->
-    <section class="crm-announcement">
+    <section v-if="!isFlorindaWorkspace" class="crm-announcement">
       <div class="crm-announcement__content">
         <div class="crm-announcement__badge">
           <i class="fa-solid fa-bolt"></i> Nueva Experiencia
@@ -23,7 +23,7 @@
 
     <!-- Header -->
     <BillingHeader
-      v-if="!analytics.isBoloncity.value"
+      v-if="showStandardBilling"
       :isBoloncity="analytics.isBoloncity.value"
       :workspaceName="analytics.workspaceName.value"
       :monthLabel="analytics.monthLabel.value"
@@ -33,7 +33,7 @@
       @next-month="analytics.nextMonth()"
     />
 
-    <template v-if="!analytics.isBoloncity.value">
+    <template v-if="showStandardBilling">
       <!-- Skeleton Loading -->
       <div v-if="analytics.loading.value && !analytics.monthData.value" class="skel-wrap">
         <div class="skel-kpi-row">
@@ -78,7 +78,12 @@
       :workspace-id="workspaceId"
     />
 
-    <template v-if="!analytics.isBoloncity.value">
+    <FlorindaSalesSection
+      v-if="isFlorindaWorkspace"
+      :workspace-id="workspaceId"
+    />
+
+    <template v-if="showStandardBilling">
       <!-- Sticky CTA -->
       <div v-if="analytics.isCurrentMonth.value && analytics.canEnterBilling.value && !analytics.todayHasMyEntry.value" class="today-cta">
         <button class="btn-today-register" @click="openModalForAdd({ date: analytics.todayStr.value, total: analytics.todayDaySummary.value?.totalAmount ?? 0 })">
@@ -134,12 +139,15 @@ import BillingChart from '@/components/billing/BillingChart.vue'
 import BillingDayList from '@/components/billing/BillingDayList.vue'
 import BillingEntryModal from '@/components/billing/BillingEntryModal.vue'
 import SalesDashboardSection from '@/components/billing/SalesDashboardSection.vue'
+import FlorindaSalesSection from '@/components/billing/FlorindaSalesSection.vue'
 
 const route = useRoute()
 const workspaceId = computed(() => route.params.workspaceId as string)
+const isFlorindaWorkspace = computed(() => workspaceId.value === '69d7c73318a77b5e0db9f74e')
 
 // Abstracted Analytics Logic
 const analytics = useBillingAnalytics(workspaceId)
+const showStandardBilling = computed(() => !analytics.isBoloncity.value && !isFlorindaWorkspace.value)
 
 // Modal State (kept local as it drives the modal UI specific to this view)
 const showModal = ref(false)
@@ -206,6 +214,7 @@ async function handleEntry(payload: { amount: number; notes?: string; onlineReve
 }
 
 onMounted(async () => {
+  if (isFlorindaWorkspace.value) return
   await analytics.fetchTodayStatus()
   analytics.fetchMonth()
 })
