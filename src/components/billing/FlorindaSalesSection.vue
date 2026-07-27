@@ -414,9 +414,9 @@ watch([selectedYear, selectedMonth], loadMonth)
   .florinda-sales thead { display: none; }
   .florinda-sales tbody { gap: 8px; }
   .florinda-sales tr { display: flex; flex-wrap: wrap; width: 100%; padding: 10px 12px; box-sizing: border-box; border: 1px solid #f0edf2; border-radius: 10px; }
-  .florinda-sales td { display: flex; width: 50%; justify-content: space-between; gap: 6px; padding: 5px 0; box-sizing: border-box; border: 0; text-align: right; font-size: 12px; }
-  .florinda-sales td:nth-child(even) { padding-left: 12px; }
+  .florinda-sales td { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 16px; padding: 7px 0; box-sizing: border-box; border: 0; border-bottom: 1px solid #f5f2f6; text-align: right; font-size: 13px; }
   .florinda-sales td:first-child { width: 100%; margin-bottom: 4px; padding-bottom: 8px; border-bottom: 1px solid #f0edf2; font-size: 13px; font-weight: 800; }
+  .florinda-sales td:last-child { padding-top: 9px; border-bottom: 0; color: $primary-dark; font-size: 14px; }
   .florinda-sales td::before { content: attr(data-label); color: #918a97; font-size: 10px; font-weight: 700; text-transform: uppercase; }
   .florinda-sales td:first-child::before { display: none; }
   .florinda-sales__skeleton-aside { flex-direction: column; }

@@ -56,6 +56,12 @@
         :hasAnyData="analytics.hasAnyData.value"
       />
 
+      <section v-if="analytics.canEnterBilling.value" class="bulk-launch">
+        <div class="bulk-launch__icon"><i class="fa-solid fa-wand-magic-sparkles" /></div>
+        <div class="bulk-launch__content"><span>Carga masiva mensual</span><strong>¿Tienes días pendientes en {{ analytics.monthLabel.value }}?</strong><p>Ingresa un solo total y revisa cómo se distribuye por cada día pendiente.</p></div>
+        <button :disabled="bulkLoading" @click="openBulkModal"><i :class="bulkLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-arrow-right'" /> {{ bulkLoading ? 'Preparando días...' : 'Completar mes' }}</button>
+      </section>
+
       <!-- Day List (includes filters, pending banner, and days) -->
       <BillingDayList
         v-if="analytics.monthData.value"
@@ -104,10 +110,12 @@
         :existing-notes="modalExistingNotes"
         :existing-online-revenue="modalExistingOnlineRevenue"
         :existing-branches="modalExistingBranches"
+        :existing-is-bulk-distribution="modalExistingIsBulk"
         :entry-id="modalEntryId"
         :calendar-entry-map="analytics.calendarEntryMap.value"
         @confirmed="handleEntry"
       />
+      <BillingBulkModal v-model="showBulkModal" :dates="bulkDates" :loading="bulkLoading" @confirmed="handleBulkBilling" />
     </template>
 
     <!-- Toasts -->
@@ -138,8 +146,10 @@ import BillingKpis from '@/components/billing/BillingKpis.vue'
 import BillingChart from '@/components/billing/BillingChart.vue'
 import BillingDayList from '@/components/billing/BillingDayList.vue'
 import BillingEntryModal from '@/components/billing/BillingEntryModal.vue'
+import BillingBulkModal from '@/components/billing/BillingBulkModal.vue'
 import SalesDashboardSection from '@/components/billing/SalesDashboardSection.vue'
 import FlorindaSalesSection from '@/components/billing/FlorindaSalesSection.vue'
+import { useConfirm } from '@/composables/useConfirm'
 
 const route = useRoute()
 const workspaceId = computed(() => route.params.workspaceId as string)
@@ -154,6 +164,10 @@ const showModal = ref(false)
 const submitting = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
+const { confirm } = useConfirm()
+const showBulkModal = ref(false)
+const bulkLoading = ref(false)
+const bulkDates = ref<string[]>([])
 
 const modalDate = ref('')
 const modalDayTotal = ref(0)
@@ -163,6 +177,7 @@ const modalExistingAmount = ref<number | undefined>(undefined)
 const modalExistingNotes = ref<string | undefined>(undefined)
 const modalExistingOnlineRevenue = ref<number | undefined>(undefined)
 const modalExistingBranches = ref<{ branchId: string; amount: number }[] | undefined>(undefined)
+const modalExistingIsBulk = ref(false)
 
 function openModalForAdd(payload: { date: string; total: number }) {
   modalDate.value = payload.date
@@ -173,6 +188,7 @@ function openModalForAdd(payload: { date: string; total: number }) {
   modalExistingNotes.value = undefined
   modalExistingOnlineRevenue.value = undefined
   modalExistingBranches.value = undefined
+  modalExistingIsBulk.value = false
   showModal.value = true
 }
 
@@ -185,6 +201,7 @@ function openModalForEdit(payload: { entry: any; date: string; total: number }) 
   modalExistingNotes.value = payload.entry.notes
   modalExistingOnlineRevenue.value = payload.entry.onlineRevenue
   modalExistingBranches.value = payload.entry.branches
+  modalExistingIsBulk.value = !!payload.entry.isBulkDistribution
   showModal.value = true
 }
 
@@ -213,6 +230,47 @@ async function handleEntry(payload: { amount: number; notes?: string; onlineReve
   }
 }
 
+async function openBulkModal() {
+  bulkLoading.value = true
+  try {
+    const result = await billingService.getMissingCurrentMonthDates(workspaceId.value, analytics.currentYear.value, analytics.currentMonth.value)
+    if (!result.dates.length) {
+      successMsg.value = '✓ No tienes días pendientes hasta anteayer este mes'
+      setTimeout(() => (successMsg.value = ''), 4000)
+      return
+    }
+    bulkDates.value = result.dates
+    showBulkModal.value = true
+  } catch (e: any) {
+    errorMsg.value = e?.message || 'No se pudieron cargar los días pendientes'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
+async function handleBulkBilling(payload: { total: number; allocations: { date: string; amount: number }[] }) {
+  const accepted = await confirm({
+    title: '¿Confirmar carga masiva?',
+    message: `Se crearán ${payload.allocations.length} registros por un total de $${payload.total.toFixed(2)}. Podrás editarlos después.`,
+    confirmText: 'Guardar distribución',
+    requireHold: true,
+  })
+  if (!accepted) return
+  bulkLoading.value = true
+  try {
+    await billingService.distributeCurrentMonth(workspaceId.value, { ...payload, year: analytics.currentYear.value, month: analytics.currentMonth.value })
+    showBulkModal.value = false
+    successMsg.value = `✓ Se guardaron ${payload.allocations.length} días de facturación`
+    setTimeout(() => (successMsg.value = ''), 5000)
+    await analytics.fetchTodayStatus()
+    analytics.fetchMonth()
+  } catch (e: any) {
+    errorMsg.value = e?.message || 'No se pudo guardar la carga masiva'
+  } finally {
+    bulkLoading.value = false
+  }
+}
+
 onMounted(async () => {
   if (isFlorindaWorkspace.value) return
   await analytics.fetchTodayStatus()
@@ -230,6 +288,10 @@ onMounted(async () => {
     padding: 28px 32px 80px;
   }
 }
+
+.bulk-launch { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; padding: 1.15rem 1.25rem; border: 1px solid rgba($primary, .18); border-radius: 18px; background: linear-gradient(110deg, rgba($primary, .08), rgba($secondary, .08)); }
+.bulk-launch__icon { width: 2.8rem; height: 2.8rem; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 12px; color: $white; background: linear-gradient(135deg, $primary, $secondary); }.bulk-launch__content { flex: 1; span { display: block; color: $primary; font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; } strong { display: block; margin-top: .15rem; color: $primary-dark; font-size: 1rem; } p { margin: .25rem 0 0; color: $text-secondary; font-size: .82rem; line-height: 1.45; } }.bulk-launch button { display: inline-flex; align-items: center; gap: .5rem; flex: 0 0 auto; border: 0; border-radius: 10px; padding: .8rem 1rem; color: $white; background: $primary; font: inherit; font-size: .82rem; font-weight: 800; cursor: pointer; &:disabled { opacity: .7; cursor: wait; } }
+@media (max-width: 640px) { .bulk-launch { align-items: flex-start; flex-wrap: wrap; }.bulk-launch button { width: 100%; justify-content: center; } }
 
 // CRM PREMIUM BANNER
 .crm-announcement {

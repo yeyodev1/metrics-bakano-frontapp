@@ -22,6 +22,7 @@ const props = defineProps({
   existingOnlineRevenue: { type: Number, required: false },
   existingBranches: { type: Array as () => { branchId: string; amount: number }[], required: false },
   entryId: { type: String, required: false },
+  existingIsBulkDistribution: { type: Boolean, default: false },
   calendarEntryMap: { type: Object as () => Record<string, { hasMyEntry: boolean; total: number; entryCount: number }>, required: false, default: () => ({}) }
 })
 
@@ -157,7 +158,7 @@ const amountLabel = computed(() => (!localDate.value || localDate.value === toda
 
         <div class="info-notice" :class="editMode ? 'info-notice--blue' : 'info-notice--amber'">
           <i :class="editMode ? 'fa-solid fa-rotate' : 'fa-solid fa-calendar-check'" />
-          <span>{{ editMode ? 'Puedes editar este registro durante 7 días desde la fecha de creación.' : 'Podrás editar este registro durante los próximos 7 días.' }}</span>
+          <span>{{ editMode ? (existingIsBulkDistribution ? 'Este registro fue creado por carga masiva y puede corregirse cuando lo necesites.' : 'Puedes editar este registro durante 7 días desde la fecha de creación.') : 'Podrás editar este registro durante los próximos 7 días.' }}</span>
         </div>
       </div>
 
