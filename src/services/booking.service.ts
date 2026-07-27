@@ -5,6 +5,12 @@ export interface SalesBookingEligibility {
   hasSalesInformation: boolean
   isBillingUpToDate: boolean
   missingBillingDates: string[]
+  salesAppointment: { startsAt: string; endsAt?: string; status: string } | null
+}
+
+export interface SalesEvidenceUpload {
+  file: File
+  description: string
 }
 
 class BookingService extends APIBase {
@@ -13,10 +19,11 @@ class BookingService extends APIBase {
     return res.data
   }
 
-  async submitSalesRequest(workspaceId: string, data: Record<string, string | number>, evidence: File[]) {
+  async submitSalesRequest(workspaceId: string, data: Record<string, string | number>, evidence: SalesEvidenceUpload[]) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, value]) => formData.append(key, String(value)))
-    evidence.forEach((file) => formData.append('evidence', file))
+    evidence.forEach(({ file }) => formData.append('evidence', file))
+    formData.append('evidenceMetadata', JSON.stringify(evidence.map(({ description }) => ({ description }))))
     const res = await this.post<SalesBookingEligibility>(`booking/${workspaceId}/sales-request`, formData)
     return res.data
   }

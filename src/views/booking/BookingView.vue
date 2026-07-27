@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import carlosPhoto from '@/assets/team/carlos.jpg'
 import { bookingService, type SalesBookingEligibility } from '@/services/booking.service'
@@ -13,8 +13,10 @@ const salesEligibility = ref<SalesBookingEligibility | null>(null)
 const salesLoading = ref(true)
 const salesSubmitting = ref(false)
 const salesError = ref('')
-const salesFiles = ref<File[]>([])
+type SalesEvidence = { file: File; description: string; previewUrl?: string }
+const salesEvidence = ref<SalesEvidence[]>([])
 const salesStep = ref(1)
+let salesEligibilityPoll: number | undefined
 const salesForm = ref({
   salesApproach: '',
   commonObjection: '',
@@ -85,7 +87,7 @@ const experts = [
       'Escalabilidad y crecimiento',
       'Propuestas y negociación',
     ],
-    url: 'https://api.leadconnectorhq.com/widget/booking/nF8Yw6KCBE0R4a3B8XGy',
+    url: 'https://api.leadconnectorhq.com/widget/booking/B1bBr6Re26efMEFn0HFP',
     warning: 'Exclusivo ventas',
     warningDesc:
       'Exclusivo para temas comerciales. Cualquier otro tema será cancelado y no podrás agendar nuevamente.',
@@ -96,11 +98,15 @@ const experts = [
 const currentExpert = () => experts.find((e) => e.key === selected.value) ?? null
 
 function selectExpert(key: ExpertKey) {
-  if (key === 'ventas') salesStep.value = 1
+  if (key === 'ventas') {
+    salesStep.value = 1
+    startSalesEligibilityPolling()
+  }
   selected.value = key
 }
 
 function backToSelection() {
+  stopSalesEligibilityPolling()
   selected.value = null
 }
 
@@ -113,11 +119,28 @@ async function loadSalesEligibility() {
   try {
     const eligibility = await bookingService.getSalesEligibility(String(route.params.workspaceId))
     salesEligibility.value = eligibility
+    if (eligibility.salesAppointment) stopSalesEligibilityPolling()
   } catch (error: any) {
     salesError.value = error?.message || 'No pudimos validar los requisitos para ventas.'
   } finally {
     salesLoading.value = false
   }
+}
+
+function startSalesEligibilityPolling() {
+  stopSalesEligibilityPolling()
+  salesEligibilityPoll = window.setInterval(loadSalesEligibility, 10000)
+}
+
+function stopSalesEligibilityPolling() {
+  if (salesEligibilityPoll) window.clearInterval(salesEligibilityPoll)
+  salesEligibilityPoll = undefined
+}
+
+function formatAppointmentDate(date: string) {
+  return new Date(date).toLocaleString('es-EC', {
+    weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', timeZone: 'America/Guayaquil',
+  })
 }
 
 function selectEvidence(event: Event) {
@@ -127,12 +150,22 @@ function selectEvidence(event: Event) {
     salesError.value = 'Usa PDF, JPG, PNG o WEBP de hasta 10 MB.'
     return
   }
-  if (files.length > 5) {
+  if (salesEvidence.value.length + files.length > 5) {
     salesError.value = 'Puedes subir un máximo de 5 archivos.'
     return
   }
   salesError.value = ''
-  salesFiles.value = files
+  salesEvidence.value.push(...files.map((file) => ({
+    file,
+    description: '',
+    previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+  })))
+  ;(event.target as HTMLInputElement).value = ''
+}
+
+function removeEvidence(index: number) {
+  const [removed] = salesEvidence.value.splice(index, 1)
+  if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl)
 }
 
 function nextSalesStep() {
@@ -142,7 +175,7 @@ function nextSalesStep() {
       return
     }
   }
-  if (salesStep.value === 2 && !salesFiles.value.length) {
+  if (salesStep.value === 2 && !salesEvidence.value.length) {
     salesError.value = 'Sube al menos una evidencia de una venta perdida.'
     return
   }
@@ -156,7 +189,7 @@ function previousSalesStep() {
 }
 
 async function submitSalesRequest() {
-  if (!salesFiles.value.length) {
+  if (!salesEvidence.value.length) {
     salesError.value = 'Sube al menos una evidencia de una venta perdida.'
     return
   }
@@ -166,7 +199,7 @@ async function submitSalesRequest() {
     const eligibility = await bookingService.submitSalesRequest(
       String(route.params.workspaceId),
       salesForm.value,
-      salesFiles.value,
+      salesEvidence.value.map(({ file, description }) => ({ file, description })),
     )
     salesEligibility.value = eligibility
   } catch (error: any) {
@@ -185,6 +218,10 @@ function goToBilling() {
 }
 
 onMounted(loadSalesEligibility)
+onBeforeUnmount(() => {
+  stopSalesEligibilityPolling()
+  salesEvidence.value.forEach(({ previewUrl }) => previewUrl && URL.revokeObjectURL(previewUrl))
+})
 </script>
 
 <template>
@@ -300,7 +337,15 @@ onMounted(loadSalesEligibility)
                   <span class="bv-sales-form__step-label">Último paso</span>
                   <h2>Sube una conversación que no se cerró.</h2>
                   <p>Nos permitirá llegar preparados con recomendaciones reales.</p>
-                  <label class="bv-sales-form__upload">Evidencia de venta perdida *<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple @change="selectEvidence" /><span><i class="fa-solid fa-cloud-arrow-up"></i> {{ salesFiles.length ? `${salesFiles.length} archivo(s) seleccionado(s)` : 'PDF o imagen, hasta 5 archivos de 10 MB' }}</span></label>
+                  <label class="bv-sales-form__upload">Evidencia de venta perdida *<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple @change="selectEvidence" /><span><i class="fa-solid fa-cloud-arrow-up"></i> {{ salesEvidence.length ? `Agregar más archivos (${salesEvidence.length}/5)` : 'PDF o imagen, hasta 5 archivos de 10 MB' }}</span></label>
+                  <div v-if="salesEvidence.length" class="bv-sales-form__evidence-list">
+                    <article v-for="(evidence, index) in salesEvidence" :key="`${evidence.file.name}-${index}`" class="bv-sales-form__evidence">
+                      <img v-if="evidence.previewUrl" :src="evidence.previewUrl" :alt="`Vista previa de ${evidence.file.name}`" />
+                      <div v-else class="bv-sales-form__evidence-file"><i class="fa-solid fa-file-pdf"></i></div>
+                      <div class="bv-sales-form__evidence-body"><strong>{{ evidence.file.name }}</strong><span>{{ (evidence.file.size / 1024 / 1024).toFixed(1) }} MB</span><input v-model.trim="evidence.description" maxlength="300" placeholder="Descripción opcional" /></div>
+                      <button type="button" :aria-label="`Quitar ${evidence.file.name}`" @click="removeEvidence(index)"><i class="fa-solid fa-xmark"></i></button>
+                    </article>
+                  </div>
                 </section>
               </Transition>
               <p v-if="salesError" class="bv-sales-form__error">{{ salesError }}</p>
@@ -313,6 +358,20 @@ onMounted(loadSalesEligibility)
 
             <div v-else class="bv-gate__billing"><i class="fa-solid fa-spinner fa-spin"></i><div><strong>Actualizando tu agenda.</strong><span>Tu información comercial ya fue registrada.</span></div></div>
           </template>
+        </section>
+      </div>
+    </template>
+
+    <!-- ════════ SCHEDULED SALES APPOINTMENT ════════ -->
+    <template v-else-if="selected === 'ventas' && salesEligibility?.salesAppointment">
+      <div class="bv-gate">
+        <button class="bv-back-link" @click="backToSelection"><i class="fa-solid fa-arrow-left"></i> Volver a selección</button>
+        <section class="bv-sales-scheduled">
+          <div class="bv-sales-scheduled__icon"><i class="fa-solid fa-calendar-check"></i></div>
+          <span>Solicitud confirmada</span>
+          <h1>Tu asesoría con Luis ya está agendada.</h1>
+          <p>Recibirás los detalles de conexión en el correo de confirmación de la agenda.</p>
+          <div class="bv-sales-scheduled__date"><i class="fa-solid fa-clock"></i>{{ formatAppointmentDate(salesEligibility.salesAppointment.startsAt) }}</div>
         </section>
       </div>
     </template>
@@ -999,6 +1058,15 @@ onMounted(loadSalesEligibility)
   &__upload { cursor: pointer; padding: 1rem; border: 1.5px dashed rgba($primary, 0.35); border-radius: 12px; background: rgba($primary, 0.03); text-align: center; }
   &__upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
   &__upload span { color: $primary; font-size: 0.78rem; }
+  &__evidence-list { display: flex; flex-direction: column; gap: 0.65rem; }
+  &__evidence { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem; border: 1px solid rgba($primary, 0.14); border-radius: 12px; background: #fffcfd; }
+  &__evidence > img, &__evidence-file { width: 3.5rem; height: 3.5rem; flex: 0 0 auto; border-radius: 9px; object-fit: cover; }
+  &__evidence-file { display: flex; align-items: center; justify-content: center; color: $primary; background: rgba($primary, 0.1); font-size: 1.35rem; }
+  &__evidence-body { display: flex; flex: 1; flex-direction: column; gap: 0.2rem; min-width: 0; }
+  &__evidence-body strong { overflow: hidden; color: $primary-dark; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
+  &__evidence-body span { color: $text-secondary; font-size: 0.68rem; }
+  &__evidence-body input { padding: 0.42rem 0.55rem; font-size: 0.75rem; }
+  &__evidence > button { width: 1.9rem; height: 1.9rem; flex: 0 0 auto; border: 0; border-radius: 50%; color: $alert-error; background: rgba($alert-error, 0.08); cursor: pointer; }
   &__error { margin: 0; color: $alert-error; font-size: 0.8rem; }
   &__actions { display: flex; justify-content: space-between; gap: 0.75rem; padding-top: 0.15rem; }
   &__back { border: 1px solid rgba($primary-dark, 0.15); border-radius: 12px; padding: 0.9rem 1rem; color: $text-secondary; background: $white; font: inherit; font-size: 0.86rem; font-weight: 700; cursor: pointer; }
@@ -1036,6 +1104,26 @@ onMounted(loadSalesEligibility)
   button { display: inline-flex; align-items: center; gap: 0.5rem; border: 0; border-radius: 12px; padding: 0.9rem 1rem; color: $white; background: $primary; box-shadow: 0 10px 20px rgba($primary, 0.22); font: inherit; font-size: 0.86rem; font-weight: 800; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; &:hover { transform: translateY(-2px); box-shadow: 0 14px 26px rgba($primary, 0.3); } }
 }
 
+.bv-sales-scheduled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 640px;
+  margin: 2rem auto 0;
+  padding: clamp(1.75rem, 5vw, 3.5rem);
+  border: 1px solid rgba($BAKANO-GREEN, .25);
+  border-radius: 24px;
+  text-align: center;
+  background: linear-gradient(145deg, $white, rgba($BAKANO-GREEN, .06));
+  box-shadow: 0 20px 50px rgba($primary-dark, .08);
+
+  &__icon { width: 4rem; height: 4rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; border-radius: 50%; color: $white; background: $BAKANO-GREEN; box-shadow: 0 10px 24px rgba($BAKANO-GREEN, .25); font-size: 1.65rem; }
+  > span { color: #16714b; font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  h1 { margin: .7rem 0; color: $primary-dark; font-size: clamp(1.6rem, 4vw, 2.3rem); letter-spacing: -.03em; }
+  p { max-width: 430px; margin: 0; color: $text-secondary; line-height: 1.6; }
+  &__date { display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.5rem; padding: .75rem 1rem; border-radius: 12px; color: #16714b; background: rgba($BAKANO-GREEN, .1); font-size: .85rem; font-weight: 700; }
+}
+
 .bv-wizard-enter-active,
 .bv-wizard-leave-active { transition: opacity 0.22s ease, transform 0.22s ease; }
 .bv-wizard-enter-from { opacity: 0; transform: translateX(18px); }
@@ -1047,11 +1135,19 @@ onMounted(loadSalesEligibility)
   .bv-cards { gap: 1rem; }
   .bv-card { min-height: 0; max-width: none; padding: 1.75rem 1.25rem 1.25rem; }
   .bv-gate { padding: 1rem; }
-  .bv-gate__card { border-radius: 18px; }
+  .bv-gate__card { border-radius: 18px; padding: 1.35rem 1.1rem; }
+  .bv-gate__card h1 { font-size: 1.8rem; }
+  .bv-gate__card > p { font-size: .9rem; line-height: 1.5; }
   .bv-gate__billing button { width: 100%; margin-left: 0; }
-  .bv-gate__checklist { flex-direction: column; }
+  .bv-gate__checklist { flex-direction: column; gap: .55rem; margin: 1rem 0; }
+  .bv-gate__checklist > div { flex: 0 0 auto; min-height: 0; padding: .8rem .85rem; font-size: .78rem; }
   .bv-billing-required { flex-direction: column; }
+  .bv-sales-scheduled { margin-top: 1rem; border-radius: 18px; }
   .bv-sales-form__step { padding: 1.1rem; }
+  .bv-sales-form__step h2 { font-size: 1.55rem; }
+  .bv-sales-form__upload { padding: .85rem; }
+  .bv-sales-form__evidence { gap: .55rem; padding: .55rem; }
+  .bv-sales-form__evidence > img, .bv-sales-form__evidence-file { width: 3rem; height: 3rem; }
   .bv-sales-form__actions .bv-sales-form__submit { flex: 1; }
 }
 </style>
