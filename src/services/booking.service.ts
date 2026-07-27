@@ -13,9 +13,18 @@ export interface SalesEvidenceUpload {
   description: string
 }
 
+export interface UpcomingSalesAppointment {
+  salesAppointment: SalesBookingEligibility['salesAppointment']
+}
+
 class BookingService extends APIBase {
   async getSalesEligibility(workspaceId: string) {
     const res = await this.get<SalesBookingEligibility>(`booking/${workspaceId}/sales-eligibility`)
+    return res.data
+  }
+
+  async getUpcomingSalesAppointment(workspaceId: string) {
+    const res = await this.get<UpcomingSalesAppointment>(`booking/${workspaceId}/upcoming-sales-appointment`)
     return res.data
   }
 

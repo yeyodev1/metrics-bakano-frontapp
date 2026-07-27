@@ -25,6 +25,7 @@ export type InternalRole =
   | 'desarrollador'
   | 'asistente_produccion'
   | 'trafficker'
+  | 'sales_executive'
 
 export interface AuthUser {
   _id: string

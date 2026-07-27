@@ -207,6 +207,18 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/meetings/MeetingsView.vue'),
         meta: { title: 'Bakano Ads: Calendario de Reuniones', requiresAuth: true, requiresInternal: true },
       },
+      {
+        path: 'sales-executive',
+        name: 'SalesExecutiveDashboard',
+        component: () => import('../views/sales/SalesExecutiveDashboard.vue'),
+        meta: { title: 'Bakano Ads: Próximas Asesorías', requiresAuth: true, requiresInternal: true },
+      },
+      {
+        path: 'sales-executive/:formId',
+        name: 'SalesExecutiveFormDetail',
+        component: () => import('../views/sales/SalesBookingFormDetailView.vue'),
+        meta: { title: 'Bakano Ads: Perfil Comercial', requiresAuth: true, requiresInternal: true },
+      },
       // ── Notifications ─────────────────────────────────────
       {
         path: 'notifications',
@@ -320,6 +332,8 @@ router.beforeEach((to, _from, next) => {
           return next({ name: 'EditorDashboard' })
         } else if (payload.internalRole === 'trafficker' || payload.internalRole === 'project_manager') {
           return next({ name: 'TraffickerDashboard' })
+        } else if (payload.internalRole === 'sales_executive') {
+          return next({ name: 'SalesExecutiveDashboard' })
         } else {
           const workspaceId = payload.workspaceId || localStorage.getItem('user_workspaceId')
           if (workspaceId) {

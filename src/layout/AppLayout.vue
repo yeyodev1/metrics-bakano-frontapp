@@ -39,6 +39,7 @@ const INTERNAL_ROLE_LABELS: Record<string, string> = {
   analista: 'Analista',
   desarrollador: 'Desarrollador',
   trafficker: 'Trafficker',
+  sales_executive: 'Ejecutivo de Ventas',
 }
 
 const userRoleLabel = computed(() => {
@@ -64,7 +65,7 @@ watch(wsSearch, () => {
   }, 300)
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
@@ -97,6 +98,9 @@ const globalBackRoute = computed(() => {
   if (userStore.isInternal) {
     if (userStore.internalRole === 'trafficker') {
       return { name: 'TraffickerDashboard' }
+    }
+    if (userStore.internalRole === 'sales_executive') {
+      return { name: 'SalesExecutiveDashboard' }
     }
     return { name: 'ClientsGlobal' }
   }
@@ -490,6 +494,16 @@ watch(() => route.params.workspaceId, async (newId) => {
             <i class="fa-solid fa-bullseye-arrow" aria-hidden="true" />
             <span>Panel Trafficker</span>
             <span class="app-layout__nav-tag">ADS</span>
+          </RouterLink>
+
+          <RouterLink
+            v-if="userStore.internalRole === 'sales_executive' || userStore.role === 'superadmin'"
+            class="app-layout__nav-item"
+            :to="{ name: 'SalesExecutiveDashboard' }"
+          >
+            <i class="fa-solid fa-handshake" aria-hidden="true" />
+            <span>Próximas asesorías</span>
+            <span class="app-layout__nav-tag">VENTAS</span>
           </RouterLink>
 
           <!-- Team KPIs — superadmin and project_manager only -->
