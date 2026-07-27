@@ -7,6 +7,7 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
   const userStore = useUserStore()
   
   const workspaceName = ref(localStorage.getItem('user_workspaceName') || '')
+  const workspaceCreatedAt = ref<string | null>(null)
   
   const now = new Date()
   const currentYear = ref(now.getFullYear())
@@ -98,6 +99,48 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
     if (!canEnterBilling.value) return []
     return daysToShow.value.filter(d => canRegisterOnDay(d))
   })
+
+  /**
+   * Computes missing billing dates locally from monthData.
+   * A day is missing if NO user has registered billing for that day.
+   * Covers the full month: day 1 through today (current month) or month end (past months).
+   * Future months return no days.
+   */
+  const missingDates = computed(() => {
+    const year = currentYear.value
+    const month = currentMonth.value
+    const now = new Date()
+
+    // Future month: nothing to register
+    if (year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1)) {
+      return []
+    }
+
+    // Start always at the 1st of the month
+    const startStr = `${year}-${String(month).padStart(2, '0')}-01`
+
+    // End date: today for current month, month end for past months
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
+    const endStr = isCurrentMonth.value ? todayStr.value : monthEnd
+
+    // Build set of dates that already have entries (from ANY user)
+    const recorded = new Set<string>()
+    for (const day of (monthData.value?.days ?? [])) {
+      recorded.add(dateStr(day.date))
+    }
+
+    // Generate all dates from start to end, filter out recorded ones
+    const missing: string[] = []
+    const start = new Date(startStr + 'T12:00:00')
+    const end = new Date(endStr + 'T12:00:00')
+    const dayMs = 24 * 60 * 60 * 1000
+    for (let d = new Date(start); d <= end; d = new Date(d.getTime() + dayMs)) {
+      const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      if (!recorded.has(date)) missing.push(date)
+    }
+    return missing
+  })
   
   const monthTotals = computed(() => {
     const days = monthData.value?.days ?? []
@@ -147,6 +190,7 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
     try {
       const { workspace } = await workspaceService.getWorkspace(workspaceIdRef.value)
       workspaceName.value = workspace.name || 'Workspace'
+      workspaceCreatedAt.value = workspace.createdAt || null
       localStorage.setItem('user_workspaceName', workspaceName.value)
     } catch {
       // silent, leave fallback
@@ -177,6 +221,7 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
   
   return {
     workspaceName,
+    workspaceCreatedAt,
     currentYear,
     currentMonth,
     loading,
@@ -196,6 +241,7 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
     todayHasMyEntry,
     daysToShow,
     pendingDays,
+    missingDates,
     monthTotals,
     branchMonthSummary,
     fetchMonth,

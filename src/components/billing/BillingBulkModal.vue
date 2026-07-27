@@ -63,7 +63,7 @@ function confirm() { if (valid.value && !props.loading) emit('confirmed', { tota
         <button @click="close" :disabled="loading"><i class="fa-solid fa-xmark" /></button>
       </header>
       <div class="bulk-modal__body">
-        <div class="bulk-modal__intro"><i class="fa-solid fa-calendar-days" /><p>Detectamos <strong>{{ dates.length }} {{ dates.length === 1 ? 'día pendiente' : 'días pendientes' }}</strong> hasta anteayer. Ingresa el total y lo distribuimos por día.</p></div>
+        <div class="bulk-modal__intro"><i class="fa-solid fa-calendar-days" /><p>Detectamos <strong>{{ dates.length }} {{ dates.length === 1 ? 'día pendiente' : 'días pendientes' }}</strong> por registrar. Ingresa el total y lo distribuimos por día.</p></div>
         <label class="bulk-modal__total">Total facturado este mes (USD)<input v-model.number="total" type="number" min="0" step="0.01" placeholder="0.00" autofocus /></label>
         <div v-if="allocations.length" class="bulk-modal__preview">
           <div class="bulk-modal__preview-head"><strong>Revisa la distribución</strong><span>${{ allocationTotal.toFixed(2) }} / ${{ (total || 0).toFixed(2) }}</span></div>

@@ -233,13 +233,17 @@ async function handleEntry(payload: { amount: number; notes?: string; onlineReve
 async function openBulkModal() {
   bulkLoading.value = true
   try {
-    const result = await billingService.getMissingCurrentMonthDates(workspaceId.value, analytics.currentYear.value, analytics.currentMonth.value)
-    if (!result.dates.length) {
-      successMsg.value = '✓ No tienes días pendientes hasta anteayer este mes'
+    // Ensure month data is loaded before computing missing dates
+    if (!analytics.monthData.value) {
+      await analytics.fetchMonth()
+    }
+    const dates = analytics.missingDates.value
+    if (!dates.length) {
+      successMsg.value = '✓ No tienes días pendientes por registrar este mes'
       setTimeout(() => (successMsg.value = ''), 4000)
       return
     }
-    bulkDates.value = result.dates
+    bulkDates.value = dates
     showBulkModal.value = true
   } catch (e: any) {
     errorMsg.value = e?.message || 'No se pudieron cargar los días pendientes'
