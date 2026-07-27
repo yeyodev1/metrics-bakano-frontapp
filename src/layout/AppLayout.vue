@@ -622,14 +622,14 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Mis Encuestas</span>
           </RouterLink>
 
-          <!-- Book a meeting — clients only -->
+          <!-- Expert agendas — clients only -->
           <RouterLink
             v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
             class="app-layout__nav-item"
             :to="{ name: 'AppBooking', params: { workspaceId: currentWorkspaceId } }"
           >
             <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
-            <span>Agendar Reunión</span>
+            <span>Agenda y Asesorías</span>
             <span class="app-layout__nav-tag">NUEVO</span>
           </RouterLink>
         </template>

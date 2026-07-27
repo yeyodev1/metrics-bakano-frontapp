@@ -94,6 +94,8 @@ const handleNormalConfirm = () => {
   justify-content: center;
   z-index: 9999;
   padding: 1rem;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .global-confirm-modal {
@@ -173,6 +175,8 @@ const handleNormalConfirm = () => {
   font-size: 0.95rem;
   outline: none;
   transition: all 0.2s;
+  user-select: text;
+  -webkit-user-select: text;
   
   &:focus {
     border-color: $alert-error;

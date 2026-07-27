@@ -1,10 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import carlosPhoto from '@/assets/team/carlos.jpg'
+import { bookingService, type SalesBookingEligibility } from '@/services/booking.service'
 
 type ExpertKey = 'soporte' | 'meta' | 'ventas' | null
 const selected = ref<ExpertKey>(null)
 const fallbackImg = ref<Record<string, boolean>>({})
+const route = useRoute()
+const router = useRouter()
+const salesEligibility = ref<SalesBookingEligibility | null>(null)
+const salesLoading = ref(true)
+const salesSubmitting = ref(false)
+const salesError = ref('')
+const salesFiles = ref<File[]>([])
+const salesStep = ref(1)
+const salesForm = ref({
+  salesApproach: '',
+  commonObjection: '',
+  otherObjection: '',
+})
 
 const experts = [
   {
@@ -81,6 +96,7 @@ const experts = [
 const currentExpert = () => experts.find((e) => e.key === selected.value) ?? null
 
 function selectExpert(key: ExpertKey) {
+  if (key === 'ventas') salesStep.value = 1
   selected.value = key
 }
 
@@ -91,6 +107,84 @@ function backToSelection() {
 function imgError(key: string) {
   fallbackImg.value[key] = true
 }
+
+async function loadSalesEligibility() {
+  salesLoading.value = true
+  try {
+    const eligibility = await bookingService.getSalesEligibility(String(route.params.workspaceId))
+    salesEligibility.value = eligibility
+  } catch (error: any) {
+    salesError.value = error?.message || 'No pudimos validar los requisitos para ventas.'
+  } finally {
+    salesLoading.value = false
+  }
+}
+
+function selectEvidence(event: Event) {
+  const files = Array.from((event.target as HTMLInputElement).files || [])
+  const invalid = files.find((file) => !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024)
+  if (invalid) {
+    salesError.value = 'Usa PDF, JPG, PNG o WEBP de hasta 10 MB.'
+    return
+  }
+  if (files.length > 5) {
+    salesError.value = 'Puedes subir un máximo de 5 archivos.'
+    return
+  }
+  salesError.value = ''
+  salesFiles.value = files
+}
+
+function nextSalesStep() {
+  if (salesStep.value === 1) {
+    if (!salesForm.value.salesApproach || !salesForm.value.commonObjection || (salesForm.value.commonObjection === 'other' && !salesForm.value.otherObjection)) {
+      salesError.value = 'Selecciona cómo abordas las ventas y la objeción principal.'
+      return
+    }
+  }
+  if (salesStep.value === 2 && !salesFiles.value.length) {
+    salesError.value = 'Sube al menos una evidencia de una venta perdida.'
+    return
+  }
+  salesError.value = ''
+  salesStep.value += 1
+}
+
+function previousSalesStep() {
+  salesError.value = ''
+  salesStep.value -= 1
+}
+
+async function submitSalesRequest() {
+  if (!salesFiles.value.length) {
+    salesError.value = 'Sube al menos una evidencia de una venta perdida.'
+    return
+  }
+  salesSubmitting.value = true
+  salesError.value = ''
+  try {
+    const eligibility = await bookingService.submitSalesRequest(
+      String(route.params.workspaceId),
+      salesForm.value,
+      salesFiles.value,
+    )
+    salesEligibility.value = eligibility
+  } catch (error: any) {
+    if (error?.status === 403) {
+      await loadSalesEligibility()
+      return
+    }
+    salesError.value = error?.message || 'No pudimos guardar la información comercial.'
+  } finally {
+    salesSubmitting.value = false
+  }
+}
+
+function goToBilling() {
+  router.push({ name: 'BillingRoas', params: { workspaceId: route.params.workspaceId } })
+}
+
+onMounted(loadSalesEligibility)
 </script>
 
 <template>
@@ -162,6 +256,64 @@ function imgError(key: string) {
             <strong>Política de uso:</strong> Las reuniones de ventas son exclusivas para temas comerciales. El uso indebido será registrado y perderás acceso a futuras agendas con el equipo comercial.
           </div>
         </div>
+      </div>
+    </template>
+
+    <!-- ════════ SALES REQUIREMENTS SCREEN ════════ -->
+    <template v-else-if="selected === 'ventas' && !salesEligibility?.eligible">
+      <div class="bv-gate">
+        <button class="bv-back-link" @click="backToSelection"><i class="fa-solid fa-arrow-left"></i> Volver a selección</button>
+        <section class="bv-gate__card">
+          <div class="bv-gate__eyebrow"><i class="fa-solid fa-shield-halved"></i> Agenda de Luis Reyes</div>
+          <h1>Tu agenda de ventas está casi lista.</h1>
+          <p>Antes de responder el diagnóstico, necesitamos que la facturación de este mes esté completa hasta hoy.</p>
+
+          <div v-if="salesLoading" class="bv-gate__loading"><i class="fa-solid fa-spinner fa-spin"></i> Validando requisitos...</div>
+          <template v-else>
+            <div class="bv-gate__checklist">
+              <div :class="{ 'is-ready': salesEligibility?.hasSalesInformation }"><i :class="salesEligibility?.hasSalesInformation ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i><span>Diagnóstico comercial y evidencia de venta perdida</span></div>
+              <div :class="{ 'is-ready': salesEligibility?.isBillingUpToDate }"><i :class="salesEligibility?.isBillingUpToDate ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i><span>Facturación registrada día a día hasta hoy</span></div>
+            </div>
+
+            <section v-if="!salesEligibility?.isBillingUpToDate" class="bv-billing-required">
+              <div class="bv-billing-required__icon"><i class="fa-solid fa-calendar-check"></i></div>
+              <div class="bv-billing-required__content">
+                <span class="bv-billing-required__eyebrow">Facturación pendiente</span>
+                <h2>Completa {{ salesEligibility?.missingBillingDates.length || 1 }} día{{ (salesEligibility?.missingBillingDates.length || 1) === 1 ? '' : 's' }} de este mes.</h2>
+                <p>Registra la facturación pendiente día por día hasta la fecha actual. Al terminar, vuelve a esta agenda y podrás continuar.</p>
+                <button type="button" @click="goToBilling"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ir a Facturación & ROAS</button>
+              </div>
+            </section>
+
+            <form v-else-if="!salesEligibility?.hasSalesInformation" class="bv-sales-form" @submit.prevent="submitSalesRequest">
+              <div class="bv-sales-form__progress" aria-label="Progreso del diagnóstico">
+                <span v-for="step in 2" :key="step" :class="{ 'is-active': step === salesStep, 'is-complete': step < salesStep }"><i v-if="step < salesStep" class="fa-solid fa-check"></i><template v-else>{{ step }}</template></span>
+              </div>
+              <Transition name="bv-wizard" mode="out-in">
+                <section v-if="salesStep === 1" key="approach" class="bv-sales-form__step">
+                  <span class="bv-sales-form__step-label">Antes de agendar</span>
+                  <h2>Identifiquemos tu conversación comercial.</h2>
+                  <fieldset><legend>¿Cómo abordas al cliente? *</legend><label v-for="option in [{ value: 'spin', text: 'Método SPIN' }, { value: 'automatic_paragraph', text: 'Le envío un párrafo automático' }, { value: 'direct_service', text: 'Hablo directamente de mi servicio' }, { value: 'catalog', text: 'Envío catálogo' }]" :key="option.value" class="bv-sales-form__choice"><input v-model="salesForm.salesApproach" type="radio" :value="option.value" /> {{ option.text }}</label></fieldset>
+                  <fieldset><legend>¿Cuál es la objeción más común? *</legend><label v-for="option in [{ value: 'price_no_response', text: 'No responden después del precio' }, { value: 'think_about_it', text: 'Lo voy a pensar / para otro día' }, { value: 'out_of_budget', text: 'Está fuera de mi presupuesto' }, { value: 'curiosity', text: 'Solo preguntan por curiosidad' }, { value: 'other', text: 'Otra' }]" :key="option.value" class="bv-sales-form__choice"><input v-model="salesForm.commonObjection" type="radio" :value="option.value" /> {{ option.text }}</label><input v-if="salesForm.commonObjection === 'other'" v-model.trim="salesForm.otherObjection" placeholder="Describe la objeción" /></fieldset>
+                </section>
+                <section v-else key="evidence" class="bv-sales-form__step">
+                  <span class="bv-sales-form__step-label">Último paso</span>
+                  <h2>Sube una conversación que no se cerró.</h2>
+                  <p>Nos permitirá llegar preparados con recomendaciones reales.</p>
+                  <label class="bv-sales-form__upload">Evidencia de venta perdida *<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple @change="selectEvidence" /><span><i class="fa-solid fa-cloud-arrow-up"></i> {{ salesFiles.length ? `${salesFiles.length} archivo(s) seleccionado(s)` : 'PDF o imagen, hasta 5 archivos de 10 MB' }}</span></label>
+                </section>
+              </Transition>
+              <p v-if="salesError" class="bv-sales-form__error">{{ salesError }}</p>
+              <div class="bv-sales-form__actions">
+                <button v-if="salesStep > 1" class="bv-sales-form__back" type="button" @click="previousSalesStep">Atrás</button>
+                <button v-if="salesStep < 2" class="bv-sales-form__submit" type="button" @click="nextSalesStep">Continuar <i class="fa-solid fa-arrow-right"></i></button>
+                <button v-else class="bv-sales-form__submit" :disabled="salesSubmitting" type="submit"><i :class="salesSubmitting ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-check'"></i> {{ salesSubmitting ? 'Guardando...' : 'Continuar a Facturación' }}</button>
+              </div>
+            </form>
+
+            <div v-else class="bv-gate__billing"><i class="fa-solid fa-spinner fa-spin"></i><div><strong>Actualizando tu agenda.</strong><span>Tu información comercial ya fue registrada.</span></div></div>
+          </template>
+        </section>
       </div>
     </template>
 
@@ -329,20 +481,18 @@ function imgError(key: string) {
 // CARDS SECTION
 // ═══════════════════════════════════════════════════════════════
 .bv-cards-section {
-  padding: 0 2rem 2.5rem;
+  padding: 0 2rem 3.5rem;
   flex: 1;
 }
 
 .bv-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  max-width: 1100px;
-  margin: 0 auto 1.5rem;
-
-  @media (max-width: 820px) {
-    grid-template-columns: 1fr;
-  }
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1.75rem;
+  max-width: 1160px;
+  margin: 0 auto 2rem;
 }
 
 .bv-card {
@@ -367,6 +517,9 @@ function imgError(key: string) {
   font-family: inherit;
   font-size: inherit;
   overflow: hidden;
+  flex: 1 1 290px;
+  max-width: 360px;
+  min-height: 410px;
 
   &::before {
     content: '';
@@ -750,5 +903,155 @@ function imgError(key: string) {
     background: $white;
     min-height: 500px;
   }
+}
+
+.bv-gate {
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 2.5rem) 1.25rem;
+
+  &__card {
+    position: relative;
+    overflow: hidden;
+    margin-top: 1rem;
+    padding: clamp(1.35rem, 4vw, 2.75rem);
+    border: 1px solid rgba($primary, 0.16);
+    border-radius: 28px;
+    background: linear-gradient(135deg, $white 0%, #fff9fb 100%);
+    box-shadow: 0 24px 60px rgba($primary-dark, 0.1);
+
+    &::after { content: ''; position: absolute; top: 0; right: 0; width: 34%; height: 5px; background: linear-gradient(90deg, $secondary, $primary); }
+
+    h1 { max-width: 660px; margin: 0.9rem 0 0.55rem; color: $primary-dark; font-size: clamp(1.65rem, 4.2vw, 2.55rem); line-height: 1.08; letter-spacing: -0.035em; }
+    > p { max-width: 650px; margin: 0; color: $text-secondary; font-size: 1rem; line-height: 1.65; }
+  }
+
+  &__eyebrow {
+    display: inline-flex;
+    gap: 0.45rem;
+    align-items: center;
+    padding: 0.42rem 0.7rem;
+    border-radius: 100px;
+    color: $primary;
+    background: rgba($primary, 0.09);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  &__loading { padding: 2rem 0; text-align: center; color: $text-secondary; }
+
+  &__checklist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 1.75rem 0;
+    > div { flex: 1 1 280px; display: flex; gap: 0.7rem; align-items: center; padding: 0.85rem 1rem; border-radius: 14px; border: 1px solid rgba($primary-dark, 0.07); background: rgba($primary-dark, 0.03); color: $text-secondary; font-size: 0.82rem; font-weight: 600; }
+    i { color: rgba($secondary, 0.65); }
+    .is-ready { color: #16714b; border-color: rgba($BAKANO-GREEN, 0.22); background: rgba($BAKANO-GREEN, 0.09); i { color: $BAKANO-GREEN; } }
+  }
+
+  &__billing {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 16px;
+    background: rgba(#f59e0b, 0.1);
+    color: #78350f;
+    > i { font-size: 1.3rem; flex: 0 0 auto; }
+    > div { flex: 1 1 220px; }
+    strong, span { display: block; }
+    span { margin-top: 0.15rem; font-size: 0.8rem; line-height: 1.4; }
+    button { margin-left: auto; width: max-content; border: 0; border-radius: 10px; padding: 0.65rem 0.8rem; background: #b45309; color: $white; font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+  }
+}
+
+.bv-sales-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  label, fieldset { display: flex; flex-direction: column; gap: 0.55rem; color: $primary-dark; font-size: 0.86rem; font-weight: 700; }
+  input { width: 100%; box-sizing: border-box; padding: 0.72rem 0.8rem; border: 1px solid rgba($primary-dark, 0.15); border-radius: 10px; color: $primary-dark; background: $white; font: inherit; font-size: 0.88rem; }
+  fieldset { padding: 0; border: 0; }
+  legend { margin-bottom: 0.15rem; font-size: 0.96rem; }
+  fieldset label { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 0.7rem; color: $text-secondary; font-weight: 600; }
+  input[type='radio'] { width: 1.05rem; height: 1.05rem; flex: 0 0 auto; margin: 0; padding: 0; accent-color: $primary; }
+
+  &__row { display: flex; flex-direction: column; gap: 1rem; }
+  &__row > label { flex: 1 1 0; }
+  &__progress { display: flex; align-items: center; gap: 0.5rem; }
+  &__progress span { position: relative; width: 1.9rem; height: 1.9rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba($secondary, 0.12); color: $secondary; font-size: 0.75rem; font-weight: 800; transition: 0.25s ease; }
+  &__progress span:not(:last-child) { margin-right: clamp(2.5rem, 12vw, 6rem); }
+  &__progress span:not(:last-child)::after { content: ''; position: absolute; top: calc(50% - 1px); left: calc(100% + 0.25rem); width: clamp(2rem, 11vw, 5.5rem); height: 2px; background: rgba($secondary, 0.18); }
+  &__progress .is-active, &__progress .is-complete { background: $primary; color: $white; box-shadow: 0 5px 12px rgba($primary, 0.26); }
+  &__progress .is-complete::after { background: rgba($primary, 0.45); }
+  &__step { display: flex; flex-direction: column; gap: 1.1rem; min-height: 0; padding: clamp(1.1rem, 3vw, 1.75rem); border: 1px solid rgba($primary, 0.12); border-radius: 20px; background: $white; box-shadow: inset 0 1px 0 rgba($white, 0.7); }
+  &__step h2 { margin: 0; color: $primary-dark; font-size: clamp(1.35rem, 3.5vw, 1.75rem); line-height: 1.16; letter-spacing: -0.025em; }
+  &__step p { margin: -0.35rem 0 0.3rem; color: $text-secondary; font-size: 0.86rem; line-height: 1.5; }
+  &__step-label { color: $primary; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  &__choice { min-height: 2.9rem; box-sizing: border-box; padding: 0.85rem 1rem; border: 1px solid rgba($primary-dark, 0.1); border-radius: 12px; background: #fffcfd; transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+  &__choice:hover { transform: translateX(3px); border-color: rgba($primary, 0.45); background: rgba($primary, 0.035); }
+  &__choice:has(input:checked) { border-color: $primary; background: rgba($primary, 0.065); color: $primary-dark; box-shadow: 0 6px 16px rgba($primary, 0.1); }
+  &__upload { cursor: pointer; padding: 1rem; border: 1.5px dashed rgba($primary, 0.35); border-radius: 12px; background: rgba($primary, 0.03); text-align: center; }
+  &__upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  &__upload span { color: $primary; font-size: 0.78rem; }
+  &__error { margin: 0; color: $alert-error; font-size: 0.8rem; }
+  &__actions { display: flex; justify-content: space-between; gap: 0.75rem; padding-top: 0.15rem; }
+  &__back { border: 1px solid rgba($primary-dark, 0.15); border-radius: 12px; padding: 0.9rem 1rem; color: $text-secondary; background: $white; font: inherit; font-size: 0.86rem; font-weight: 700; cursor: pointer; }
+  &__submit { border: 0; border-radius: 12px; padding: 0.95rem 1.2rem; background: linear-gradient(135deg, $primary, lighten($primary, 8%)); color: $white; font: inherit; font-size: 0.9rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 22px rgba($primary, 0.25); transition: transform 0.2s, box-shadow 0.2s; &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 28px rgba($primary, 0.3); } &:disabled { opacity: 0.65; cursor: wait; } }
+
+  @media (min-width: 640px) { &__row { flex-direction: row; } }
+}
+
+.bv-billing-required {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(1rem, 3vw, 1.5rem);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid rgba($primary, 0.18);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba($primary, 0.06), rgba($secondary, 0.06));
+
+  &__icon {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    color: $white;
+    background: linear-gradient(135deg, $primary, $secondary);
+    box-shadow: 0 10px 22px rgba($primary, 0.22);
+  }
+
+  &__content { flex: 1; }
+  &__eyebrow { display: block; margin-bottom: 0.35rem; color: $primary; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  h2 { margin: 0; color: $primary-dark; font-size: clamp(1.2rem, 3vw, 1.5rem); letter-spacing: -0.02em; }
+  p { max-width: 580px; margin: 0.55rem 0 1.25rem; color: $text-secondary; font-size: 0.9rem; line-height: 1.6; }
+  button { display: inline-flex; align-items: center; gap: 0.5rem; border: 0; border-radius: 12px; padding: 0.9rem 1rem; color: $white; background: $primary; box-shadow: 0 10px 20px rgba($primary, 0.22); font: inherit; font-size: 0.86rem; font-weight: 800; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; &:hover { transform: translateY(-2px); box-shadow: 0 14px 26px rgba($primary, 0.3); } }
+}
+
+.bv-wizard-enter-active,
+.bv-wizard-leave-active { transition: opacity 0.22s ease, transform 0.22s ease; }
+.bv-wizard-enter-from { opacity: 0; transform: translateX(18px); }
+.bv-wizard-leave-to { opacity: 0; transform: translateX(-18px); }
+
+@media (max-width: 500px) {
+  .bv-hero { padding: 2.25rem 1.25rem 2rem; }
+  .bv-cards-section { padding: 0 1rem 2.5rem; }
+  .bv-cards { gap: 1rem; }
+  .bv-card { min-height: 0; max-width: none; padding: 1.75rem 1.25rem 1.25rem; }
+  .bv-gate { padding: 1rem; }
+  .bv-gate__card { border-radius: 18px; }
+  .bv-gate__billing button { width: 100%; margin-left: 0; }
+  .bv-gate__checklist { flex-direction: column; }
+  .bv-billing-required { flex-direction: column; }
+  .bv-sales-form__step { padding: 1.1rem; }
+  .bv-sales-form__actions .bv-sales-form__submit { flex: 1; }
 }
 </style>

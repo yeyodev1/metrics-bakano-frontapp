@@ -24,12 +24,16 @@ const emit = defineEmits(['confirm'])
 
 const isHolding = ref(false)
 const progress = ref(0)
-let holdTimer: number | null = null
 let animationFrameId: number | null = null
 let startTime: number = 0
+let pointerStart: { x: number; y: number } | null = null
 
-const startHold = () => {
+const startHold = (event: PointerEvent) => {
   if (props.disabled) return
+  event.preventDefault()
+  pointerStart = { x: event.clientX, y: event.clientY }
+  const target = event.currentTarget as HTMLElement
+  target.setPointerCapture?.(event.pointerId)
   isHolding.value = true
   progress.value = 0
   startTime = performance.now()
@@ -55,6 +59,7 @@ const startHold = () => {
 }
 
 const cancelHold = () => {
+  pointerStart = null
   isHolding.value = false
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId)
@@ -73,21 +78,27 @@ const cancelHold = () => {
   requestAnimationFrame(revertProgress)
 }
 
+const handlePointerMove = (event: PointerEvent) => {
+  if (!pointerStart || !isHolding.value) return
+  const moved = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y)
+  if (moved > 12) cancelHold()
+}
+
 onBeforeUnmount(() => {
   if (animationFrameId) cancelAnimationFrame(animationFrameId)
-  if (holdTimer) clearTimeout(holdTimer)
 })
 </script>
 
 <template>
   <button
     :class="['hold-btn', btnClass]"
-    @mousedown="startHold"
-    @mouseup="cancelHold"
-    @mouseleave="cancelHold"
-    @touchstart.passive="startHold"
-    @touchend.passive="cancelHold"
-    @touchcancel.passive="cancelHold"
+    @pointerdown="startHold"
+    @pointerup="cancelHold"
+    @pointercancel="cancelHold"
+    @pointermove="handlePointerMove"
+    @contextmenu.prevent
+    @dragstart.prevent
+    @selectstart.prevent
     type="button"
     :disabled="disabled"
   >
@@ -108,7 +119,10 @@ onBeforeUnmount(() => {
   position: relative;
   overflow: hidden;
   user-select: none;
+  -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;

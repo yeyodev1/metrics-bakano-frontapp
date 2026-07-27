@@ -19,6 +19,7 @@ export interface IDailyBillingEntry {
   metaSpend: number
   roas: number
   notes?: string
+  isBulkDistribution?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -66,6 +67,19 @@ class BillingService extends APIBase {
     const res = await this.get<{ entry: IDailyBillingEntry | null }>(
       `billing/${workspaceId}/my-entry-today`
     )
+    return res.data
+  }
+
+  async getMissingCurrentMonthDates(workspaceId: string, year: number, month: number) {
+    const res = await this.get<{ dates: string[]; count: number }>(`billing/${workspaceId}/missing-current-month?year=${year}&month=${month}`)
+    return res.data
+  }
+
+  async distributeCurrentMonth(
+    workspaceId: string,
+    data: { total: number; allocations: { date: string; amount: number }[]; year: number; month: number; notes?: string }
+  ) {
+    const res = await this.post<{ entries: IDailyBillingEntry[] }>(`billing/${workspaceId}/distribute`, data)
     return res.data
   }
 
