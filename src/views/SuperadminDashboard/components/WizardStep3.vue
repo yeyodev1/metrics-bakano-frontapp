@@ -153,6 +153,58 @@ async function wizardSearchExistingClient(): Promise<void> {
 </template>
 
 <style lang="scss" scoped>
+.superadmin-dashboard__wizard-body {
+  padding: 1.5rem 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.superadmin-dashboard__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: $primary-dark;
+  }
+
+  input[type='text'],
+  input[type='email'],
+  input[type='password'] {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid rgba($primary-dark, 0.12);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    color: $primary-dark;
+    background: rgba($primary-dark, 0.02);
+    transition: all 0.2s ease;
+    outline: none;
+
+    &::placeholder {
+      color: rgba($primary-dark, 0.4);
+    }
+
+    &:hover {
+      border-color: rgba($primary-dark, 0.25);
+      background: $white;
+    }
+
+    &:focus {
+      border-color: #a855f7;
+      background: $white;
+      box-shadow: 0 0 0 4px rgba(#a855f7, 0.12);
+    }
+  }
+}
+
+.superadmin-dashboard__required {
+  color: #ef4444;
+}
+
 .superadmin-dashboard__wizard-mode-toggle {
   display: flex;
   gap: 0.5rem;
@@ -161,23 +213,23 @@ async function wizardSearchExistingClient(): Promise<void> {
 
 .superadmin-dashboard__wizard-mode-btn {
   flex: 1;
-  padding: 0.6rem;
+  padding: 0.65rem;
   border: 1.5px solid rgba($primary-dark, 0.12);
-  border-radius: 8px;
+  border-radius: 10px;
   background: none;
   cursor: pointer;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   color: $text-secondary;
-  transition: all 0.15s;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
 
   &.is-active {
     border-color: #a855f7;
-    background: rgba(#a855f7, 0.06);
+    background: rgba(#a855f7, 0.08);
     color: #a855f7;
   }
 }
@@ -220,10 +272,11 @@ async function wizardSearchExistingClient(): Promise<void> {
 .superadmin-dashboard__wizard-list {
   max-height: 180px;
   overflow-y: auto;
-  border: 1px solid rgba($primary-dark, 0.08);
-  border-radius: 8px;
+  border: 1.5px solid rgba($primary-dark, 0.1);
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
+  background: $white;
 }
 
 .superadmin-dashboard__wizard-user-row {
@@ -240,10 +293,10 @@ async function wizardSearchExistingClient(): Promise<void> {
   width: 100%;
 
   &:last-child { border-bottom: none; }
-  &:hover { background: rgba($primary-dark, 0.025); }
+  &:hover { background: rgba(#a855f7, 0.04); }
 
   &.is-selected {
-    background: rgba(#a855f7, 0.05);
+    background: rgba(#a855f7, 0.08);
     > i:last-child { color: #a855f7; }
   }
 
@@ -286,6 +339,72 @@ async function wizardSearchExistingClient(): Promise<void> {
   font-size: 0.85rem;
   text-align: center;
   margin: 0;
+}
+
+.superadmin-dashboard__modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba($primary-dark, 0.08);
+}
+
+.superadmin-dashboard__btn-ghost {
+  background: transparent;
+  border: 1px solid rgba($primary-dark, 0.15);
+  color: $primary-dark;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba($primary-dark, 0.04);
+    border-color: rgba($primary-dark, 0.3);
+  }
+}
+
+.superadmin-dashboard__btn-primary {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: $white;
+  border: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.65rem 1.4rem;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(#a855f7, 0.3);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(#a855f7, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  &--sm {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.82rem;
+  }
 }
 
 .superadmin-dashboard__spinner {
