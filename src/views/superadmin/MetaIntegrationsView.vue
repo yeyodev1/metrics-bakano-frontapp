@@ -115,6 +115,24 @@ async function connectFacebook() {
   }
 }
 
+const refreshing = ref(false)
+async function refreshTokens() {
+  refreshing.value = true
+  error.value = null
+  notice.value = null
+  try {
+    const result = await metaService.refreshGlobalTokens()
+    notice.value = result.message || 'Tokens actualizados correctamente.'
+    toast.success(result.message || 'Tokens actualizados', 'Refresco completado')
+    await loadData()
+  } catch (e: any) {
+    error.value = e.message || 'No fue posible refrescar los tokens.'
+    toast.error(error.value ?? 'Error', 'Refresco fallido')
+  } finally {
+    refreshing.value = false
+  }
+}
+
 function openModal(w: Workspace) {
   selectedWorkspace.value = w
   showModal.value = true
@@ -192,10 +210,22 @@ onMounted(async () => {
         <span v-if="connection.connected && !connection.expired">Usaremos los activos a los que este perfil fue invitado.</span>
         <span v-else>Conecta el perfil de Facebook que recibe las invitaciones de los clientes.</span>
       </div>
-      <button :disabled="connecting" @click="connectFacebook">
-        <i :class="connecting ? 'fa-solid fa-spinner fa-spin' : 'fa-brands fa-facebook'" />
-        {{ connecting ? 'Redirigiendo...' : connection.connected ? 'Reconectar Facebook' : 'Conectar Facebook' }}
-      </button>
+      <div class="meta-integrations__connection-actions">
+        <button
+          v-if="connection.connected && !connection.expired"
+          class="meta-integrations__refresh-btn"
+          :disabled="refreshing"
+          title="Actualiza los tokens de todos los workspaces vinculados con la conexión actual"
+          @click="refreshTokens"
+        >
+          <i :class="refreshing ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-rotate'" />
+          {{ refreshing ? 'Refrescando...' : 'Refrescar tokens' }}
+        </button>
+        <button :disabled="connecting" @click="connectFacebook">
+          <i :class="connecting ? 'fa-solid fa-spinner fa-spin' : 'fa-brands fa-facebook'" />
+          {{ connecting ? 'Redirigiendo...' : connection.connected ? 'Reconectar Facebook' : 'Conectar Facebook' }}
+        </button>
+      </div>
     </div>
 
     <p v-if="notice" class="meta-integrations__success"><i class="fa-solid fa-circle-check" /> {{ notice }}</p>
@@ -360,8 +390,11 @@ onMounted(async () => {
 .meta-integrations__connection--active { border-color: rgba($alert-success, .5); }
 .meta-integrations__connection div { display: flex; flex-direction: column; gap: .25rem; }
 .meta-integrations__connection span { color: $text-secondary; font-size: .85rem; }
-.meta-integrations__connection button { align-self: flex-start; border: 0; border-radius: .55rem; padding: .65rem .85rem; color: $white; background: $secondary; cursor: pointer; font: inherit; font-weight: 700; }
+.meta-integrations__connection button { align-self: flex-start; border: 0; border-radius: .55rem; padding: .65rem .85rem; color: $white; background: $secondary; cursor: pointer; font: inherit; font-weight: 700; display: inline-flex; align-items: center; gap: .45rem; }
 .meta-integrations__connection button:disabled { opacity: .55; cursor: not-allowed; }
+.meta-integrations__connection .meta-integrations__connection-actions { flex-direction: row; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.meta-integrations__refresh-btn { background: rgba($primary, .12) !important; color: $primary !important; }
+.meta-integrations__refresh-btn:hover:not(:disabled) { background: rgba($primary, .2) !important; }
 .meta-integrations__success { background: $alert-success-bg; color: $alert-success; }
 .meta-integrations__error { background: $alert-error-bg; color: $alert-error; }
 

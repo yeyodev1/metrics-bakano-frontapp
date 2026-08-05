@@ -166,6 +166,11 @@ class MetaService extends APIBase {
     return response.data
   }
 
+  async refreshGlobalTokens() {
+    const response = await this.post<{ message: string; refreshedWorkspaces: number }>('meta/global/refresh-tokens', {})
+    return response.data
+  }
+
   async getUnifiedDashboard(workspaceId: string, datePreset = 'this_month') {
     const response = await this.get<any>(`meta/${workspaceId}/unified-dashboard`, undefined, { params: { datePreset } })
     return response.data
