@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Workspace } from '@/types'
+import { getWorkspaceImage } from '@/utils/workspaceImage'
 
 const props = defineProps<{
   workspaces: Workspace[]
@@ -24,6 +25,15 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+
+const failedImages = ref(new Set<string>())
+function handleImgError(wsId: string) {
+  failedImages.value.add(wsId)
+}
+function getWorkspaceImg(ws: Workspace): string | null {
+  if (failedImages.value.has(ws._id)) return null
+  return getWorkspaceImage(ws)
+}
 
 const localSearchQuery = computed({
   get: () => props.searchQuery,
@@ -107,11 +117,11 @@ function getBpLabel(ws: any): string {
         <div class="superadmin-dashboard__workspace-card-header">
           <div class="superadmin-dashboard__ws-icon">
             <img
-              v-if="ws.metaAds?.pageId"
-              :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=normal`"
+              v-if="getWorkspaceImg(ws)"
+              :src="getWorkspaceImg(ws)!"
               :alt="ws.name"
               class="superadmin-dashboard__ws-icon-img"
-              @error="($event.target as HTMLImageElement).style.display = 'none'"
+              @error="handleImgError(ws._id)"
             />
             <i v-else class="fa-solid fa-building" />
           </div>

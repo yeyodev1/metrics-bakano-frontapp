@@ -119,11 +119,14 @@ export interface Workspace {
   metaAds?: {
     accessToken: string
     pageAccessToken?: string
-    pageId: string
-    pageName: string
+    pageId?: string
+    pageName?: string
     adAccountId?: string
     adAccountName?: string
-    lastSyncedAt: string
+    instagramAccountId?: string
+    instagramAccountName?: string
+    pictureUrl?: string
+    lastSyncedAt?: string
   }
   brandProfile?: BrandProfile
   brandProfileInviteSentAt?: string

@@ -6,6 +6,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
+import { getWorkspaceImage } from '@/utils/workspaceImage'
 import logoDark from '@/assets/logos/bakano-light.png'
 
 
@@ -65,7 +66,7 @@ watch(wsSearch, () => {
   }, 300)
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
@@ -303,8 +304,8 @@ watch(() => route.params.workspaceId, async (newId) => {
             <div class="app-layout__ws-avatar" :class="{ 'app-layout__ws-avatar--fallback': !activeWorkspace }">
               <template v-if="activeWorkspace">
                 <img 
-                  v-if="activeWorkspace.metaAds?.pageId" 
-                  :src="`https://graph.facebook.com/${activeWorkspace.metaAds.pageId}/picture?type=normal`" 
+                  v-if="getWorkspaceImage(activeWorkspace)" 
+                  :src="getWorkspaceImage(activeWorkspace)!" 
                   alt="Logo" 
                   class="app-layout__ws-page-img"
                   @error="handleImgError"
@@ -388,8 +389,8 @@ watch(() => route.params.workspaceId, async (newId) => {
                 >
                    <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
                      <img
-                       v-if="ws.metaAds?.pageId"
-                       :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`"
+                       v-if="getWorkspaceImage(ws)"
+                       :src="getWorkspaceImage(ws)!"
                        alt="Logo"
                        class="app-layout__ws-page-img"
                        @error="handleImgError"
@@ -426,6 +427,16 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-grid-2" aria-hidden="true" />
             <span>Vista Global (Superadmin)</span>
+          </RouterLink>
+
+          <RouterLink
+            v-if="userStore.role === 'superadmin'"
+            class="app-layout__nav-item"
+            :to="{ name: 'SuperadminMetaIntegrations' }"
+          >
+            <i class="fa-brands fa-meta" aria-hidden="true" />
+            <span>Integración Meta</span>
+            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Métricas & Alertas -->
@@ -577,6 +588,15 @@ watch(() => route.params.workspaceId, async (newId) => {
           <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'WorkspaceBranches', params: { workspaceId: currentWorkspaceId } }">
             <i class="fa-solid fa-store" aria-hidden="true" />
             <span>Sucursales</span>
+          </RouterLink>
+
+          <RouterLink
+            v-if="currentWorkspaceId && (userStore.role === 'superadmin' || userStore.internalRole === 'content_manager')"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspaceMetaDashboard', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-brands fa-meta" aria-hidden="true" />
+            <span>Métricas Meta</span>
           </RouterLink>
 
           <!-- 3. Planificación -->
