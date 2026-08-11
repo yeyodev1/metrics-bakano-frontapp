@@ -17,6 +17,8 @@
       </div>
     </div>
 
+    <!-- Solo aplica al reel orgánico: el permiso que falta es de Instagram.
+         Un guion vinculado únicamente a un anuncio no depende de él. -->
     <p v-else-if="item.igMediaId" class="srd__no-metrics">
       <i class="fa-solid fa-circle-info" />
       Sin métricas disponibles. La app de Meta no tiene el permiso
@@ -36,7 +38,8 @@
         <i class="fa-solid fa-play" /> Ver el video
       </button>
       <button class="srd__btn srd__btn--outline" @click="$emit('link-reel')">
-        <i class="fa-solid fa-link" /> {{ item.igMediaId ? 'Cambiar vínculo' : 'Vincular reel' }}
+        <i class="fa-solid fa-link" />
+        {{ isLinked(item) ? 'Cambiar vínculo' : 'Vincular reel o anuncio' }}
       </button>
       <button class="srd__btn srd__btn--ghost" @click="$emit('edit-item')">
         <i class="fa-solid fa-pen-to-square" /> Editar
@@ -46,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { isLinked } from '@/utils/videoLink'
 import type { WorkspaceVideoItem } from '@/types/videoPlanning'
 
 defineProps<{

@@ -39,10 +39,24 @@
           <div class="smt__bar-fill" :style="{ width: `${linkedPercent}%` }" />
         </div>
 
+        <!-- Desglose por origen: el equipo necesita ver cuánto es pauta y
+             cuánto orgánico, no solo un total de "vinculados". -->
+        <p v-if="linkedCount" class="smt__breakdown">
+          <span v-if="counts.reel" class="smt__kind is-reel">
+            <i class="fa-brands fa-instagram" /> {{ counts.reel }} orgánico<template v-if="counts.reel !== 1">s</template>
+          </span>
+          <span v-if="counts.ad" class="smt__kind is-ad">
+            <i class="fa-solid fa-bullhorn" /> {{ counts.ad }} pautado<template v-if="counts.ad !== 1">s</template>
+          </span>
+          <span v-if="counts.both" class="smt__kind is-both">
+            <i class="fa-solid fa-layer-group" /> {{ counts.both }} ambos
+          </span>
+        </p>
+
         <p class="smt__progress-note">
           <template v-if="pendingCount">
-            Faltan <strong>{{ pendingCount }}</strong> guiones por conectar con su
-            publicación. Hasta entonces no hay métricas que analizar.
+            Faltan <strong>{{ pendingCount }}</strong> guiones por conectar con su reel
+            o su anuncio. Hasta entonces no hay métricas que analizar.
           </template>
           <template v-else>
             Todos los guiones están vinculados. Las métricas ya se están midiendo.
@@ -102,6 +116,7 @@ import { ref, computed } from 'vue'
 import SearchableSelect from '@/components/sales/SearchableSelect.vue'
 import ScriptMonthGroup from './ScriptMonthGroup.vue'
 import { useScriptGroups } from '../useScriptGroups'
+import { countByKind, isLinked } from '@/utils/videoLink'
 import type { WorkspaceVideoItem } from '@/types/videoPlanning'
 import type { CustomerJourneyCase } from '@/types'
 
@@ -144,8 +159,10 @@ const casoOptions = computed(() => [
   })),
 ])
 
-const linkedCount = computed(() => props.items.filter((i) => !!i.igMediaId).length)
-const pendingCount = computed(() => props.items.length - linkedCount.value)
+// Orgánico y pautado cuentan igual como "vinculado": ambos traen métricas.
+const counts = computed(() => countByKind(props.items))
+const linkedCount = computed(() => counts.value.linked)
+const pendingCount = computed(() => counts.value.pending)
 
 const linkedPercent = computed(() =>
   props.items.length ? Math.round((linkedCount.value / props.items.length) * 100) : 0
@@ -153,7 +170,7 @@ const linkedPercent = computed(() =>
 
 const filteredItems = computed(() =>
   props.items.filter((item) => {
-    if (onlyUnlinked.value && item.igMediaId) return false
+    if (onlyUnlinked.value && isLinked(item)) return false
     if (filterCaso.value !== 'all' && item.casoUsoRef !== filterCaso.value) return false
     if (filterFunnel.value !== 'all' && item.tipoGuion !== filterFunnel.value) return false
     return true
@@ -255,6 +272,27 @@ const groups = useScriptGroups(filteredItems)
   background: linear-gradient(90deg, $primary, $secondary);
   border-radius: 999px;
   transition: width 0.35s ease;
+}
+
+.smt__breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.smt__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 20px;
+
+  &.is-reel { color: $secondary-dark; background: $overlay-purple; }
+  &.is-ad { color: $primary; background: rgba($primary, 0.12); }
+  &.is-both { color: $BAKANO-GREEN; background: rgba($BAKANO-GREEN, 0.12); }
 }
 
 .smt__progress-note {

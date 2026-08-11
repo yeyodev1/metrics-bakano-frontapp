@@ -122,6 +122,7 @@ import ScriptMatrixTab from './components/ScriptMatrixTab.vue'
 import JourneyTab from './components/JourneyTab.vue'
 import AgentFeedTab from './components/AgentFeedTab.vue'
 import { useContentBuilder, type WizardPayload } from './useContentBuilder'
+import { isLinked } from '@/utils/videoLink'
 import type { CustomerJourneyCase } from '@/types'
 import type { WorkspaceVideoItem, CreateVideoItemPayload } from '@/types/videoPlanning'
 
@@ -176,7 +177,7 @@ function openItemModal(item: WorkspaceVideoItem | null) {
  */
 function goLinkReels() {
   activeTab.value = 'matrix'
-  const pending = builder.items.value.find((i) => !i.igMediaId)
+  const pending = builder.items.value.find((i) => !isLinked(i))
   if (pending) openReelModal(pending)
 }
 
