@@ -8,6 +8,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
 import { getWorkspaceImage } from '@/utils/workspaceImage'
 import logoDark from '@/assets/logos/bakano-light.png'
+import SoundToggleButton from '@/components/common/SoundToggleButton.vue'
 
 
 const router = useRouter()
@@ -273,7 +274,7 @@ watch(() => route.params.workspaceId, async (newId) => {
         <i class="fa-solid fa-bars" />
       </button>
       <img :src="logoDark" alt="Bakano" class="app-layout__logo-mobile" width="100" />
-      <div class="app-layout__mobile-spacer" />
+      <SoundToggleButton />
     </header>
 
     <!-- BACKDROP -->
@@ -287,6 +288,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           <div class="app-layout__brand">
             <img :src="logoDark" alt="Bakano" class="app-layout__logo" width="110" height="28" />
           </div>
+          <SoundToggleButton tone="onDark" class="app-layout__sound-toggle" />
           <button class="app-layout__close-sidebar" @click="isSidebarOpen = false">
             <i class="fa-solid fa-xmark" />
           </button>
@@ -605,6 +607,17 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Planificación</span>
           </RouterLink>
 
+          <!-- 3b. Builder Pro de Contenido -->
+          <RouterLink
+            v-if="currentWorkspaceId"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspaceContentBuilder', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
+            <span>Builder Pro</span>
+            <span class="app-layout__nav-tag app-layout__nav-tag--purple">PRO</span>
+          </RouterLink>
+
           <!-- Mi Equipo (Client assigned team) -->
           <RouterLink
             v-if="currentWorkspaceId"
@@ -910,15 +923,19 @@ watch(() => route.params.workspaceId, async (newId) => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     margin-bottom: 0.5rem;
 
     @media (min-width: 768px) {
-      justify-content: center;
-
       .app-layout__close-sidebar {
         display: none;
       }
     }
+  }
+
+  // Sits at the far right of the sidebar header, opposite the brand.
+  &__sound-toggle {
+    margin-left: auto;
   }
 
   &__close-sidebar {

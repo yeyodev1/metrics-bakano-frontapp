@@ -7,6 +7,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { useUserFormModal } from '@/composables/useUserFormModal'
 import type { Workspace, WorkspaceUser, ApiError } from '@/types'
+import SoundSettingsCard from '@/components/settings/SoundSettingsCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -394,6 +395,9 @@ onMounted(() => {
           </div>
         </div>
       </section>
+
+      <!-- Preferencias locales de este navegador -->
+      <SoundSettingsCard />
 
     </div>
 
