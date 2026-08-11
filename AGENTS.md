@@ -61,6 +61,11 @@ pnpm preview  # Preview production build
 - SCSS is global. `src/styles/index.scss` is auto-injected into every component by Vite's `additionalData` config, so variables/mixins are available without explicit imports.
 - `index.scss` uses `@forward` for `colorVariables.module.scss` and `fonts.module.scss`, plus custom `lighten`/`darken` helpers.
 - **Do not use `@extend %placeholder` in Vue scoped `<style scoped lang="scss">`** — it causes Vite/Sass compilation errors. Use `@mixin` instead.
+- Build layouts mobile-first: write the narrow-screen base styles first and add breakpoints only for wider screens.
+- App views beside the sidebar must fill the available content area (`flex: 1; min-width: 0; width: 100%`); do not constrain them with arbitrary desktop widths.
+- **Never use CSS Grid.** Use Flexbox for all layout and spacing behavior.
+- Use only the palette and color variables defined in `src/styles/colorVariables.module.scss`; do not introduce ad-hoc color values in components.
+- Every asynchronous UI state needs loading feedback: use a skeleton that mirrors the section for content loads, and a spinner only for small, isolated actions.
 
 ## Multi-tenancy
 

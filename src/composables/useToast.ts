@@ -7,9 +7,21 @@ export interface ToastMessage {
 }
 
 import { ref } from 'vue'
+import { play, type SoundName } from 'cuelume'
 
 const toasts = ref<ToastMessage[]>([])
 let nextId = 0
+
+/**
+ * A toast is the app answering back, so each kind gets its own cue.
+ * Playback respects the global enabled/volume set by `useSoundStore`.
+ */
+const TOAST_SOUND: Record<ToastMessage['type'], SoundName> = {
+  success: 'success',
+  error: 'error',
+  warning: 'pulse',
+  info: 'droplet',
+}
 
 export function useToast() {
   const addToast = (toast: Omit<ToastMessage, 'id'>) => {
@@ -17,6 +29,13 @@ export function useToast() {
     const duration = toast.duration ?? 4000
 
     toasts.value.push({ ...toast, id })
+
+    // Sound is decorative — it must never break the notification itself.
+    try {
+      play(TOAST_SOUND[toast.type])
+    } catch {
+      /* ignored */
+    }
 
     if (duration > 0) {
       setTimeout(() => {

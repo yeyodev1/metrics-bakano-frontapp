@@ -100,39 +100,42 @@ const name = computed({
 
 .superadmin-dashboard__btn-ghost {
   background: transparent;
-  border: none;
-  color: $text-secondary;
+  border: 1px solid rgba($primary-dark, 0.15);
+  color: $primary-dark;
   font-weight: 600;
   font-size: 0.9rem;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: rgba($primary-dark, 0.05);
-    color: $primary-dark;
+    background: rgba($primary-dark, 0.04);
+    border-color: rgba($primary-dark, 0.3);
   }
 }
 
 .superadmin-dashboard__btn-primary {
-  background: $primary;
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
   color: $white;
   border: none;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
-  padding: 0.6rem 1.5rem;
-  border-radius: 8px;
+  padding: 0.65rem 1.4rem;
+  border-radius: 10px;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba($primary, 0.25);
+  box-shadow: 0 4px 14px rgba(#a855f7, 0.3);
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba($primary, 0.35);
+    box-shadow: 0 6px 18px rgba(#a855f7, 0.4);
   }
 
   &:active:not(:disabled) {

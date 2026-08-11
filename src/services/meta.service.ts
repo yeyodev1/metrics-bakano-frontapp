@@ -14,6 +14,28 @@ export interface MetaAuthResponse {
   pages: MetaPage[];
 }
 
+export interface PendingMetaAccount {
+  id: string
+  accountId?: string
+  name: string
+  username?: string
+  currency?: string
+  profilePictureUrl?: string
+  businessName?: string
+  pageName?: string
+  type: 'ad_account' | 'instagram'
+}
+
+export interface LinkedMetaAccount extends PendingMetaAccount {
+  workspaceId: string
+  workspaceName: string
+}
+
+export interface MetaLinkedResponse {
+  linked: LinkedMetaAccount[]
+  pagination: { page: number; limit: number; total: number; totalPages: number }
+}
+
 class MetaService extends APIBase {
   /**
    * Sends short token to backend to get long token and user pages
@@ -73,6 +95,84 @@ class MetaService extends APIBase {
    */
   async getOrganicInsights(workspaceId: string) {
     const response = await this.get<any>(`meta/${workspaceId}/organic-insights`)
+    return response.data
+  }
+
+  async runGlobalAutoMatch() {
+    const response = await this.post<any>('meta/global/auto-match', {})
+    return response.data
+  }
+
+  async getGlobalConnectionStatus() {
+    const response = await this.get<{ connected: boolean; name?: string; expiresAt?: string; expired?: boolean }>('meta/global/status')
+    return response.data
+  }
+
+  async getGlobalOAuthUrl() {
+    const response = await this.get<{ authUrl: string }>('meta/global/oauth-url')
+    return response.data.authUrl
+  }
+
+  async getGlobalPending(page = 1, limitOrSearch?: number | string, search?: string): Promise<MetaPendingResponse> {
+    let limit = 10
+    let searchStr: string | undefined = undefined
+
+    if (typeof limitOrSearch === 'number') {
+      limit = limitOrSearch
+      searchStr = search
+    } else if (typeof limitOrSearch === 'string') {
+      searchStr = limitOrSearch
+    }
+
+    const params: Record<string, any> = { page, limit }
+    if (typeof searchStr === 'string' && searchStr.trim()) {
+      params.search = searchStr.trim()
+    }
+    const response = await this.get<MetaPendingResponse>('meta/global/pending', undefined, { params })
+    return response.data
+  }
+
+  async getGlobalLinked(page = 1, limitOrSearch?: number | string, search?: string): Promise<MetaLinkedResponse> {
+    let limit = 10
+    let searchStr: string | undefined = undefined
+
+    if (typeof limitOrSearch === 'number') {
+      limit = limitOrSearch
+      searchStr = search
+    } else if (typeof limitOrSearch === 'string') {
+      searchStr = limitOrSearch
+    }
+
+    const params: Record<string, any> = { page, limit }
+    if (typeof searchStr === 'string' && searchStr.trim()) {
+      params.search = searchStr.trim()
+    }
+    const response = await this.get<MetaLinkedResponse>('meta/global/linked', undefined, { params })
+    return response.data
+  }
+
+  async getAllGlobalAccounts(): Promise<{ adAccounts: (PendingMetaAccount & { linkedWorkspace?: { id: string; name: string } | null })[]; instagramAccounts: (PendingMetaAccount & { linkedWorkspace?: { id: string; name: string } | null })[] }> {
+    const response = await this.get<any>('meta/global/all-accounts')
+    return response.data
+  }
+
+  async manuallyLinkGlobalAccount(data: { workspaceId: string; adAccountId?: string; instagramAccountId?: string }) {
+    const response = await this.post<any>('meta/global/manual-link', data)
+    return response.data
+  }
+
+  async unlinkGlobalAccount(data: { workspaceId: string; type: 'ad_account' | 'instagram' }) {
+    const response = await this.post<any>('meta/global/unlink', data)
+    return response.data
+  }
+
+  async refreshGlobalTokens() {
+    const response = await this.post<{ message: string; refreshedWorkspaces: number }>('meta/global/refresh-tokens', {})
+    return response.data
+  }
+
+  async getUnifiedDashboard(workspaceId: string, datePreset = 'this_month') {
+    const response = await this.get<any>(`meta/${workspaceId}/unified-dashboard`, undefined, { params: { datePreset } })
     return response.data
   }
 }

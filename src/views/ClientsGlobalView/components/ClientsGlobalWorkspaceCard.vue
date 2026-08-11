@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { Workspace, ClientMeeting } from '@/types'
+import { getWorkspaceImage } from '@/utils/workspaceImage'
 
 const userStore = useUserStore()
 const imageError = ref(false)
+
+const workspaceImg = computed(() => {
+  if (imageError.value) return null
+  return getWorkspaceImage(props.workspace)
+})
 
 const props = defineProps({
   workspace: {
@@ -52,8 +58,8 @@ function meetingChipClass(meeting: ClientMeeting | undefined): string {
     <div class="clients-global__card-header">
       <div class="clients-global__card-avatar">
         <img
-          v-if="workspace.metaAds?.pageId && !imageError"
-          :src="`https://graph.facebook.com/${workspace.metaAds.pageId}/picture?type=normal`"
+          v-if="workspaceImg"
+          :src="workspaceImg"
           alt="Logo"
           class="clients-global__card-img"
           @error="imageError = true"

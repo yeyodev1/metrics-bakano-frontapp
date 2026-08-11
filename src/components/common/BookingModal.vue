@@ -35,10 +35,10 @@ const experts = [
   },
   {
     key: 'meta' as Expert,
-    name: 'Denisse Quimi',
-    role: 'Experta en Meta Ads',
-    photo: 'https://res.cloudinary.com/dpjzfua3n/image/upload/q_auto/f_auto/v1775356095/sorbito-de-verdad/collaborators/bakano-team-denisse.webp',
-    initials: 'DQ',
+    name: 'Joel Jimenez',
+    role: 'Experto en Meta Ads',
+    photo: 'https://res.cloudinary.com/dpuody0df/image/upload/v1781632482/bakano_team_photos/dbdnkmbtheowkagts6ut.jpg',
+    initials: 'JJ',
     color: '#E91E8C',
     accentBg: 'rgba(233, 30, 140, 0.08)',
     accentBorder: 'rgba(233, 30, 140, 0.25)',
@@ -53,7 +53,7 @@ const experts = [
     url: 'https://api.leadconnectorhq.com/widget/booking/GNizdekhY5SQaYTPdKPP',
     warningTitle: 'Sesión de Meta Ads',
     warningBody: 'Si tu duda es sobre anuncios en Facebook o Instagram, estás en el lugar correcto.',
-    btnLabel: 'Agendar con Denisse',
+    btnLabel: 'Agendar con Joel',
   },
   {
     key: 'ventas' as Expert,

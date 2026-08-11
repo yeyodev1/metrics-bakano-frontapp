@@ -1,6 +1,6 @@
 import APIBase from './httpBase'
 import type { BrandProfile, BrandProfileFile } from '@/types'
-import type { GuionIA, TipoGuion } from '@/types/videoPlanning'
+import type { GuionIA, TipoGuion, ObjetivoGuion } from '@/types/videoPlanning'
 
 interface BrandProfileResponse {
   message: string
@@ -12,10 +12,31 @@ interface FileUploadResponse {
   file: BrandProfileFile
 }
 
+export interface ScriptContextInfo {
+  cliente: string | null
+  vertical: string | null
+  tipoNegocio: string | null
+  tema: string
+  etapaEmbudo: string
+  casoJourney: { numero: number; nombre: string; dolor: string } | null
+  usoAprendizajes: boolean
+  datosDisponibles: {
+    propuestaValor: boolean
+    segmentos: number
+    canales: number
+    casosJourney: number
+    archivosDeMarca: number
+  }
+}
+
 interface ScriptGenerateResponse {
   message: string
-  guionIA: GuionIA
-  item: { _id: string; guionIA: GuionIA; tipoGuion?: string }
+  /** Present when a single script was generated and saved. */
+  guionIA?: GuionIA
+  item?: { _id: string; guionIA: GuionIA; tipoGuion?: string }
+  /** Present when several variants were requested; nothing is saved yet. */
+  opciones?: Array<GuionIA & { angulo?: string }>
+  contexto?: ScriptContextInfo
 }
 
 export interface LLMStatusResponse {
@@ -54,10 +75,13 @@ class BrandProfileService extends APIBase {
     videoItemId: string,
     contextoMes?: { productoMes?: string; ofertaEspecial?: string; referenciasAdicionales?: string },
     tipoGuion?: TipoGuion,
+    objetivo?: ObjetivoGuion,
+    /** >1 returns options to choose from instead of saving directly. */
+    variantes?: number,
   ): Promise<ScriptGenerateResponse> {
     const res = await this.post<ScriptGenerateResponse>(
       `video-planning/${videoItemId}/generate-script`,
-      { contextoMes, tipoGuion },
+      { contextoMes, tipoGuion, objetivo, variantes },
       undefined,
       { timeout: 60000 },
     )
@@ -75,10 +99,11 @@ class BrandProfileService extends APIBase {
     tipo?: string,
     contextoMes?: { productoMes?: string; ofertaEspecial?: string; referenciasAdicionales?: string },
     tipoGuion?: TipoGuion,
+    objetivo?: ObjetivoGuion,
   ): Promise<ScriptGenerateResponse> {
     const res = await this.post<ScriptGenerateResponse>(
       'video-planning/generate-script-quick',
-      { workspaceId, tema, tipo, contextoMes, tipoGuion },
+      { workspaceId, tema, tipo, contextoMes, tipoGuion, objetivo },
       undefined,
       { timeout: 60000 },
     )

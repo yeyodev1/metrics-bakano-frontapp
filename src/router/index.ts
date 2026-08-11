@@ -45,6 +45,12 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/superadmin/ApiKeysView.vue'),
         meta: { title: 'Bakano Ads: API Keys', requiresAuth: true, requiresRole: 'superadmin' },
       },
+      {
+        path: '/app/superadmin/meta-integrations',
+        name: 'SuperadminMetaIntegrations',
+        component: () => import('../views/superadmin/MetaIntegrationsView.vue'),
+        meta: { title: 'Bakano Ads: Integración Meta Global', requiresAuth: true, requiresRole: 'superadmin' },
+      },
     ]
   },
 
@@ -77,10 +83,22 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Ads: Análisis Visual', requiresAuth: true },
       },
       {
+        path: 'workspaces/:workspaceId/meta-dashboard',
+        name: 'WorkspaceMetaDashboard',
+        component: () => import('../views/workspaces/MetaUnifiedDashboardView.vue'),
+        meta: { title: 'Bakano Ads: Métricas Meta', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'workspaces/:workspaceId/planning',
         name: 'AppPlanning',
         component: () => import('../views/WorkspacePlanning.vue'),
         meta: { title: 'Bakano Ads: Planificación', requiresAuth: true },
+      },
+      {
+        path: 'workspaces/:workspaceId/builder',
+        name: 'WorkspaceContentBuilder',
+        component: () => import('../views/workspaces/contentBuilder/index.vue'),
+        meta: { title: 'Bakano Ads: Content Builder Pro', requiresAuth: true },
       },
       {
         path: 'workspaces/:workspaceId/settings',

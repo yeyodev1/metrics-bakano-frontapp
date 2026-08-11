@@ -20,6 +20,7 @@ const emit = defineEmits<{
   (e: 'open-script', item: VideoItem): void
   (e: 'edit-item', item: VideoItem): void
   (e: 'delete-item', itemId: string): void
+  (e: 'link-reel', item: VideoItem): void
 }>()
 </script>
 
@@ -52,6 +53,7 @@ const emit = defineEmits<{
           @open-script="(item) => emit('open-script', item)"
           @edit-item="(item) => emit('edit-item', item)"
           @delete-item="(id) => emit('delete-item', id)"
+          @link-reel="(item) => emit('link-reel', item)"
         />
       </tbody>
     </table>

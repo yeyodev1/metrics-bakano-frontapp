@@ -6,7 +6,9 @@ import { useNotificationStore } from '@/stores/notification'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace } from '@/types'
+import { getWorkspaceImage } from '@/utils/workspaceImage'
 import logoDark from '@/assets/logos/bakano-light.png'
+import SoundToggleButton from '@/components/common/SoundToggleButton.vue'
 
 
 const router = useRouter()
@@ -65,7 +67,7 @@ watch(wsSearch, () => {
   }, 300)
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
@@ -272,7 +274,7 @@ watch(() => route.params.workspaceId, async (newId) => {
         <i class="fa-solid fa-bars" />
       </button>
       <img :src="logoDark" alt="Bakano" class="app-layout__logo-mobile" width="100" />
-      <div class="app-layout__mobile-spacer" />
+      <SoundToggleButton />
     </header>
 
     <!-- BACKDROP -->
@@ -286,6 +288,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           <div class="app-layout__brand">
             <img :src="logoDark" alt="Bakano" class="app-layout__logo" width="110" height="28" />
           </div>
+          <SoundToggleButton tone="onDark" class="app-layout__sound-toggle" />
           <button class="app-layout__close-sidebar" @click="isSidebarOpen = false">
             <i class="fa-solid fa-xmark" />
           </button>
@@ -303,8 +306,8 @@ watch(() => route.params.workspaceId, async (newId) => {
             <div class="app-layout__ws-avatar" :class="{ 'app-layout__ws-avatar--fallback': !activeWorkspace }">
               <template v-if="activeWorkspace">
                 <img 
-                  v-if="activeWorkspace.metaAds?.pageId" 
-                  :src="`https://graph.facebook.com/${activeWorkspace.metaAds.pageId}/picture?type=normal`" 
+                  v-if="getWorkspaceImage(activeWorkspace)" 
+                  :src="getWorkspaceImage(activeWorkspace)!" 
                   alt="Logo" 
                   class="app-layout__ws-page-img"
                   @error="handleImgError"
@@ -388,8 +391,8 @@ watch(() => route.params.workspaceId, async (newId) => {
                 >
                    <div class="app-layout__ws-avatar app-layout__ws-avatar--sm">
                      <img
-                       v-if="ws.metaAds?.pageId"
-                       :src="`https://graph.facebook.com/${ws.metaAds.pageId}/picture?type=small`"
+                       v-if="getWorkspaceImage(ws)"
+                       :src="getWorkspaceImage(ws)!"
                        alt="Logo"
                        class="app-layout__ws-page-img"
                        @error="handleImgError"
@@ -426,6 +429,16 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-grid-2" aria-hidden="true" />
             <span>Vista Global (Superadmin)</span>
+          </RouterLink>
+
+          <RouterLink
+            v-if="userStore.role === 'superadmin'"
+            class="app-layout__nav-item"
+            :to="{ name: 'SuperadminMetaIntegrations' }"
+          >
+            <i class="fa-brands fa-meta" aria-hidden="true" />
+            <span>Integración Meta</span>
+            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Métricas & Alertas -->
@@ -579,10 +592,30 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Sucursales</span>
           </RouterLink>
 
+          <RouterLink
+            v-if="currentWorkspaceId && (userStore.role === 'superadmin' || userStore.internalRole === 'content_manager')"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspaceMetaDashboard', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-brands fa-meta" aria-hidden="true" />
+            <span>Métricas Meta</span>
+          </RouterLink>
+
           <!-- 3. Planificación -->
           <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'AppPlanning', params: { workspaceId: currentWorkspaceId } }">
             <i class="fa-solid fa-calendar-days" aria-hidden="true" />
             <span>Planificación</span>
+          </RouterLink>
+
+          <!-- 3b. Builder Pro de Contenido -->
+          <RouterLink
+            v-if="currentWorkspaceId"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspaceContentBuilder', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
+            <span>Builder Pro</span>
+            <span class="app-layout__nav-tag app-layout__nav-tag--purple">PRO</span>
           </RouterLink>
 
           <!-- Mi Equipo (Client assigned team) -->
@@ -890,15 +923,19 @@ watch(() => route.params.workspaceId, async (newId) => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     margin-bottom: 0.5rem;
 
     @media (min-width: 768px) {
-      justify-content: center;
-
       .app-layout__close-sidebar {
         display: none;
       }
     }
+  }
+
+  // Sits at the far right of the sidebar header, opposite the brand.
+  &__sound-toggle {
+    margin-left: auto;
   }
 
   &__close-sidebar {

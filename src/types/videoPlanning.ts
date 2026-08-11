@@ -31,6 +31,37 @@ export enum ClienteAprobacion {
 
 export type TipoGuion = 'TOFU' | 'MOFU' | 'BOFU'
 
+/** Where the script will run. Independent from the funnel stage. */
+export type ObjetivoGuion = 'feed' | 'anuncio'
+
+export type HookType =
+  | 'pregunta'
+  | 'dato'
+  | 'testimonio'
+  | 'polemica'
+  | 'pov'
+  | 'problema'
+  | 'oferta'
+
+export type FormatoContenido = 'reel' | 'carrusel' | 'estatico' | 'historia'
+
+/** Structural attributes of a script — what the Pareto engine groups by. */
+export interface ScriptMeta {
+  objetivo?: ObjetivoGuion
+  hookType?: HookType
+  formato?: FormatoContenido
+  duracionSeg?: number
+  elementos?: {
+    testimonio?: boolean
+    autoridad?: boolean
+    oferta?: boolean
+    ctaExplicito?: boolean
+    problemaNecesidad?: boolean
+  }
+  clasificadoPor?: 'ia' | 'humano'
+  clasificadoEn?: string
+}
+
 export enum TipoReel {
   EDUCATIVO = 'Educativo',
   VENTA = 'Venta',
@@ -52,6 +83,19 @@ export interface GuionIA {
   }
 }
 
+export interface VideoItemMetrics {
+  views?: number
+  reach?: number
+  impressions?: number
+  likes?: number
+  comments?: number
+  saved?: number
+  shares?: number
+  adSpend?: number
+  adROAS?: number
+  lastSyncedAt?: string
+}
+
 export interface VideoItem {
   _id: string
   numero: number
@@ -63,7 +107,9 @@ export interface VideoItem {
   lugarGrabacion?: string
   guion?: string
   tipoGuion?: TipoGuion
+  scriptMeta?: ScriptMeta
   guionIA?: GuionIA
+  casoUsoRef?: number
   estadoIdea: EstadoIdea
   estadoProduccion: EstadoProduccion
   edicion: EstadoEdicion
@@ -75,6 +121,10 @@ export interface VideoItem {
   fechaPublicacion?: string
   copyPublicacion?: string
   order: number
+  igMediaId?: string
+  igPermalink?: string
+  metaAdId?: string
+  metrics?: VideoItemMetrics
   igContainerId?: string
   igScheduleStatus?: 'SCHEDULED' | 'FAILED'
   igScheduleError?: string
@@ -100,11 +150,37 @@ export interface VideoPlanningResponse {
   planning: VideoPlanning
 }
 
+/** A Meta ad, as offered in the linking picker. */
+export interface MetaAdOption {
+  id: string
+  name: string
+  status: string | null
+  createdTime: string | null
+  thumbnailUrl: string | null
+  storyId: string | null
+  spend: number
+  impressions: number
+  reach: number
+  clicks: number
+  leads: number
+  roas: number
+}
+
+/** A script plus the planning document it belongs to. */
+export interface WorkspaceVideoItem extends VideoItem {
+  planningId: string
+  planningEntryId: string
+  /** Stands in for the publish date when the item has none. */
+  planningCreatedAt?: string
+}
+
 export interface CreateVideoItemPayload {
   tema: string
   descripcion?: string
   tipo?: string
   tipoGuion?: TipoGuion
+  scriptMeta?: ScriptMeta
+  casoUsoRef?: number
   linkEjemplo?: string
   recursos?: string
   lugarGrabacion?: string
