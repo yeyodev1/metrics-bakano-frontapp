@@ -1,31 +1,16 @@
 import { ref, computed } from 'vue'
 import { resourceService } from '@/services/resource.service'
+import {
+  acceptFor,
+  isCatalog,
+  rejectionReason,
+  LABELS,
+  MAX_MB,
+  type ResourceCategory,
+} from '@/utils/brandResources'
 import type { Resource } from '@/types'
 
-export type ResourceCategory = 'logo' | 'linea_grafica' | 'catalogo'
-
-const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/avif']
-
-/**
- * What each slot accepts.
- *
- * The catalogue used to be validated against the image-only list, so every PDF
- * was rejected — and the failure returned silently, which is why uploading a
- * catalogue looked like a dead button.
- */
-const ACCEPTED: Record<ResourceCategory, string[]> = {
-  logo: IMAGE_TYPES,
-  linea_grafica: [...IMAGE_TYPES, 'application/pdf'],
-  catalogo: [...IMAGE_TYPES, 'application/pdf'],
-}
-
-const LABELS: Record<ResourceCategory, string> = {
-  logo: 'logo',
-  linea_grafica: 'línea gráfica',
-  catalogo: 'catálogo',
-}
-
-const MAX_MB = 25
+export type { ResourceCategory }
 
 export function useBrandResources(workspaceId: string) {
   const resources = ref<Resource[]>([])
@@ -35,7 +20,9 @@ export function useBrandResources(workspaceId: string) {
 
   const logos = computed(() => resources.value.filter((r) => r.categoria === 'logo'))
   const lineas = computed(() => resources.value.filter((r) => r.categoria === 'linea_grafica'))
-  const catalogs = computed(() => resources.value.filter((r) => r.categoria === 'catalogo'))
+  // Incluye los catálogos históricos guardados como 'otro' desde la pantalla
+  // de recursos, que hasta ahora esta vista no mostraba.
+  const catalogs = computed(() => resources.value.filter(isCatalog))
 
   async function load() {
     loading.value = true
@@ -48,24 +35,15 @@ export function useBrandResources(workspaceId: string) {
     }
   }
 
-  /** Accept attribute for the file input, so the picker matches the rules. */
-  function acceptFor(categoria: ResourceCategory) {
-    return ACCEPTED[categoria].join(',')
-  }
-
   async function upload(file: File, categoria: ResourceCategory) {
     error.value = ''
 
-    // Rejections used to `return` in silence; now each one says what happened.
-    if (!ACCEPTED[categoria].includes(file.type)) {
-      const allowed = categoria === 'logo' ? 'imágenes' : 'imágenes o PDF'
-      error.value = `El ${LABELS[categoria]} debe ser ${allowed}. "${file.name}" es ${file.type || 'de tipo desconocido'}.`
-      return false
-    }
-
-    if (file.size > MAX_MB * 1024 * 1024) {
-      const mb = (file.size / 1024 / 1024).toFixed(1)
-      error.value = `"${file.name}" pesa ${mb} MB y el máximo es ${MAX_MB} MB.`
+    // Los rechazos hacían `return` en silencio; ahora cada uno dice qué pasó.
+    // Las reglas viven en utils/brandResources para que esta pantalla y la de
+    // recursos acepten exactamente lo mismo.
+    const reason = rejectionReason(file, categoria)
+    if (reason) {
+      error.value = reason
       return false
     }
 

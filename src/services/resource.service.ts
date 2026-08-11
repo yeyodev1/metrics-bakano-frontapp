@@ -7,7 +7,14 @@ class ResourceService extends APIBase {
     return res.data.resources
   }
 
-  async uploadResource(workspaceId: string, file: File, categoria: 'logo' | 'linea_grafica' | 'otro'): Promise<Resource> {
+  // 'catalogo' es una categoría válida del modelo y faltaba aquí, así que la
+  // pantalla de recursos subía los catálogos como 'otro' y quedaban invisibles
+  // para el perfil de marca, que lee 'catalogo'.
+  async uploadResource(
+    workspaceId: string,
+    file: File,
+    categoria: 'logo' | 'linea_grafica' | 'catalogo' | 'otro',
+  ): Promise<Resource> {
     const fd = new FormData()
     fd.append('file', file)
     fd.append('categoria', categoria)
