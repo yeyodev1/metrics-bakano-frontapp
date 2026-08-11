@@ -140,7 +140,9 @@ class VideoPlanningService extends APIBase {
   async linkReelMedia(
     planningId: string,
     itemId: string,
-    payload: { igMediaId: string; igPermalink?: string; metaAdId?: string; casoUsoRef?: number },
+    // Basta con una de las dos fuentes: un video pautado puede no tener reel
+    // orgánico. Una cadena vacía desvincula esa fuente en el backend.
+    payload: { igMediaId?: string; igPermalink?: string; metaAdId?: string; casoUsoRef?: number },
   ): Promise<VideoPlanning> {
     const res = await this.post<VideoPlanningResponse>(
       `video-planning/${planningId}/items/${itemId}/link-reel`,
