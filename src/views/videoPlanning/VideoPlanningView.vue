@@ -12,6 +12,7 @@ import VideoPlanningTable from '@/components/videoPlanning/VideoPlanningTable.vu
 import VideoPlanningItemModal from '@/components/videoPlanning/VideoPlanningItemModal.vue'
 import VideoScriptModal from '@/components/videoPlanning/VideoScriptModal.vue'
 import VideoCompletedModal from '@/components/videoPlanning/VideoCompletedModal.vue'
+import VideoReelLinkModal from '@/components/videoPlanning/VideoReelLinkModal.vue'
 import ScriptDistributionWidget from '@/components/videoPlanning/ScriptDistributionWidget.vue'
 import VideoPlanningHero from '@/components/videoPlanning/VideoPlanningHero.vue'
 import VideoPlanningStates from '@/components/videoPlanning/VideoPlanningStates.vue'
@@ -81,6 +82,18 @@ async function loadPlanning() {
   } finally {
     loading.value = false
   }
+}
+
+const showReelModal = ref(false)
+const selectedReelItem = ref<VideoItem | null>(null)
+
+function openReelModal(item: VideoItem) {
+  selectedReelItem.value = item
+  showReelModal.value = true
+}
+
+function handleReelLinked(updatedPlanning: VideoPlanning) {
+  planning.value = updatedPlanning
 }
 
 function openAddModal() {
@@ -282,6 +295,7 @@ onMounted(async () => {
             @open-script="openScript"
             @edit-item="openEditModal"
             @delete-item="handleDeleteItem"
+            @link-reel="openReelModal"
           />
         </div>
       </template>
@@ -310,6 +324,16 @@ onMounted(async () => {
       :isSaving="savingLink"
       @close="showCompletedModal = false"
       @save-link="handleSaveLinkVideo"
+    />
+    <VideoReelLinkModal
+      :show="showReelModal"
+      :planning-id="planning?._id || ''"
+      :workspace-id="workspaceId"
+      :item="selectedReelItem"
+      :customer-journey-cases="brandProfile?.customerJourneyCases"
+      :all-items="items"
+      @close="showReelModal = false"
+      @linked="handleReelLinked"
     />
   </div>
 </template>

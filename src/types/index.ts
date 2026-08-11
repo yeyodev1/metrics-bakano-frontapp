@@ -58,6 +58,19 @@ export interface BrandProfileFile {
   tipo: string
 }
 
+export interface CustomerJourneyCase {
+  casoNumero: number
+  nombreCaso?: string
+  potencialCliente: string
+  efectoAnuncio: string
+  accionEsperada: string
+}
+
+export interface SegmentoMercado {
+  nombre: string
+  descripcion: string
+}
+
 export interface BrandProfile {
   descripcion?: string
   tipoNegocio?: 'SERVICIOS' | 'PRODUCTOS'
@@ -70,6 +83,10 @@ export interface BrandProfile {
   trafficDirection?: 'WHATSAPP' | 'GHL'
   trafficLink?: string
   archivos?: BrandProfileFile[]
+  segmentosMercado?: SegmentoMercado[]
+  canalesDetail?: string[]
+  actividadesClave?: string[]
+  customerJourneyCases?: CustomerJourneyCase[]
   updatedAt?: string
 }
 
