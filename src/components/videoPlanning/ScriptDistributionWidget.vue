@@ -2,6 +2,13 @@
 import { computed } from 'vue'
 import type { VideoItem, TipoGuion } from '@/types/videoPlanning'
 
+/**
+ * Target mix for ONE monthly planning: 10 TOFU · 5 MOFU · 5 BOFU = 20 videos.
+ *
+ * It only means something within a single planning. Across a whole workspace
+ * the counts blow past it ("74/10"), which reads as a bug — so callers working
+ * at workspace level pass `showTargets: false` and get plain proportions.
+ */
 const TARGETS: Record<TipoGuion, number> = { TOFU: 10, MOFU: 5, BOFU: 5 }
 
 const TIPO_CONFIG: Record<TipoGuion, { label: string; shortLabel: string; icon: string; color: string; desc: string }> = {
@@ -30,10 +37,15 @@ const TIPO_CONFIG: Record<TipoGuion, { label: string; shortLabel: string; icon: 
 
 const TYPES: TipoGuion[] = ['TOFU', 'MOFU', 'BOFU']
 
-const props = defineProps<{
-  items: VideoItem[]
-  compact?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    items: VideoItem[]
+    compact?: boolean
+    /** Off when the items span several plannings — the monthly goal makes no sense there. */
+    showTargets?: boolean
+  }>(),
+  { showTargets: true }
+)
 
 const counts = computed(() => {
   const c: Record<TipoGuion, number> = { TOFU: 0, MOFU: 0, BOFU: 0 }
@@ -47,6 +59,11 @@ const counts = computed(() => {
 
 const totalAssigned = computed(() => counts.value.TOFU + counts.value.MOFU + counts.value.BOFU)
 const totalTarget = 20
+
+/** Share of the classified scripts, used when there is no monthly goal. */
+function share(t: TipoGuion) {
+  return totalAssigned.value ? Math.round((counts.value[t] / totalAssigned.value) * 100) : 0
+}
 </script>
 
 <template>
@@ -61,13 +78,14 @@ const totalTarget = 20
         v-for="t in TYPES"
         :key="t"
         class="sdw-compact__pill"
-        :class="{ 'is-complete': counts[t] >= TARGETS[t] }"
+        :class="{ 'is-complete': showTargets && counts[t] >= TARGETS[t] }"
         :style="{ '--pill-color': TIPO_CONFIG[t].color }"
         :title="TIPO_CONFIG[t].desc"
       >
         <i :class="TIPO_CONFIG[t].icon" />
         {{ TIPO_CONFIG[t].shortLabel }}
-        <strong>{{ counts[t] }}/{{ TARGETS[t] }}</strong>
+        <strong v-if="showTargets">{{ counts[t] }}/{{ TARGETS[t] }}</strong>
+        <strong v-else>{{ counts[t] }} · {{ share(t) }}%</strong>
       </span>
     </div>
   </div>

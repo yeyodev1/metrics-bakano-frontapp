@@ -18,6 +18,7 @@ const emit = defineEmits<{
   (e: 'open-script', item: VideoItem): void
   (e: 'edit-item', item: VideoItem): void
   (e: 'delete-item', itemId: string): void
+  (e: 'link-reel', item: VideoItem): void
 }>()
 
 const confirming = ref(false)
@@ -83,9 +84,16 @@ function onUpdate(field: string, value: string) {
     <td class="vp-row__tema vp-row__tema--clickable" @click="emit('edit-item', item)">
       <span class="vp-row__tema-text">{{ item.tema }}</span>
       <span v-if="item.tipo" class="vp-row__tipo-chip">{{ item.tipo }}</span>
+      <span v-if="item.casoUsoRef" class="vp-row__caso-chip">Caso {{ item.casoUsoRef }}</span>
       <span v-if="item.clienteAprobacion === 'RECHAZADO'" class="vp-row__rejected-badge">
         <i class="fa-solid fa-rotate-right" /> Revisar
       </span>
+      <div v-if="item.metrics && (item.metrics.views || item.metrics.reach)" class="vp-row__metrics-bar">
+        <span title="Reproducciones"><i class="fa-solid fa-eye" /> {{ item.metrics.views || 0 }}</span>
+        <span title="Alcance"><i class="fa-solid fa-users" /> {{ item.metrics.reach || 0 }}</span>
+        <span title="Me gusta"><i class="fa-regular fa-heart" /> {{ item.metrics.likes || 0 }}</span>
+        <span v-if="item.metrics.adSpend" title="Gasto Meta Ads"><i class="fa-solid fa-dollar-sign" /> {{ item.metrics.adSpend }}</span>
+      </div>
     </td>
 
     <!-- Estado Idea -->
@@ -151,6 +159,14 @@ function onUpdate(field: string, value: string) {
 
     <!-- Acciones -->
     <td class="vp-row__actions">
+      <button
+        class="vp-row__action-btn vp-row__action-btn--reel"
+        :class="{ 'is-linked': !!item.igMediaId }"
+        :title="item.igMediaId ? 'Métricas de Reel en vivo' : 'Vincular con Reel'"
+        @click="emit('link-reel', item)"
+      >
+        <i class="fa-brands fa-instagram" />
+      </button>
       <button class="vp-row__action-btn vp-row__action-btn--script" title="Ver guión" @click="emit('open-script', item)">
         <i class="fa-solid fa-scroll" />
       </button>
@@ -338,6 +354,48 @@ function onUpdate(field: string, value: string) {
         color: #fff;
       }
     }
+  }
+}
+
+.vp-row__caso-chip {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #7c3aed;
+  background: rgba(#7c3aed, 0.12);
+  padding: 0.15rem 0.45rem;
+  border-radius: 20px;
+  vertical-align: middle;
+  margin-left: 0.35rem;
+}
+
+.vp-row__metrics-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: $text-secondary;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    i { font-size: 0.68rem; color: #a855f7; }
+  }
+}
+
+.vp-row__action-btn--reel {
+  color: #e1306c;
+  background: rgba(#e1306c, 0.08);
+
+  &:hover { background: rgba(#e1306c, 0.18); color: #e1306c; }
+
+  &.is-linked {
+    background: #e1306c;
+    color: $white;
+    &:hover { background: darken(#e1306c, 8%); }
   }
 }
 </style>

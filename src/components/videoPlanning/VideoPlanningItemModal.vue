@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import type { BrandProfile } from '@/types'
 import type { BrandProfile as BrandProfileType } from '@/types'
-import type { VideoItem, CreateVideoItemPayload, GuionIA, TipoGuion } from '@/types/videoPlanning'
+import type { VideoItem, CreateVideoItemPayload, GuionIA, TipoGuion, ObjetivoGuion } from '@/types/videoPlanning'
 import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion, ClienteAprobacion, TipoReel } from '@/types/videoPlanning'
 import ScriptGeneratorPanel from './ScriptGeneratorPanel.vue'
 import ScriptDistributionWidget from './ScriptDistributionWidget.vue'
+import ItemModalOnboarding from './itemModal/ItemModalOnboarding.vue'
+import ItemClientView from './itemModal/ItemClientView.vue'
+import ItemBasicFields from './itemModal/ItemBasicFields.vue'
+import ItemPublishFields from './itemModal/ItemPublishFields.vue'
 
 const userStore = useUserStore()
 const isReadOnly = computed(() => !userStore.isInternal)
@@ -28,11 +33,40 @@ const emit = defineEmits<{
   (e: 'brand-profile-updated', profile: BrandProfileType): void
 }>()
 
+/**
+ * A human picking feed vs anuncio outranks the AI classifier, so the choice is
+ * stamped as `humano` — the classifier skips items marked that way.
+ */
+const journeyCases = computed(() => props.brandProfile?.customerJourneyCases ?? [])
+
+const router = useRouter()
+
+/** Straight to the right tab of the builder, where the data is defined. */
+function goToBuilder(tab = 'journey') {
+  if (!props.workspaceId) return
+  router.push({
+    name: 'WorkspaceContentBuilder',
+    params: { workspaceId: props.workspaceId },
+    query: { tab },
+  })
+}
+
+const goDefineJourney = () => goToBuilder('journey')
+
+function setObjetivo(objetivo: ObjetivoGuion) {
+  form.value.scriptMeta = {
+    ...(form.value.scriptMeta ?? {}),
+    objetivo,
+    clasificadoPor: 'humano',
+  }
+}
+
 const form = ref<CreateVideoItemPayload>({
   tema: '',
   descripcion: '',
   tipo: '',
   tipoGuion: undefined,
+  scriptMeta: undefined,
   linkEjemplo: '',
   recursos: '',
   lugarGrabacion: '',
@@ -55,41 +89,9 @@ const isRejected = computed(() => {
 
 const ideaRejection = computed(() => props.item?.motivoRechazo || props.item?.comentario || '');
 
-const getIdeaColor = (status: string) => {
-  const map: Record<string, string> = {
-    [EstadoIdea.APROBADO]: 'is-success',
-    [EstadoIdea.POR_REVISAR]: 'is-warning',
-    [EstadoIdea.RECHAZADO]: 'is-danger'
-  }
-  return map[status] || 'is-gray'
-}
 
-const getProdColor = (status: string) => {
-  const map: Record<string, string> = {
-    [EstadoProduccion.GRABADO]: 'is-success',
-    [EstadoProduccion.POR_GRABAR]: 'is-warning',
-    [EstadoProduccion.RECHAZADO]: 'is-danger'
-  }
-  return map[status] || 'is-gray'
-}
 
-const getEditColor = (status: string) => {
-  const map: Record<string, string> = {
-    [EstadoEdicion.EDITADO]: 'is-success',
-    [EstadoEdicion.POR_EDITAR]: 'is-warning',
-    [EstadoEdicion.RECHAZADO]: 'is-danger'
-  }
-  return map[status] || 'is-gray'
-}
 
-const getPubColor = (status: string) => {
-  const map: Record<string, string> = {
-    [EstadoPublicacion.PUBLICADO]: 'is-success',
-    [EstadoPublicacion.PROGRAMADO]: 'is-info',
-    [EstadoPublicacion.POR_PUBLICAR]: 'is-warning'
-  }
-  return map[status] || 'is-gray'
-}
 
 watch(() => props.show, (isShown) => {
   if (!isShown) return
@@ -99,6 +101,8 @@ watch(() => props.show, (isShown) => {
       descripcion: props.item.descripcion || '',
       tipo: props.item.tipo || '',
       tipoGuion: props.item.tipoGuion,
+      scriptMeta: props.item.scriptMeta,
+      casoUsoRef: props.item.casoUsoRef,
       linkEjemplo: props.item.linkEjemplo || '',
       recursos: props.item.recursos || '',
       lugarGrabacion: props.item.lugarGrabacion || '',
@@ -115,7 +119,7 @@ watch(() => props.show, (isShown) => {
     }
   } else {
     form.value = {
-      tema: '', descripcion: '', tipo: '', tipoGuion: undefined, linkEjemplo: '',
+      tema: '', descripcion: '', tipo: '', tipoGuion: undefined, casoUsoRef: undefined, linkEjemplo: '',
       recursos: '', lugarGrabacion: '', guion: '', comentario: '',
       linkVideo: '',
       fechaPublicacion: '',
@@ -164,6 +168,13 @@ watch(() => form.value.tipo, (tipo) => {
 
         <form @submit.prevent="emit('save', { ...form })" class="vp-item-modal__form">
           <div class="vp-item-modal__body">
+            <!-- What the brand still needs before a script can be any good -->
+            <ItemModalOnboarding
+              v-if="!isReadOnly"
+              :brand-profile="brandProfile"
+              @go="goToBuilder"
+            />
+
             <!-- Rejection Alert -->
             <div v-if="isRejected" class="vp-item-modal__rejection">
               <div class="rejection-header">
@@ -174,125 +185,16 @@ watch(() => form.value.tipo, (tipo) => {
             </div>
 
             <!-- Information View (Client) -->
-            <template v-if="isReadOnly">
-              <div class="vp-item-view">
-                <!-- Basic Info Grid -->
-                <div class="vp-item-view__info-grid">
-                  <div class="vp-item-view__info-item">
-                    <span class="label">TIPO</span>
-                    <span class="value">{{ form.tipo || '-' }}</span>
-                  </div>
-                  <div class="vp-item-view__info-item">
-                    <span class="label">LUGAR</span>
-                    <span class="value">{{ form.lugarGrabacion || '-' }}</span>
-                  </div>
-                  <div class="vp-item-view__info-item">
-                    <span class="label">RECURSOS</span>
-                    <span class="value">{{ form.recursos || '-' }}</span>
-                  </div>
-                </div>
-
-                <!-- Description & Script -->
-                <div class="vp-item-view__section">
-                  <div class="vp-item-view__section-header">
-                    <i class="fa-solid fa-align-left" />
-                    <span>DESCRIPCIÓN</span>
-                  </div>
-                  <div class="vp-item-view__text-box">{{ form.descripcion || 'Sin descripción' }}</div>
-                </div>
-
-                <div class="vp-item-view__section">
-                  <div class="vp-item-view__section-header">
-                    <i class="fa-solid fa-scroll" />
-                    <span>GUIÓN</span>
-                  </div>
-                  <div class="vp-item-view__text-box is-script">{{ form.guion || 'Sin guión' }}</div>
-                </div>
-
-                <!-- Status Grid (Colorized) -->
-                <div class="vp-item-view__status-grid">
-                  <div class="vp-item-view__status-item">
-                    <span class="label">IDEA</span>
-                    <span class="badge" :class="getIdeaColor(form.estadoIdea!)">{{ form.estadoIdea?.replace(/_/g, ' ') }}</span>
-                  </div>
-                  <div class="vp-item-view__status-item">
-                    <span class="label">PRODUCCIÓN</span>
-                    <span class="badge" :class="getProdColor(form.estadoProduccion!)">{{ form.estadoProduccion?.replace(/_/g, ' ') }}</span>
-                  </div>
-                  <div class="vp-item-view__status-item">
-                    <span class="label">EDICIÓN</span>
-                    <span class="badge" :class="getEditColor(form.edicion!)">{{ form.edicion?.replace(/_/g, ' ') }}</span>
-                  </div>
-                  <div class="vp-item-view__status-item">
-                    <span class="label">PUBLICACIÓN</span>
-                    <span class="badge" :class="getPubColor(form.estadoPublicacion!)">{{ form.estadoPublicacion?.replace(/_/g, ' ') }}</span>
-                  </div>
-                </div>
-
-                <!-- Links & Publish Date -->
-                <div class="vp-item-view__links">
-                  <div v-if="form.linkEjemplo" class="vp-item-view__link-item">
-                    <span class="label">LINK DE VIDEO</span>
-                    <a :href="form.linkEjemplo" target="_blank" class="link-btn">
-                      <i class="fa-solid fa-link" />
-                      Abrir archivo
-                    </a>
-                  </div>
-                  <div v-if="form.linkVideo" class="vp-item-view__link-item">
-                    <span class="label">LINK DE PUBLICACIÓN</span>
-                    <a :href="form.linkVideo" target="_blank" class="link-btn is-final">
-                      <i class="fa-brands fa-instagram" />
-                      Ver publicación
-                    </a>
-                  </div>
-                  <div v-if="form.fechaPublicacion" class="vp-item-view__link-item">
-                    <span class="label">PUBLICACIÓN</span>
-                    <div class="date-chip">
-                      <i class="fa-solid fa-calendar-day" />
-                      {{ new Date(form.fechaPublicacion + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
+            <ItemClientView v-if="isReadOnly" :form="form" />
 
             <!-- Form View (Internal) -->
             <template v-else>
 
-              <div class="vp-item-modal__field">
-                <label>Tema <span class="req">*</span></label>
-                <input v-model="form.tema" type="text" placeholder="Ej: Receta de verano" required />
-              </div>
-
-              <div class="vp-item-modal__row">
-                <div class="vp-item-modal__field">
-                  <label>Tipo de Reel</label>
-                  <select v-model="form.tipo">
-                    <option value="">— Sin tipo —</option>
-                    <option v-for="t in TipoReel" :key="t" :value="t">{{ t }}</option>
-                  </select>
-                </div>
-                <div class="vp-item-modal__field">
-                  <label>Lugar de grabación</label>
-                  <input v-model="form.lugarGrabacion" type="text" placeholder="Ej: Estudio A" />
-                </div>
-              </div>
-
-              <div class="vp-item-modal__field">
-                <label>Descripción</label>
-                <textarea v-model="form.descripcion" placeholder="Descripción general del video..." rows="2" />
-              </div>
-
-              <div class="vp-item-modal__row">
-                <div class="vp-item-modal__field">
-                  <label>Link del video (Drive/Dropbox)</label>
-                  <input v-model="form.linkEjemplo" type="url" placeholder="https://..." />
-                </div>
-                <div class="vp-item-modal__field">
-                  <label>Recursos</label>
-                  <input v-model="form.recursos" type="text" placeholder="Ej: Cámara, trípode" />
-                </div>
-              </div>
+              <ItemBasicFields
+                v-model="form"
+                :journey-cases="journeyCases"
+                @define-journey="goDefineJourney"
+              />
 
               <!-- AI Script Generator — context + generate + result in one section -->
               <ScriptGeneratorPanel
@@ -302,12 +204,14 @@ watch(() => form.value.tipo, (tipo) => {
                 :tema="form.tema"
                 :tipo="form.tipo"
                 :tipo-guion="form.tipoGuion"
+                :objetivo="form.scriptMeta?.objetivo"
                 :has-brand-profile="hasBrandProfile ?? false"
                 :brand-profile="brandProfile ?? null"
                 :all-items="allItems"
                 @script-generated="(g: GuionIA) => { form.guion = g.gancho + '\n\n' + g.cuerpo + '\n\n' + g.cta }"
                 @brand-profile-updated="(p: BrandProfileType) => emit('brand-profile-updated', p)"
                 @update:tipoGuion="(t: TipoGuion) => { form.tipoGuion = t; form.tipo = GUION_TO_TIPO_REEL[t] }"
+                @update:objetivo="setObjetivo"
               />
 
               <div class="vp-item-modal__field">
@@ -323,43 +227,8 @@ watch(() => form.value.tipo, (tipo) => {
                 <textarea v-model="form.comentario" placeholder="Notas internas..." rows="2" />
               </div>
 
-              <div class="vp-item-modal__row">
-                <div class="vp-item-modal__field">
-                  <label>Link de publicación final</label>
-                  <input v-model="form.linkVideo" type="url" placeholder="https://..." />
-                </div>
-                <div class="vp-item-modal__field">
-                  <label>Fecha de publicación</label>
-                  <input v-model="form.fechaPublicacion" type="date" />
-                </div>
-              </div>
+              <ItemPublishFields v-model="form" />
 
-              <div class="vp-item-modal__row is-statuses">
-                <div class="vp-item-modal__field">
-                  <label>Idea</label>
-                  <select v-model="form.estadoIdea" :class="getIdeaColor(form.estadoIdea!)">
-                    <option v-for="v in EstadoIdea" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
-                  </select>
-                </div>
-                <div class="vp-item-modal__field">
-                  <label>Producción</label>
-                  <select v-model="form.estadoProduccion" :class="getProdColor(form.estadoProduccion!)">
-                    <option v-for="v in EstadoProduccion" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
-                  </select>
-                </div>
-                <div class="vp-item-modal__field">
-                  <label>Edición</label>
-                  <select v-model="form.edicion" :class="getEditColor(form.edicion!)">
-                    <option v-for="v in EstadoEdicion" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
-                  </select>
-                </div>
-                <div class="vp-item-modal__field">
-                  <label>Publicación</label>
-                  <select v-model="form.estadoPublicacion" :class="getPubColor(form.estadoPublicacion!)">
-                    <option v-for="v in EstadoPublicacion" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
-                  </select>
-                </div>
-              </div>
             </template>
           </div>
 
@@ -434,6 +303,12 @@ watch(() => form.value.tipo, (tipo) => {
     @media (max-width: 500px) { grid-template-columns: 1fr; }
   }
 
+
+
+
+
+  // Actionable instead of a dead-end hint: the fix is one click away.
+
   &__field {
     display: flex; flex-direction: column; gap: 0.5rem;
     label { font-size: 0.72rem; font-weight: 800; color: $primary-dark; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; display: flex; align-items: center; gap: 0.5rem; }
@@ -477,86 +352,6 @@ watch(() => form.value.tipo, (tipo) => {
 }
 
 // Client View Styles
-.vp-item-view {
-  display: flex; flex-direction: column; gap: 1.75rem;
-
-  &__info-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
-    background: white; padding: 1.25rem; border-radius: 18px; border: 1px solid rgba($primary-dark, 0.05);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-  }
-
-  &__info-item {
-    display: flex; flex-direction: column; gap: 0.35rem;
-    .label { font-size: 0.65rem; font-weight: 800; color: $text-secondary; letter-spacing: 0.1em; }
-    .value { font-size: 0.95rem; font-weight: 700; color: $primary-dark; }
-  }
-
-  &__section {
-    display: flex; flex-direction: column; gap: 0.75rem;
-  }
-
-  &__section-header {
-    display: flex; align-items: center; gap: 0.6rem;
-    i { color: $primary; font-size: 0.9rem; }
-    span { font-size: 0.8rem; font-weight: 900; color: $primary-dark; letter-spacing: 0.05em; }
-  }
-
-  &__text-box {
-    background: white; border: 1px solid rgba($primary-dark, 0.06); border-radius: 16px;
-    padding: 1rem 1.25rem; font-size: 0.95rem; line-height: 1.6; color: $primary-dark;
-    white-space: pre-wrap;
-    &.is-script { background: #fafafa; border-left: 4px solid $primary; font-size: 0.9rem; }
-  }
-
-  &__status-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;
-  }
-
-  &__status-item {
-    display: flex; flex-direction: column; gap: 0.6rem; align-items: center;
-    .label { font-size: 0.6rem; font-weight: 900; color: $text-secondary; letter-spacing: 0.05em; text-align: center; }
-    
-    .badge {
-      width: 100%; display: flex; align-items: center; justify-content: center;
-      padding: 0.5rem 0.4rem; border-radius: 10px; font-size: 0.72rem; font-weight: 800;
-      text-transform: uppercase; text-align: center; line-height: 1;
-
-      &.is-success { background: #dcfce7; color: #166534; }
-      &.is-warning { background: #fef3c7; color: #92400e; }
-      &.is-danger { background: #fee2e2; color: #991b1b; }
-      &.is-info { background: #e0f2fe; color: #075985; }
-      &.is-gray { background: #f3f4f6; color: #374151; }
-    }
-  }
-
-  &__links {
-    display: flex; flex-wrap: wrap; gap: 1.5rem;
-    padding-top: 1rem; border-top: 1px solid rgba($primary-dark, 0.05);
-  }
-
-  &__link-item {
-    display: flex; flex-direction: column; gap: 0.6rem;
-    .label { font-size: 0.65rem; font-weight: 900; color: $text-secondary; letter-spacing: 0.1em; }
-  }
-
-  .link-btn {
-    display: flex; align-items: center; gap: 0.6rem;
-    padding: 0.6rem 1.25rem; border-radius: 12px; background: rgba($primary, 0.08);
-    color: $primary; font-size: 0.85rem; font-weight: 700; transition: all 0.2s;
-    text-decoration: none;
-    i { font-size: 1rem; }
-    &:hover { background: $primary; color: $white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba($primary, 0.2); }
-    &.is-final { background: #f0fdf4; color: #16a34a; &:hover { background: #16a34a; color: white; } }
-  }
-
-  .date-chip {
-    display: flex; align-items: center; gap: 0.6rem;
-    padding: 0.6rem 1rem; border-radius: 12px; background: #f8fafc;
-    color: $primary-dark; font-size: 0.85rem; font-weight: 800;
-    i { color: $primary; }
-  }
-}
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
