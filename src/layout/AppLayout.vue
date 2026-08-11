@@ -607,9 +607,11 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Planificación</span>
           </RouterLink>
 
-          <!-- 3b. Builder Pro de Contenido -->
+          <!-- 3b. Builder Pro de Contenido — equipo interno, no clientes.
+               Expone métricas comparadas, aprendizajes y el feed del agente:
+               material de trabajo del equipo de contenido, no del cliente. -->
           <RouterLink
-            v-if="currentWorkspaceId"
+            v-if="currentWorkspaceId && (userStore.isInternal || userStore.role === 'superadmin')"
             class="app-layout__nav-item"
             :to="{ name: 'WorkspaceContentBuilder', params: { workspaceId: currentWorkspaceId } }"
           >

@@ -5,10 +5,10 @@
         <div class="rlm">
           <header class="rlm__header">
             <div class="rlm__header-title">
-              <i class="fa-brands fa-instagram rlm__header-icon" />
+              <i class="fa-solid fa-link rlm__header-icon" />
               <div>
-                <h3>Vincular Reel Publicado a Guion #{{ item.numero }}</h3>
-                <p>Conecta el video de Instagram para traer vistas, alcance e interacciones.</p>
+                <h3>Vincular publicación al Guion #{{ item.numero }}</h3>
+                <p>Conecta el reel orgánico, el anuncio pautado, o los dos.</p>
               </div>
             </div>
             <button class="rlm__close" aria-label="Cerrar" @click="emit('close')">
@@ -26,56 +26,57 @@
               <JourneyCaseSelector v-model="selectedCasoUsoRef" :cases="customerJourneyCases" />
             </section>
 
-            <section class="rlm__section">
+            <p class="rlm__sources-intro">
+              Vincula <strong>al menos una</strong> de las dos. Si el video se publicó y
+              además se pautó, vincula ambas y verás los números por separado.
+            </p>
+
+            <LinkSourceSection
+              kind="reel"
+              title="Publicación orgánica"
+              hint="Reel del feed. Trae vistas, alcance, guardados y comentarios."
+              :selected="!!selectedIgMediaId"
+              selected-label="Reel elegido"
+              :open="showReels"
+              @toggle="showReels = !showReels"
+            >
               <ReelPickerList
                 v-model="selectedIgMediaId"
                 :picker="picker"
                 @picked="onReelPicked"
                 @preview="previewReel = $event"
               />
-            </section>
+            </LinkSourceSection>
 
-            <section class="rlm__section">
-              <button
-                type="button"
-                class="rlm__ads-header"
-                :aria-expanded="showAds"
-                @click="showAds = !showAds"
-              >
-                <span class="rlm__label">
-                  <i class="fa-solid fa-bullhorn" /> Anuncio de Meta Ads (Opcional)
-                </span>
-                <span v-if="metaAdId" class="rlm__ads-picked">
-                  <i class="fa-solid fa-circle-check" /> 1 seleccionado
-                </span>
-                <i :class="showAds ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" />
-              </button>
-
-              <small class="rlm__hint">
-                Si este video se pautó, vincula el anuncio para traer gasto, alcance y
-                conversaciones generadas.
-              </small>
-
+            <LinkSourceSection
+              kind="ad"
+              title="Anuncio pautado"
+              hint="Anuncio de Meta Ads. Trae gasto, alcance pagado y conversaciones."
+              :selected="!!metaAdId"
+              selected-label="Anuncio elegido"
+              :open="showAds"
+              @toggle="showAds = !showAds"
+            >
               <MetaAdPicker
-                v-show="showAds"
                 v-model="metaAdId"
                 :workspace-id="workspaceId"
                 :active="showAds"
               />
-            </section>
+            </LinkSourceSection>
           </div>
 
           <footer class="rlm__footer">
+            <span class="rlm__summary">{{ summary }}</span>
             <button class="rlm__btn rlm__btn--cancel" :disabled="isSaving" @click="emit('close')">
               Cancelar
             </button>
             <button
               class="rlm__btn rlm__btn--primary"
-              :disabled="!selectedIgMediaId || isSaving"
+              :disabled="!hasSelection || isSaving"
               @click="handleConfirmLink"
             >
               <i :class="isSaving ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-link'" />
-              {{ isSaving ? 'Guardando…' : 'Vincular Reel' }}
+              {{ isSaving ? 'Guardando…' : confirmLabel }}
             </button>
           </footer>
         </div>
@@ -92,12 +93,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, toRef, watch } from 'vue'
+import { ref, computed, toRef, watch } from 'vue'
 import { videoPlanningService } from '@/services/videoPlanning.service'
 import { useToast } from '@/composables/useToast'
 import MetaAdPicker from './MetaAdPicker.vue'
 import ReelPreviewModal from './ReelPreviewModal.vue'
 import JourneyCaseSelector from './reelLink/JourneyCaseSelector.vue'
+import LinkSourceSection from './reelLink/LinkSourceSection.vue'
 import ReelPickerList from './reelLink/ReelPickerList.vue'
 import { useReelPicker } from './reelLink/useReelPicker'
 import type { VideoItem, VideoPlanning } from '@/types/videoPlanning'
@@ -125,9 +127,29 @@ const customIgPermalink = ref('')
 const metaAdId = ref('')
 const selectedCasoUsoRef = ref<number | null>(null)
 const isSaving = ref(false)
-// Collapsed by default: the ad picker hits Meta, and most videos are organic.
+const showReels = ref(true)
+// Cerrado de entrada: el picker consulta Meta y la mayoría de videos son orgánicos.
+// Se abre solo si el guion ya tiene un anuncio vinculado (ver watch de `show`).
 const showAds = ref(false)
 const previewReel = ref<any | null>(null)
+
+const hasSelection = computed(() => !!selectedIgMediaId.value || !!metaAdId.value)
+
+/** El botón dice exactamente qué va a pasar, no un genérico "Vincular Reel". */
+const confirmLabel = computed(() => {
+  if (selectedIgMediaId.value && metaAdId.value) return 'Vincular reel y anuncio'
+  if (metaAdId.value) return 'Vincular anuncio'
+  return 'Vincular reel'
+})
+
+const summary = computed(() => {
+  if (selectedIgMediaId.value && metaAdId.value) {
+    return 'Se traerán métricas orgánicas y de pauta.'
+  }
+  if (selectedIgMediaId.value) return 'Se traerán vistas, alcance e interacciones.'
+  if (metaAdId.value) return 'Se traerán gasto, alcance pagado y conversaciones.'
+  return 'Elige un reel, un anuncio, o ambos.'
+})
 
 const picker = useReelPicker({
   workspaceId: toRef(props, 'workspaceId'),
@@ -144,8 +166,10 @@ watch(
     customIgPermalink.value = props.item.igPermalink || ''
     metaAdId.value = props.item.metaAdId || ''
     selectedCasoUsoRef.value = props.item.casoUsoRef || null
-    // Open the ads section when this video already has one linked.
+    // Se abre la sección que ya tiene algo vinculado. Un guion pautado sin reel
+    // abre en anuncios, que es donde está su dato.
     showAds.value = !!props.item.metaAdId
+    showReels.value = !props.item.metaAdId || !!props.item.igMediaId
     picker.fetch()
   },
   { immediate: true }
@@ -166,21 +190,23 @@ function selectFromPreview() {
 }
 
 async function handleConfirmLink() {
-  if (!props.planningId || !props.item || !selectedIgMediaId.value) return
+  if (!props.planningId || !props.item || !hasSelection.value) return
 
   isSaving.value = true
   try {
+    // Ambos campos se mandan siempre, incluso vacíos: así el backend puede
+    // desvincular una fuente que se quitó. Omitirlos dejaba el valor anterior.
     const updatedPlanning = await videoPlanningService.linkReelMedia(
       props.planningId,
       props.item._id,
       {
         igMediaId: selectedIgMediaId.value,
-        igPermalink: customIgPermalink.value.trim() || undefined,
-        metaAdId: metaAdId.value.trim() || undefined,
+        igPermalink: selectedIgMediaId.value ? customIgPermalink.value.trim() : '',
+        metaAdId: metaAdId.value.trim(),
         casoUsoRef: selectedCasoUsoRef.value || undefined,
       }
     )
-    toast.success('Reel y métricas vinculados exitosamente al guion.')
+    toast.success(`${confirmLabel.value.replace('Vincular', 'Vinculado:')} listo.`)
     emit('linked', updatedPlanning)
     emit('close')
   } catch {
@@ -293,50 +319,23 @@ async function handleConfirmLink() {
   gap: 0.5rem;
 }
 
-.rlm__label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: $primary-dark;
+.rlm__sources-intro {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: $text-secondary;
 
-  i { color: $secondary; }
+  strong { color: $primary-dark; }
 }
 
-.rlm__ads-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0;
-  font-family: inherit;
-  text-align: left;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-
-  > .rlm__label { flex: 1; }
-  > i { font-size: 0.8rem; color: $text-secondary; }
-}
-
-.rlm__ads-picked {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.1rem 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 800;
-  color: $secondary-dark;
-  background: $overlay-purple;
-  border-radius: 20px;
-}
-
-.rlm__hint {
-  font-size: 0.75rem;
-  line-height: 1.45;
+// Empuja los botones a la derecha y explica qué traerá el vínculo.
+.rlm__summary {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 0.74rem;
   color: $text-secondary;
 }
+
 
 .rlm__footer {
   display: flex;

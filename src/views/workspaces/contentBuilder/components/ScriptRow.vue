@@ -1,5 +1,5 @@
 <template>
-  <div :class="['sr', { 'is-open': open, 'is-linked': !!item.igMediaId }]">
+  <div :class="['sr', { 'is-open': open, 'is-linked': !!link }]">
     <button type="button" class="sr__main" :aria-expanded="open" @click="open = !open">
       <span class="sr__num">#{{ item.numero }}</span>
 
@@ -19,22 +19,30 @@
         <span v-if="item.casoUsoRef" class="sr__tag">Caso {{ item.casoUsoRef }}</span>
       </span>
 
-      <span class="sr__link-state">
-        <template v-if="!item.igMediaId">
+      <!-- El origen se ve sin abrir la fila: orgánico, pautado o ambos.
+           Antes todo lo vinculado mostraba el ícono de Instagram, así que un
+           video que solo era anuncio parecía un reel. -->
+      <span :class="['sr__link-state', link && `is-${link.tone}`]">
+        <template v-if="!link">
           <i class="fa-solid fa-link-slash" />
           <span class="sr__link-label">Sin vincular</span>
         </template>
-        <!-- Linked with real numbers -->
-        <template v-else-if="hasMetrics">
-          <i class="fa-brands fa-instagram" />
-          <strong>{{ formatNumber(item.metrics?.views || 0) }}</strong>
-          <span class="sr__link-label">vistas</span>
-        </template>
-        <!-- Linked, but Instagram insights are unavailable: saying "0 vistas"
-             would read as a real zero instead of a missing permission. -->
         <template v-else>
-          <i class="fa-brands fa-instagram" />
-          <span class="sr__link-label">Vinculado</span>
+          <i :class="link.icon" />
+          <!-- Con gasto pero sin vistas, el número relevante es el gasto. -->
+          <template v-if="hasMetrics">
+            <strong>{{ formatNumber(item.metrics?.views || 0) }}</strong>
+            <span class="sr__link-label">vistas</span>
+          </template>
+          <template v-else-if="adSpend">
+            <strong>${{ formatNumber(adSpend) }}</strong>
+            <span class="sr__link-label">gasto</span>
+          </template>
+          <!-- Vinculado sin métricas: decir "0 vistas" se leería como un cero
+               real y no como un permiso de insights que falta. -->
+          <template v-else>
+            <span class="sr__link-label">{{ link.short }}</span>
+          </template>
         </template>
       </span>
 
@@ -68,9 +76,13 @@ import { ref, computed } from 'vue'
 import AccordionTransition from '@/components/common/AccordionTransition.vue'
 import ReelPreviewModal from '@/components/videoPlanning/ReelPreviewModal.vue'
 import ScriptRowDetail from './ScriptRowDetail.vue'
+import { linkStyle } from '@/utils/videoLink'
 import type { WorkspaceVideoItem } from '@/types/videoPlanning'
 
 const props = defineProps<{ item: WorkspaceVideoItem }>()
+
+const link = computed(() => linkStyle(props.item))
+const adSpend = computed(() => props.item.metrics?.adSpend || 0)
 
 defineEmits<{
   (e: 'link-reel', item: WorkspaceVideoItem): void
@@ -232,7 +244,11 @@ const formatNumber = (n: number) => new Intl.NumberFormat('es-EC').format(n)
   color: $text-secondary;
 
   strong { color: $primary-dark; }
-  .is-linked & i { color: $BAKANO-GREEN; }
+
+  // Un color por origen: morado orgánico, rosa pautado, verde ambos.
+  &.is-reel i { color: $secondary; }
+  &.is-ad i { color: $primary; }
+  &.is-both i { color: $BAKANO-GREEN; }
 }
 
 .sr__link-label { font-size: 0.7rem; }

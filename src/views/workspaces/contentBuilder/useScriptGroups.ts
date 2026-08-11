@@ -1,4 +1,5 @@
 import { computed, type Ref } from 'vue'
+import { isLinked } from '@/utils/videoLink'
 import type { WorkspaceVideoItem } from '@/types/videoPlanning'
 
 export interface ScriptGroup {
@@ -55,7 +56,7 @@ export function useScriptGroups(items: Ref<WorkspaceVideoItem[]>) {
         key,
         label,
         items: groupItems,
-        linked: groupItems.filter((i) => !!i.igMediaId).length,
+        linked: groupItems.filter(isLinked).length,
         // Only flagged when no item in the month has a real publish date.
         approximate: groupItems.every((i) => !i.fechaPublicacion),
       })

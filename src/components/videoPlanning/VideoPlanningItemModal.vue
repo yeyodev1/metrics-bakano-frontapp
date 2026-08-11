@@ -41,14 +41,31 @@ const journeyCases = computed(() => props.brandProfile?.customerJourneyCases ?? 
 
 const router = useRouter()
 
-/** Straight to the right tab of the builder, where the data is defined. */
-function goToBuilder(tab = 'journey') {
+/**
+ * Send the user to the screen that actually fills the gap.
+ *
+ * The modal is closed first: it renders above everything, so navigating with it
+ * still open landed the user on the right page behind an opaque overlay — which
+ * read as "the button does nothing".
+ *
+ * Navigating to the route we are already on is a duplicated-navigation error in
+ * vue-router; it is swallowed because the user is, by then, already there.
+ */
+function goToBuilder(target: 'brand-profile' | 'journey' = 'journey') {
   if (!props.workspaceId) return
-  router.push({
-    name: 'WorkspaceContentBuilder',
-    params: { workspaceId: props.workspaceId },
-    query: { tab },
-  })
+
+  emit('close')
+
+  const to =
+    target === 'brand-profile'
+      ? { name: 'WorkspaceBrandProfile', params: { workspaceId: props.workspaceId } }
+      : {
+          name: 'WorkspaceContentBuilder',
+          params: { workspaceId: props.workspaceId },
+          query: { tab: 'journey' },
+        }
+
+  router.push(to).catch(() => {})
 }
 
 const goDefineJourney = () => goToBuilder('journey')

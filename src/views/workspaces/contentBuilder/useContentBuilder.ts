@@ -4,6 +4,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { workspaceService } from '@/services/workspace.service'
 import { brandProfileService } from '@/services/brandProfile.service'
 import { videoPlanningService } from '@/services/videoPlanning.service'
+import { isLinked } from '@/utils/videoLink'
 import type { Workspace, BrandProfile, CustomerJourneyCase, SegmentoMercado } from '@/types'
 import type { WorkspaceVideoItem, CreateVideoItemPayload } from '@/types/videoPlanning'
 
@@ -83,7 +84,8 @@ export function useContentBuilder(workspaceId: Ref<string>) {
 
   // ── KPIs ────────────────────────────────────────────────────────────────
   const totalScripts = computed(() => items.value.length)
-  const totalLinkedReels = computed(() => items.value.filter((i) => !!i.igMediaId).length)
+  // Cuenta cualquier vínculo: un guion pautado sin reel también tiene métricas.
+  const totalLinkedReels = computed(() => items.value.filter(isLinked).length)
   const totalViews = computed(() => items.value.reduce((s, i) => s + (i.metrics?.views || 0), 0))
   const totalAdSpend = computed(() => items.value.reduce((s, i) => s + (i.metrics?.adSpend || 0), 0))
 

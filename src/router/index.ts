@@ -98,7 +98,14 @@ const routes: Array<RouteRecordRaw> = [
         path: 'workspaces/:workspaceId/builder',
         name: 'WorkspaceContentBuilder',
         component: () => import('../views/workspaces/contentBuilder/index.vue'),
-        meta: { title: 'Bakano Ads: Content Builder Pro', requiresAuth: true },
+        // Interno: ocultar el link del sidebar no protege nada si la URL sigue
+        // abierta. El builder muestra desempeño comparado y aprendizajes que
+        // son insumo del equipo, no entregable del cliente.
+        meta: {
+          title: 'Bakano Ads: Content Builder Pro',
+          requiresAuth: true,
+          requiresInternal: true,
+        },
       },
       {
         path: 'workspaces/:workspaceId/settings',
