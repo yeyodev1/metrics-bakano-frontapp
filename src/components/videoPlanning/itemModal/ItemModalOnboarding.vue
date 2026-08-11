@@ -29,7 +29,7 @@
             <strong>{{ s.title }}</strong>
             <span>{{ s.why }}</span>
           </div>
-          <button type="button" class="imo__go" @click="$emit('go', s.tab)">
+          <button type="button" class="imo__go" @click="$emit('go', s.target)">
             Definir <i class="fa-solid fa-arrow-right" />
           </button>
         </li>
@@ -43,23 +43,33 @@ import { ref, computed } from 'vue'
 import AccordionTransition from '@/components/common/AccordionTransition.vue'
 import type { BrandProfile } from '@/types'
 
+/**
+ * Where each gap is actually filled.
+ *
+ * `brand-profile` is its own page; the other three live in the strategy wizard
+ * behind the builder's Journey tab. Sending them all to a builder tab was the
+ * bug: "Perfil de marca" pointed at the script matrix, which has no way to
+ * define a profile, so the button led nowhere.
+ */
+export type OnboardingTarget = 'brand-profile' | 'journey'
+
 const props = defineProps<{ brandProfile?: BrandProfile | null }>()
 
-defineEmits<{ (e: 'go', tab: string): void }>()
+defineEmits<{ (e: 'go', target: OnboardingTarget): void }>()
 
 const open = ref(true)
 
 /** Ordered by how much each gap hurts the generated script. */
 const steps = computed(() => {
   const bp = props.brandProfile
-  const list: Array<{ key: string; title: string; why: string; tab: string }> = []
+  const list: Array<{ key: string; title: string; why: string; target: OnboardingTarget }> = []
 
   if (!bp?.descripcion) {
     list.push({
       key: 'perfil',
       title: 'Perfil de marca',
       why: 'Qué vende, a quién y con qué tono. Es la base de todo.',
-      tab: 'matrix',
+      target: 'brand-profile',
     })
   }
 
@@ -68,7 +78,7 @@ const steps = computed(() => {
       key: 'journey',
       title: 'Customer Journey',
       why: 'De aquí sale el gancho: el dolor concreto de un tipo de cliente.',
-      tab: 'journey',
+      target: 'journey',
     })
   }
 
@@ -77,7 +87,7 @@ const steps = computed(() => {
       key: 'propuesta',
       title: 'Propuesta de valor',
       why: 'Lo que hace distinta a la marca. Sin esto el guión suena a cualquiera.',
-      tab: 'journey',
+      target: 'journey',
     })
   }
 
@@ -86,7 +96,7 @@ const steps = computed(() => {
       key: 'segmentos',
       title: 'Segmentos de mercado',
       why: 'A quién le habla la marca, en sus propias palabras.',
-      tab: 'journey',
+      target: 'journey',
     })
   }
 
