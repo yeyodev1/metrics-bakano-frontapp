@@ -197,8 +197,26 @@ const showRecoveryHint = ref(false)
     </form>
 
     <template #footer>
-      ¿Necesitas acceso?
-      <a class="auth-link" href="mailto:hola@bakano.ec">Contacta con tu administrador</a>
+      <!-- Aquí es donde de verdad se descubre que hace falta ser cliente:
+           cuando alguien intenta entrar y no tiene cuenta. -->
+      <div class="lv__acceso">
+        <p class="lv__acceso-line">
+          ¿Ya eres cliente y no tienes cuenta?
+          <a class="auth-link" href="mailto:hola@bakano.ec">Escribe a tu equipo de Bakano</a>
+        </p>
+        <p class="lv__acceso-line lv__acceso-line--sep">
+          ¿Aún no eres cliente?
+          <a
+            class="auth-link"
+            href="https://mkt.bakano.ec/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Conoce Bakano
+            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
+          </a>
+        </p>
+      </div>
     </template>
   </AuthShell>
 </template>
@@ -230,6 +248,25 @@ const showRecoveryHint = ref(false)
     font-size: 0.82rem;
     line-height: 1.5;
     color: $text-secondary;
+  }
+}
+
+.lv__acceso {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.lv__acceso-line {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+
+  i { font-size: 0.65rem; }
+
+  &--sep {
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba($primary-dark, 0.08);
   }
 }
 
