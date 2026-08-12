@@ -46,6 +46,16 @@
         <TipoGuionSelector :model-value="selectedTipoGuion" @update:model-value="onTipoGuionPick" />
         <ObjetivoSelector :model-value="selectedObjetivo" @update:model-value="onObjetivoPick" />
 
+        <!-- Opción, no default: el Hook 2 ya vive dentro del cuerpo. -->
+        <label class="sgp__toggle" :class="{ 'is-on': dobleHook }">
+          <input v-model="dobleHook" type="checkbox" />
+          <span class="sgp__toggle-box"><i class="fa-solid fa-check" /></span>
+          <span class="sgp__toggle-text">
+            <strong><i class="fa-solid fa-bolt-lightning" /> Doble hook separado</strong>
+            <small>Saca el Hook 2 a su propio campo para grabarlo y medirlo aparte.</small>
+          </span>
+        </label>
+
         <!-- The 10/5/5 goal is per monthly planning; across a workspace it
              would read as "74/10", so proportions are shown instead. -->
         <ScriptDistributionWidget
@@ -82,6 +92,8 @@
           v-if="hasExistingScript && localGuionIA"
           :guion-i-a="localGuionIA"
           :is-field-visible="isFieldVisible"
+          :final-usado="finalUsado"
+          @use-final="onUseFinal"
         />
       </template>
     </div>
@@ -101,7 +113,7 @@ import BrandProfileBar from './scriptGenerator/BrandProfileBar.vue'
 import GenerateContextForm from './scriptGenerator/GenerateContextForm.vue'
 import GeneratedScript from './scriptGenerator/GeneratedScript.vue'
 import ScriptVariants from './scriptGenerator/ScriptVariants.vue'
-import { TIPO_GUION_INFO, inferTipoGuion } from './scriptGenerator/constants'
+import { TIPO_GUION_INFO, inferTipoGuion, type FinalKey } from './scriptGenerator/constants'
 import { useScriptGeneration } from './scriptGenerator/useScriptGeneration'
 
 const props = defineProps<{
@@ -168,6 +180,7 @@ const {
   llmStatus,
   llmChecking,
   contextoMes,
+  dobleHook,
   localGuionIA,
   hasExistingScript,
   canGenerate,
@@ -188,9 +201,25 @@ const {
   objetivo: selectedObjetivo,
 })
 
+/**
+ * Cuál de los dos finales quedó pegado en el textarea del guión. Arranca en el
+ * que corresponde al objetivo elegido, que es el que el backend deja en `cta`.
+ */
+const finalUsado = ref<FinalKey>(selectedObjetivo.value === 'anuncio' ? 'ads' : 'feed')
+
 async function onGenerate() {
   const guionIA = await generate()
-  if (guionIA) emit('script-generated', guionIA)
+  if (!guionIA) return
+  finalUsado.value = selectedObjetivo.value === 'anuncio' ? 'ads' : 'feed'
+  emit('script-generated', guionIA)
+}
+
+/** Cambiar de final reescribe el guión sin volver a llamar a la IA. */
+function onUseFinal(key: FinalKey, texto: string) {
+  if (!localGuionIA.value) return
+  finalUsado.value = key
+  localGuionIA.value = { ...localGuionIA.value, cta: texto }
+  emit('script-generated', localGuionIA.value)
 }
 
 async function onGenerateVariants() {
@@ -299,8 +328,67 @@ function onAdoptVariant(guion: GuionIA) {
     padding: 1rem;
   }
 
+  &__toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.65rem 0.8rem;
+    background: rgba($primary-dark, 0.02);
+    border: 1.5px solid rgba($primary-dark, 0.1);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
 
+    &:hover { border-color: rgba($primary, 0.35); }
 
+    &.is-on {
+      background: rgba($primary, 0.05);
+      border-color: rgba($primary, 0.45);
+    }
+
+    input { position: absolute; opacity: 0; pointer-events: none; }
+  }
+
+  &__toggle-box {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-top: 0.1rem;
+    color: transparent;
+    font-size: 0.62rem;
+    background: $white;
+    border: 1.5px solid rgba($primary-dark, 0.2);
+    border-radius: 6px;
+    transition: all 0.18s;
+  }
+
+  &__toggle.is-on &__toggle-box {
+    color: $white;
+    background: $primary;
+    border-color: $primary;
+  }
+
+  &__toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+
+    strong {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      color: $primary-dark;
+
+      i { font-size: 0.72rem; color: $primary; }
+    }
+
+    small { font-size: 0.7rem; line-height: 1.4; color: $text-secondary; }
+  }
 
 
 
