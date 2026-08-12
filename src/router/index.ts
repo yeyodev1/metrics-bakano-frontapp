@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { resolveHomeRoute } from './home'
 
 const routes: Array<RouteRecordRaw> = [
   // ── Public — unauthenticated ──────────────────────────────
@@ -304,9 +305,13 @@ const routes: Array<RouteRecordRaw> = [
   },
 
   // ── Catch-all ─────────────────────────────────────────────
+  // Antes esto redirigía al login. Con sesión abierta era desconcertante: una
+  // URL mal escrita te sacaba a una pantalla de ingreso sin decir por qué.
   {
     path: '/:pathMatch(.*)*',
-    redirect: { name: 'AuthLogin' },
+    name: 'NotFound',
+    component: () => import('../views/errors/NotFoundView.vue'),
+    meta: { title: 'Bakano Ads: Página no encontrada' },
   },
 ]
 
@@ -332,7 +337,9 @@ router.beforeEach((to, _from, next) => {
   if (hasToken) {
     const internalRole = localStorage.getItem('user_internalRole')
     if (internalRole === 'editor') {
-      const allowedForEditor = ['EditorDashboard', 'EditorVideoPlanning', 'AuthLogin']
+      // NotFound entra en la lista: un editor con una URL mala merece saber que
+      // no existe, no aterrizar en su dashboard como si hubiera pedido eso.
+      const allowedForEditor = ['EditorDashboard', 'EditorVideoPlanning', 'AuthLogin', 'NotFound']
       if (to.name && !allowedForEditor.includes(to.name as string)) {
         return next({ name: 'EditorDashboard', replace: true })
       }
@@ -347,28 +354,9 @@ router.beforeEach((to, _from, next) => {
 
   // Already authenticated trying to access public routes
   if (hasToken && (to.name === 'AuthLogin' || to.name === 'PublicHome' || to.path === '/')) {
-    try {
-      const [, payloadSegment] = token.split('.')
-      if (payloadSegment) {
-        const payload = JSON.parse(atob(payloadSegment)) as { role?: string; workspaceId?: string; internalRole?: string }
-        if (payload.role === 'superadmin') {
-          return next({ name: 'AdminWorkspaces' })
-        } else if (payload.internalRole === 'editor') {
-          return next({ name: 'EditorDashboard' })
-        } else if (payload.internalRole === 'trafficker' || payload.internalRole === 'project_manager') {
-          return next({ name: 'TraffickerDashboard' })
-        } else if (payload.internalRole === 'sales_executive') {
-          return next({ name: 'SalesExecutiveDashboard' })
-        } else {
-          const workspaceId = payload.workspaceId || localStorage.getItem('user_workspaceId')
-          if (workspaceId) {
-            return next({ name: 'BillingRoas', params: { workspaceId } })
-          }
-        }
-      }
-    } catch {
-      // silent catch
-    }
+    const home = resolveHomeRoute()
+    // Sin destino propio se queda donde está, en vez de rebotar contra el login.
+    if ((home as { name?: string }).name !== 'AuthLogin') return next(home)
   }
 
   // Role guard: decode role from JWT payload (without external lib)
