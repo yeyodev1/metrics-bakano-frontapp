@@ -74,6 +74,14 @@ async function goToBuilder(target: 'brand-profile' | 'journey' = 'journey') {
 
 const goDefineJourney = () => goToBuilder('journey')
 
+/**
+ * El guión que queda en el textarea. El Hook 2 solo aparece si se generó
+ * aparte; si no, ya viene dentro del cuerpo y meterlo otra vez lo duplicaría.
+ */
+function composeGuion(g: GuionIA): string {
+  return [g.gancho, g.hook2, g.cuerpo, g.cta].filter((p) => p && p.trim()).join('\n\n')
+}
+
 function setObjetivo(objetivo: ObjetivoGuion) {
   form.value.scriptMeta = {
     ...(form.value.scriptMeta ?? {}),
@@ -239,7 +247,7 @@ const { isDirty, requestClose } = useUnsavedCloseGuard({
                 :has-brand-profile="hasBrandProfile ?? false"
                 :brand-profile="brandProfile ?? null"
                 :all-items="allItems"
-                @script-generated="(g: GuionIA) => { form.guion = g.gancho + '\n\n' + g.cuerpo + '\n\n' + g.cta }"
+                @script-generated="(g: GuionIA) => { form.guion = composeGuion(g) }"
                 @brand-profile-updated="(p: BrandProfileType) => emit('brand-profile-updated', p)"
                 @update:tipoGuion="(t: TipoGuion) => { form.tipoGuion = t; form.tipo = GUION_TO_TIPO_REEL[t] }"
                 @update:objetivo="setObjetivo"
