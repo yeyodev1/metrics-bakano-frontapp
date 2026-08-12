@@ -1,5 +1,11 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { resolveHomeRoute } from './home'
+import {
+  createRouter,
+  createWebHistory,
+  type RouteLocationNormalized,
+  type RouteLocationRaw,
+  type RouteRecordRaw,
+} from 'vue-router'
+import { resolveHomeRoute, isWorkspaceIdValido } from './home'
 
 const routes: Array<RouteRecordRaw> = [
   // ── Public — unauthenticated ──────────────────────────────
@@ -323,10 +329,35 @@ const router = createRouter({
   },
 })
 
+/**
+ * Renderiza el 404 sin cambiar la URL.
+ *
+ * La ruta comodín acepta el path entero como `pathMatch`, así que devolver ese
+ * mismo path deja la barra de direcciones igual. Importa: el usuario ve qué
+ * enlace estaba abriendo, y puede corregirlo o compartirlo tal cual.
+ */
+function comoNoEncontrada(to: RouteLocationNormalized): RouteLocationRaw {
+  return {
+    name: 'NotFound',
+    params: { pathMatch: to.path.slice(1).split('/') },
+    query: to.query,
+    hash: to.hash,
+    replace: true,
+  }
+}
+
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('access_token')
   const hasToken = !!token
   const requiresAuth = to.matched.some((r) => r.meta?.requiresAuth)
+
+  // `:workspaceId` acepta cualquier texto, así que /app/workspaces/loquesea/planning
+  // hacía match con una ruta real: se montaba la vista y disparaba media docena de
+  // llamadas condenadas a fallar. Si el id no tiene forma de _id de Mongo, no hay
+  // nada que buscar: es un 404 y se corta antes de pedir nada.
+  if ('workspaceId' in to.params && !isWorkspaceIdValido(to.params.workspaceId)) {
+    return next(comoNoEncontrada(to))
+  }
 
   // Unauthenticated trying to access protected route
   if (requiresAuth && !hasToken) {
