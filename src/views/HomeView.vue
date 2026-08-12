@@ -88,10 +88,6 @@ function goToLogin() {
 
     <!-- Sin esto, alguien sin acceso se quedaba sin a quién escribirle. -->
     <footer class="home-footer">
-      <p class="home-footer__help">
-        ¿Problemas para entrar? Escríbenos a
-        <a href="mailto:soporte@bakano.ec">soporte@bakano.ec</a>
-      </p>
       <p class="home-footer__legal">© {{ anio }} Bakano · metrics.bakano.ec</p>
     </footer>
   </div>
@@ -123,7 +119,30 @@ function goToLogin() {
     linear-gradient(180deg, rgba($primary-dark, 0.5) 0%, rgba($primary-dark, 0.2) 45%, rgba($primary-dark, 0.85) 100%);
 }
 
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+}
+
+/* En movil los dos botones se partian en dos lineas cada uno. */
+@media (max-width: 560px) {
+  .hero__actions {
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+  }
+
+  .hero__actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 .hero__secondary {
+  white-space: nowrap;
   padding: 0.5rem 0.75rem;
   font-size: 0.88rem;
   font-weight: 700;
@@ -139,7 +158,9 @@ function goToLogin() {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  // Con una sola línea, repartir a los extremos la dejaba huérfana a la
+  // izquierda. Centrada se lee como cierre de la página.
+  justify-content: center;
   gap: 0.75rem;
   padding: 2rem 1.5rem 2.5rem;
   border-top: 1px solid rgba($primary-dark, 0.08);
@@ -164,8 +185,10 @@ function goToLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 64px);
-  padding: 4rem 1.5rem;
+  // Tope de alto: con 100vh a secas, en un portatil el hero se comia toda la
+  // pantalla y nada indicaba que la pagina seguia mas abajo.
+  min-height: min(calc(100vh - 64px), 42rem);
+  padding: clamp(2.5rem, 8vh, 4rem) 1.5rem;
   background: linear-gradient(160deg, $primary-dark 0%, darken($primary-dark, 5%) 100%);
   overflow: hidden;
   text-align: center;
@@ -232,7 +255,7 @@ function goToLogin() {
   }
 
   &__title {
-    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-size: clamp(2rem, 4.2vw, 3.5rem);
     font-weight: 800;
     color: $white;
     line-height: 1.15;

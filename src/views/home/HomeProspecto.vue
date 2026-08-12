@@ -24,7 +24,9 @@
 
 <style lang="scss" scoped>
 .prospecto {
-  padding: 0 1.5rem 3.5rem;
+  // Sin el padding de arriba la caja quedaba pegada al borde de la sección
+  // anterior, como si fuera parte de ella.
+  padding: clamp(3rem, 7vw, 5rem) 1.5rem clamp(3rem, 6vw, 4.5rem);
 }
 
 .prospecto__box {
@@ -71,8 +73,12 @@
 .prospecto__cta {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.55rem;
+  // En móvil se partía en dos líneas con el icono colgando.
+  max-width: 100%;
   padding: 0.85rem 1.6rem;
+  white-space: nowrap;
   font-size: 0.95rem;
   font-weight: 700;
   color: $white;
