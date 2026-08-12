@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router'
 import fotoEquipo from '@/assets/auth/equipo-reunion.webp'
 import HomeProspecto from './home/HomeProspecto.vue'
+import HomeFaq from './home/HomeFaq.vue'
 
 const router = useRouter()
 
@@ -83,6 +84,8 @@ function goToLogin() {
         </div>
       </div>
     </section>
+
+    <HomeFaq />
 
     <HomeProspecto />
 
