@@ -25,16 +25,16 @@ function goToLogin() {
       </div>
       
       <div class="hero__content">
-        <span class="hero__badge">Plataforma ROAS</span>
+        <span class="hero__badge">metrics.bakano.ec</span>
         <h1 class="hero__title">
-          Toma el control absoluto de tus <span class="hero__title-highlight">campañas publicitarias</span>
+          El entorno de trabajo de <span class="hero__title-highlight">los clientes de Bakano</span>
         </h1>
         <p class="hero__subtitle">
-          Visualiza tu ROAS, CPA y conversiones en tiempo real. La herramienta definitiva para escalar el rendimiento de tus estrategias en Meta Ads.
+          Facturación y ROAS, planificación de videos, guiones y aprobaciones. Todo lo de tu marca en un solo sitio. Entra con la cuenta que te dio tu equipo de Bakano.
         </p>
         <div class="hero__actions">
           <button class="btn btn--primary" @click="goToLogin">
-            Acceder al Dashboard
+            Entrar a la plataforma
             <i class="fa-solid fa-arrow-right" aria-hidden="true" />
           </button>
           <!-- Esto no es una web de venta: quien llega aquí ya es cliente, y la
@@ -51,31 +51,31 @@ function goToLogin() {
       <div class="features__grid">
         <div class="feature-card">
           <div class="feature-card__icon">
-            <i class="fa-solid fa-bolt"></i>
+            <i class="fa-solid fa-chart-line"></i>
           </div>
-          <h3 class="feature-card__title">Analítica en Tiempo Real</h3>
+          <h3 class="feature-card__title">Facturación y ROAS</h3>
           <p class="feature-card__text">
-            Conéctate directamente a la API de Meta y obtén datos precisos de tus campañas al instante. Sin demoras, cero conjeturas.
+            Registra la facturación del día y mira el retorno de tu inversión en Meta Ads, con los datos que trae la propia API de Meta.
           </p>
         </div>
         
         <div class="feature-card">
           <div class="feature-card__icon">
-            <i class="fa-solid fa-chart-pie"></i>
+            <i class="fa-solid fa-clapperboard"></i>
           </div>
-          <h3 class="feature-card__title">Métricas de Rentabilidad</h3>
+          <h3 class="feature-card__title">Planificación de videos</h3>
           <p class="feature-card__text">
-            Visualiza tu Costo por Resultado (CPR), ROAS y CTR de un vistazo de manera gráfica e intuitiva.
+            El plan del mes, los guiones generados con IA a partir de tu perfil de marca, y el estado de cada video hasta que se publica.
           </p>
         </div>
 
         <div class="feature-card">
           <div class="feature-card__icon">
-            <i class="fa-solid fa-users-gear"></i>
+            <i class="fa-solid fa-circle-check"></i>
           </div>
-          <h3 class="feature-card__title">Ecosistema Centralizado</h3>
+          <h3 class="feature-card__title">Aprobaciones</h3>
           <p class="feature-card__text">
-            Toda la información publicitaria de tu empresa organizada, segura y accesible desde un solo entorno de trabajo.
+            Revisa y aprueba lo que tu equipo de Bakano prepara, sin cadenas de WhatsApp ni archivos sueltos.
           </p>
         </div>
       </div>
@@ -87,7 +87,7 @@ function goToLogin() {
         ¿Problemas para entrar? Escríbenos a
         <a href="mailto:soporte@bakano.ec">soporte@bakano.ec</a>
       </p>
-      <p class="home-footer__legal">© {{ anio }} Bakano · Plataforma ROAS</p>
+      <p class="home-footer__legal">© {{ anio }} Bakano · metrics.bakano.ec</p>
     </footer>
   </div>
 </template>
