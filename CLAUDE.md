@@ -278,7 +278,7 @@ Daily sync of WhatsApp ordering sessions from the Tumesero/Kuikers API for Bolon
 
 **API:**
 - `GET https://www.tumesero.com/api_sesiones_kuikers.php?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&token=TOKEN`
-- Token: `SLKDJ20934831SKDJkjsooK3O399jgrehlhb90764aaqTYH_387JJyu` (expires 2026-07-31)
+- Token: en el `.env` del backend como `TUMESERO_TOKEN` (no se versiona) (expires 2026-07-31)
 - Rate limits: 6 req/hour · 50 req/day (tracked in `TumeseroUsage` MongoDB collection)
 - Hard cap: 100 records per call → use single-day range (`desde=today&hasta=today`)
 - `estado_funnel`: `CON_ORDEN` (sale) | `SIN_ORDEN` (no sale). Revenue fields: `subtotal_neto` (food), `costo_delivery`, `subtotal_desc` (total)

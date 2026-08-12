@@ -1,0 +1,21 @@
+# metrics.bakano.ec — plataforma de clientes de Bakano
+#
+# Solo son públicas la portada y las pantallas de acceso. Todo lo que hay
+# detrás del login es privado y no debe entrar en ningún índice.
+
+User-agent: *
+
+# Público: es lo que queremos que se encuentre al buscar "metrics bakano".
+Allow: /$
+Allow: /login
+Allow: /recuperar-contrasena
+
+# Privado. Los enlaces de restablecer contraseña llevan un token de un solo
+# uso en la URL: que un rastreador los visite sería un problema de seguridad,
+# no solo de SEO.
+Disallow: /restablecer-contrasena/
+Disallow: /app/
+Disallow: /editor/
+Disallow: /onboarding/
+
+Sitemap: https://metrics.bakano.ec/sitemap.xml

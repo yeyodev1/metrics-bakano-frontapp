@@ -85,6 +85,9 @@ import logoLight from '@/assets/logos/bakano-dark.png'
     padding: 0.55rem 1.35rem;
     border-radius: 8px;
     border: none;
+    // Es un RouterLink, así que hereda el subrayado del navegador. Se ve como
+    // botón: no debe llevarlo.
+    text-decoration: none;
     background: linear-gradient(135deg, $primary 0%, darken($primary, 8%) 100%);
     color: $white;
     font-family: $font-principal;

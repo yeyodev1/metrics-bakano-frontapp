@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import logoDark from '@/assets/logos/bakano-dark.png'
+import AuthShell from './auth/AuthShell.vue'
 import { authService } from '@/services/auth.service'
 import { useUserStore } from '@/stores/user'
 import type { ApiError } from '@/types'
@@ -10,22 +10,19 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-// --- Contextual banner ---
+// Quien llega desde un enlace de revisión de videos ve por qué se le pide entrar.
 const isVideoReview = computed(() =>
   typeof route.query.redirect === 'string' && route.query.redirect.includes('video-planning')
 )
 
-// --- State ---
 const email = ref('')
 const password = ref('')
 const isLoading = ref(false)
 const showPassword = ref(false)
 const errorMessage = ref('')
 
-// --- Computed ---
 const isFormValid = computed(() => email.value.length > 0 && password.value.length >= 6)
 
-// --- Actions ---
 async function handleSubmit(): Promise<void> {
   if (!isFormValid.value || isLoading.value) return
 
@@ -76,7 +73,6 @@ async function handleSubmit(): Promise<void> {
     }
 
     // Role-based redirect
-    const isClientUser = !(user.isInternal ?? jwtIsInternal) && user.role !== 'superadmin'
     if (user.role === 'superadmin') {
       await router.push({ name: 'AdminWorkspaces' })
     } else if (targetWorkspaceId) {
@@ -87,567 +83,201 @@ async function handleSubmit(): Promise<void> {
   } catch (err: unknown) {
     const apiError = err as ApiError
     if (apiError.status === 401) {
-      errorMessage.value = 'Correo o contraseña incorrectos. Verifica tus datos e intenta de nuevo.'
+      // Se nombra la salida: quien se equivoca de contraseña suele no acordarse
+      // de ninguna, y el siguiente paso útil es recuperarla, no reintentar a ciegas.
+      errorMessage.value = 'Correo o contraseña incorrectos.'
+      showRecoveryHint.value = true
+    } else if (apiError.status === 0 || apiError.status === undefined) {
+      errorMessage.value = 'No pudimos conectar con el servidor. Revisa tu conexión.'
     } else {
-      errorMessage.value = 'Ocurrió un error. Por favor intenta más tarde.'
+      errorMessage.value = 'Ocurrió un error. Intenta de nuevo en un momento.'
     }
   } finally {
     isLoading.value = false
   }
 }
 
-function togglePassword(): void {
-  showPassword.value = !showPassword.value
-}
+const showRecoveryHint = ref(false)
 </script>
 
 <template>
-  <div class="login-view">
-    <!-- Left decorative panel -->
-    <aside class="login-view__panel" aria-hidden="true">
-      <div class="login-view__panel-gfx">
-        <div class="login-view__orb login-view__orb--1" />
-        <div class="login-view__orb login-view__orb--2" />
-        <div class="login-view__orb login-view__orb--3" />
-      </div>
-      <div class="login-view__panel-copy">
-        <p class="login-view__panel-tag">Plataforma ROAS</p>
-        <h2 class="login-view__panel-title">Gestiona tus campañas con inteligencia.</h2>
-        <p class="login-view__panel-sub">Visibilidad total sobre tu inversión publicitaria, en tiempo real.</p>
-      </div>
-    </aside>
-
-    <!-- Right form panel -->
-    <main class="login-view__form-area">
-      <div class="login-view__card">
-        <!-- Video review context banner -->
-        <div v-if="isVideoReview" class="login-view__context-banner">
-          <div class="login-view__context-icon">
-            <i class="fa-solid fa-film" />
-          </div>
-          <div>
-            <strong>Tienes videos para revisar</strong>
-            <p>Inicia sesión para ver y aprobar la planificación de videos de tu marca.</p>
-          </div>
+  <AuthShell
+    title="Bienvenido de vuelta"
+    subtitle="Inicia sesión en tu cuenta para continuar"
+  >
+    <template v-if="isVideoReview" #banner>
+      <div class="lv__banner">
+        <i class="fa-solid fa-film" aria-hidden="true" />
+        <div>
+          <strong>Tienes videos para revisar</strong>
+          <p>Inicia sesión para ver y aprobar la planificación de videos de tu marca.</p>
         </div>
+      </div>
+    </template>
 
-        <!-- Header -->
-        <div class="login-view__card-header">
-          <img :src="logoDark" alt="Bakano" class="login-view__logo" width="120" height="30" />
-          <h1 class="login-view__title">Bienvenido de vuelta</h1>
-          <p class="login-view__subtitle">Inicia sesión en tu cuenta para continuar</p>
+    <form class="auth-form" novalidate @submit.prevent="handleSubmit">
+      <div class="auth-field">
+        <label class="auth-label" for="email">Correo electrónico</label>
+        <div class="auth-input-wrap">
+          <i class="fa-solid fa-envelope auth-input-icon" aria-hidden="true" />
+          <input
+            id="email"
+            v-model="email"
+            class="auth-input"
+            type="email"
+            placeholder="tu@empresa.com"
+            autocomplete="email"
+            :disabled="isLoading"
+            required
+          />
         </div>
+      </div>
 
-        <!-- Form -->
-        <form class="login-view__form" novalidate @submit.prevent="handleSubmit">
-          <!-- Email -->
-          <div class="login-view__field">
-            <label class="login-view__label" for="email">Correo electrónico</label>
-            <div class="login-view__input-wrap">
-              <i class="fa-solid fa-envelope login-view__input-icon" aria-hidden="true" />
-              <input
-                id="email"
-                v-model="email"
-                class="login-view__input"
-                type="email"
-                placeholder="tu@empresa.com"
-                autocomplete="email"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- Password -->
-          <div class="login-view__field">
-            <div class="login-view__label-row">
-              <label class="login-view__label" for="password">Contraseña</label>
-              <a class="login-view__forgot" href="#" tabindex="-1">¿Olvidaste tu contraseña?</a>
-            </div>
-            <div class="login-view__input-wrap">
-              <i class="fa-solid fa-lock login-view__input-icon" aria-hidden="true" />
-              <input
-                id="password"
-                v-model="password"
-                class="login-view__input"
-                :type="showPassword ? 'text' : 'password'"
-                placeholder="••••••••"
-                autocomplete="current-password"
-                required
-              />
-              <button
-                class="login-view__eye"
-                type="button"
-                :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                @click="togglePassword"
-              >
-                <i
-                  :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
-          </div>
-
-          <!-- Error -->
-          <Transition name="fade-slide">
-            <div v-if="errorMessage" class="login-view__error" role="alert">
-              <i class="fa-solid fa-circle-exclamation" aria-hidden="true" />
-              {{ errorMessage }}
-            </div>
-          </Transition>
-
-          <!-- Submit -->
+      <div class="auth-field">
+        <div class="auth-label-row">
+          <label class="auth-label" for="clave">Contraseña</label>
+          <RouterLink :to="{ name: 'AuthForgotPassword' }" class="auth-link">
+            ¿Olvidaste tu contraseña?
+          </RouterLink>
+        </div>
+        <div class="auth-input-wrap">
+          <i class="fa-solid fa-lock auth-input-icon" aria-hidden="true" />
+          <input
+            id="clave"
+            v-model="password"
+            class="auth-input auth-input--has-eye"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            :disabled="isLoading"
+            required
+          />
           <button
-            id="btn-submit-login"
-            class="login-view__submit"
-            type="submit"
-            :disabled="!isFormValid || isLoading"
+            class="auth-eye"
+            type="button"
+            :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            @click="showPassword = !showPassword"
           >
-            <span v-if="!isLoading" class="login-view__submit-label">
-              Iniciar sesión
-              <i class="fa-solid fa-arrow-right" aria-hidden="true" />
-            </span>
-            <span v-else class="login-view__spinner" aria-label="Cargando" />
+            <i
+              :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"
+              aria-hidden="true"
+            />
           </button>
-        </form>
+        </div>
+      </div>
 
-        <!-- Footer note -->
-        <p class="login-view__footer-note">
-          ¿Necesitas acceso?
-          <a class="login-view__contact-link" href="mailto:hola@bakano.ec">Contacta con tu administrador</a>
+      <Transition name="fade-slide">
+        <div v-if="errorMessage" class="auth-alert auth-alert--error" role="alert">
+          <i class="fa-solid fa-circle-exclamation" aria-hidden="true" />
+          <span>
+            {{ errorMessage }}
+            <RouterLink
+              v-if="showRecoveryHint"
+              :to="{ name: 'AuthForgotPassword' }"
+              class="lv__error-link"
+            >
+              Recuperar contraseña
+            </RouterLink>
+          </span>
+        </div>
+      </Transition>
+
+      <button
+        id="btn-submit-login"
+        class="auth-submit"
+        type="submit"
+        :disabled="!isFormValid || isLoading"
+      >
+        <span v-if="!isLoading">
+          Iniciar sesión
+          <i class="fa-solid fa-arrow-right" aria-hidden="true" />
+        </span>
+        <span v-else class="auth-spinner" aria-label="Entrando" />
+      </button>
+    </form>
+
+    <template #footer>
+      <!-- Aquí es donde de verdad se descubre que hace falta ser cliente:
+           cuando alguien intenta entrar y no tiene cuenta. -->
+      <div class="lv__acceso">
+        <p class="lv__acceso-line">
+          ¿Ya eres cliente y no tienes cuenta?
+          <a class="auth-link" href="mailto:hola@bakano.ec">Escribe a tu equipo de Bakano</a>
+        </p>
+        <p class="lv__acceso-line lv__acceso-line--sep">
+          ¿Aún no eres cliente?
+          <a
+            class="auth-link"
+            href="https://mkt.bakano.ec/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Conoce Bakano
+            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
+          </a>
         </p>
       </div>
-    </main>
-  </div>
+    </template>
+  </AuthShell>
 </template>
 
 <style lang="scss" scoped>
-/* ============================================================
-   LOGIN VIEW
-   ============================================================ */
-.login-view {
+.lv__banner {
   display: flex;
-  min-height: calc(100vh - 64px); // 64px = header height
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: rgba($secondary, 0.07);
+  border: 1.5px solid rgba($secondary, 0.2);
+  border-radius: 12px;
 
-  /* ── Left decorative panel ─────────────────────────────── */
-  &__panel {
-    display: none;
-    position: relative;
-    flex: 0 0 50%;
-    overflow: hidden;
-    background: linear-gradient(145deg, $primary-dark 0%, darken($primary-dark, 4%) 100%);
-
-    @media (min-width: 1024px) {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      padding: 3.5rem;
-    }
+  > i {
+    margin-top: 0.15rem;
+    font-size: 1.1rem;
+    color: $secondary;
   }
 
-  &__panel-gfx {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-
-  &__orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.55;
-
-    &--1 {
-      width: 380px;
-      height: 380px;
-      background: rgba($primary, 0.45);
-      top: -80px;
-      left: -100px;
-      animation: float 8s ease-in-out infinite;
-    }
-
-    &--2 {
-      width: 280px;
-      height: 280px;
-      background: rgba($secondary, 0.4);
-      top: 40%;
-      right: -60px;
-      animation: float 11s ease-in-out infinite reverse;
-    }
-
-    &--3 {
-      width: 200px;
-      height: 200px;
-      background: rgba($primary, 0.25);
-      bottom: 60px;
-      left: 30%;
-      animation: float 14s ease-in-out infinite;
-    }
-  }
-
-  &__panel-copy {
-    position: relative;
-    z-index: 1;
-  }
-
-  &__panel-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: rgba($primary, 0.9);
-    background-color: rgba($primary, 0.1);
-    border: 1px solid rgba($primary, 0.25);
-    border-radius: 100px;
-    padding: 0.3rem 0.85rem;
-    margin-bottom: 1.25rem;
-  }
-
-  &__panel-title {
-    font-size: clamp(1.6rem, 2.5vw, 2.1rem);
-    font-weight: 700;
-    color: $white;
-    line-height: 1.25;
-    margin: 0 0 1rem;
-    letter-spacing: -0.02em;
-  }
-
-  &__panel-sub {
-    font-size: 1rem;
-    color: rgba($text-light, 0.6);
-    line-height: 1.6;
-    margin: 0;
-    max-width: 360px;
-  }
-
-  /* ── Right form area ───────────────────────────────────── */
-  &__form-area {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 1.25rem;
-    background-color: $white;
-
-    @media (min-width: 768px) {
-      padding: 3rem 2rem;
-    }
-  }
-
-  &__card {
-    width: 100%;
-    max-width: 420px;
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-  }
-
-  /* ── Card header ───────────────────────────────────────── */
-  &__card-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  &__logo {
-    height: 100px;
-    width: auto;
+  strong {
     display: block;
-    margin-bottom: 0.5rem;
-  }
-
-  &__title {
-    font-size: clamp(1.5rem, 3vw, 1.875rem);
-    font-weight: 700;
-    color: $primary-dark;
-    letter-spacing: -0.025em;
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  &__subtitle {
-    font-size: 0.9375rem;
-    color: $text-secondary;
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  /* ── Form ──────────────────────────────────────────────── */
-  &__form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  &__field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
-
-  &__label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  &__label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: $primary-dark;
-    letter-spacing: 0.005em;
-  }
-
-  &__forgot {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: $primary;
-    text-decoration: none;
-    transition: opacity 0.15s ease;
-
-    &:hover {
-      opacity: 0.75;
-    }
-  }
-
-  &__input-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-
-  &__input-icon {
-    position: absolute;
-    left: 0.875rem;
     font-size: 0.9rem;
-    color: $text-secondary;
-    pointer-events: none;
-    flex-shrink: 0;
-    line-height: 1;
-  }
-
-  &__input {
-    width: 100%;
-    padding: 0.75rem 1rem 0.75rem 2.75rem;
-    border-radius: 10px;
-    border: 1.5px solid rgba($primary-dark, 0.12);
-    background-color: rgba($primary-dark, 0.025);
     color: $primary-dark;
-    font-family: $font-principal;
-    font-size: 0.9375rem;
-    outline: none;
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease,
-      background-color 0.2s ease;
-
-    &::placeholder {
-      color: rgba($text-secondary, 0.6);
-    }
-
-    &:focus {
-      border-color: $primary;
-      background-color: $white;
-      box-shadow: 0 0 0 4px rgba($primary, 0.1);
-    }
   }
 
-  &__eye {
-    position: absolute;
-    right: 0.875rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    cursor: pointer;
+  p {
+    margin: 0.2rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
     color: $text-secondary;
-    padding: 0.25rem;
-    border-radius: 4px;
-    transition: color 0.15s ease;
-
-    &:hover {
-      color: $primary-dark;
-    }
-  }
-
-  /* ── Error message ─────────────────────────────────────── */
-  &__error {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    background-color: $alert-error-bg;
-    border: 1px solid rgba($alert-error, 0.25);
-    color: $alert-error;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  /* ── Submit button ─────────────────────────────────────── */
-  &__submit {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 0.85rem 1.5rem;
-    margin-top: 0.25rem;
-    border-radius: 10px;
-    border: none;
-    background: linear-gradient(135deg, $primary 0%, darken($primary, 8%) 100%);
-    color: $white;
-    font-family: $font-principal;
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    overflow: hidden;
-    box-shadow: 0 4px 18px rgba($primary, 0.4);
-    transition:
-      box-shadow 0.25s ease,
-      transform 0.18s ease,
-      opacity 0.2s ease;
-
-    // Shimmer
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(105deg,
-          transparent 40%,
-          rgba($white, 0.2) 50%,
-          transparent 60%);
-      transform: translateX(-100%);
-      transition: transform 0.6s ease;
-    }
-
-    &:not(:disabled):hover {
-      box-shadow: 0 6px 24px rgba($primary, 0.55);
-      transform: translateY(-2px);
-
-      &::before {
-        transform: translateX(100%);
-      }
-    }
-
-    &:not(:disabled):active {
-      transform: translateY(0);
-      box-shadow: 0 2px 10px rgba($primary, 0.35);
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-  }
-
-  &__submit-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    position: relative;
-    z-index: 1;
-
-    i {
-      transition: transform 0.2s ease;
-    }
-  }
-
-  &__submit:not(:disabled):hover &__submit-label i {
-    transform: translateX(3px);
-  }
-
-  /* ── Spinner ───────────────────────────────────────────── */
-  &__spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2.5px solid rgba($white, 0.3);
-    border-top-color: $white;
-    border-radius: 50%;
-    animation: spin 0.65s linear infinite;
-  }
-
-  /* ── Footer note ───────────────────────────────────────── */
-  &__footer-note {
-    text-align: center;
-    font-size: 0.85rem;
-    color: $text-secondary;
-    margin: 0;
-  }
-
-  &__contact-link {
-    color: $primary;
-    font-weight: 600;
-    text-decoration: none;
-    transition: opacity 0.15s ease;
-
-    &:hover {
-      opacity: 0.75;
-    }
-  }
-
-  &__context-banner {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.85rem;
-    background: rgba($primary, 0.06);
-    border: 1.5px solid rgba($primary, 0.2);
-    border-radius: 14px;
-    padding: 1rem 1.1rem;
-
-    strong { display: block; font-size: 0.88rem; color: $primary-dark; margin-bottom: 0.2rem; }
-    p { margin: 0; font-size: 0.8rem; color: $text-secondary; line-height: 1.4; }
-  }
-
-  &__context-icon {
-    width: 36px; height: 36px; border-radius: 10px;
-    background: rgba($primary, 0.12); color: $primary;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1rem; flex-shrink: 0;
   }
 }
 
-/* ============================================================
-   TRANSITIONS
-   ============================================================ */
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition:
-    opacity 0.25s ease,
-    transform 0.25s ease;
+.lv__acceso {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
-.fade-slide-enter-from,
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
+.lv__acceso-line {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
 
-/* ============================================================
-   KEYFRAMES
-   ============================================================ */
-@keyframes float {
+  i { font-size: 0.65rem; }
 
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-
-  50% {
-    transform: translateY(-18px) scale(1.03);
+  &--sep {
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba($primary-dark, 0.08);
   }
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.lv__error-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-weight: 800;
+  color: #991b1b;
+  text-decoration: underline;
 }
+
+.fade-slide-enter-active { transition: all 0.2s ease; }
+.fade-slide-enter-from { opacity: 0; transform: translateY(-6px); }
 </style>

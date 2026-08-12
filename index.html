@@ -1,31 +1,101 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-EC">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
+    <meta name="theme-color" content="#191423" />
+
     <!-- Primary Meta Tags -->
-    <title>Bakano Ads - Plataforma de Clientes</title>
-    <meta name="title" content="Bakano Ads - Plataforma de Clientes" />
-    <meta name="description" content="Plataforma exclusiva de analíticas y métricas para clientes de Bakano.ec. Gestiona tus campañas de pauta, entornos de trabajo y maximiza tu ROAS de forma profesional." />
-    <meta name="keywords" content="Bakano, bakano.ec, Bakano Ads, agencia de marketing, ROAS, Dashboards, Analítica, Clientes, Métricas" />
+    <title>metrics.bakano.ec — Plataforma de clientes de Bakano</title>
+    <meta name="description" content="metrics.bakano.ec es la plataforma de clientes de Bakano, agencia de marketing en Ecuador. Los clientes entran aquí para ver su facturación y ROAS de Meta Ads, su planificación de videos y aprobar contenido. El acceso es solo para clientes." />
     <meta name="author" content="Bakano" />
-    
-    <!-- Canonical Tag (SEO Relationship) -->
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+
+    <!-- Señales locales: la agencia opera desde Guayaquil, Ecuador -->
+    <meta name="geo.region" content="EC-G" />
+    <meta name="geo.placename" content="Guayaquil, Ecuador" />
+
     <link rel="canonical" href="https://metrics.bakano.ec/" />
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://metrics.bakano.ec/" />
-    <meta property="og:site_name" content="Bakano Ads Analytics" />
-    <meta property="og:title" content="Bakano Ads - Plataforma de Clientes" />
-    <meta property="og:description" content="Accede a la plataforma de Bakano Ads para gestionar y escalar tus resultados publicitarios con bakano.ec." />
-    
+    <meta property="og:site_name" content="metrics.bakano.ec" />
+    <meta property="og:locale" content="es_EC" />
+    <meta property="og:title" content="metrics.bakano.ec — Plataforma de clientes de Bakano" />
+    <meta property="og:description" content="El entorno de trabajo de los clientes de Bakano: facturación y ROAS, planificación de videos y aprobaciones. El acceso es solo para clientes." />
+    <meta property="og:image" content="https://metrics.bakano.ec/og-metrics.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="metrics.bakano.ec — Plataforma de clientes de Bakano" />
+    <meta name="twitter:description" content="El entorno de trabajo de los clientes de Bakano. El acceso es solo para clientes." />
+    <meta name="twitter:image" content="https://metrics.bakano.ec/og-metrics.jpg" />
+
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+
+    <!--
+      Datos estructurados. Sirven para dos cosas: que Google entienda que este
+      dominio es el acceso de clientes y no un segundo sitio comercial que
+      compita con mkt.bakano.ec, y que los motores de IA puedan responder "qué
+      es metrics.bakano.ec" sin inventarse nada.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://mkt.bakano.ec/#organization",
+          "name": "Bakano",
+          "url": "https://mkt.bakano.ec/",
+          "description": "Agencia de marketing, tecnología y estrategia en Ecuador.",
+          "areaServed": { "@type": "Country", "name": "Ecuador" },
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Guayaquil",
+            "addressCountry": "EC"
+          },
+          "email": "soporte@bakano.ec"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://metrics.bakano.ec/#website",
+          "url": "https://metrics.bakano.ec/",
+          "name": "metrics.bakano.ec",
+          "alternateName": "Plataforma de clientes de Bakano",
+          "inLanguage": "es-EC",
+          "publisher": { "@id": "https://mkt.bakano.ec/#organization" }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://metrics.bakano.ec/#app",
+          "name": "metrics.bakano.ec",
+          "url": "https://metrics.bakano.ec/",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "inLanguage": "es-EC",
+          "isAccessibleForFree": false,
+          "description": "Plataforma privada donde los clientes de Bakano consultan su facturación y ROAS de Meta Ads, revisan la planificación mensual de videos con guiones generados por IA, y aprueban el contenido que produce su equipo.",
+          "audience": {
+            "@type": "Audience",
+            "audienceType": "Clientes de Bakano"
+          },
+          "provider": { "@id": "https://mkt.bakano.ec/#organization" },
+          "featureList": [
+            "Registro de facturación diaria y cálculo de ROAS con datos de la API de Meta Ads",
+            "Planificación mensual de videos con guiones generados por IA",
+            "Aprobación de contenido por parte del cliente"
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="app"></div>
