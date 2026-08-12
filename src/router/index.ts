@@ -6,6 +6,7 @@ import {
   type RouteRecordRaw,
 } from 'vue-router'
 import { resolveHomeRoute, isWorkspaceIdValido } from './home'
+import { applySeo } from './seo'
 
 const routes: Array<RouteRecordRaw> = [
   // ── Public — unauthenticated ──────────────────────────────
@@ -17,26 +18,48 @@ const routes: Array<RouteRecordRaw> = [
         path: '',
         name: 'PublicHome',
         component: () => import('../views/HomeView.vue'),
-        meta: { title: 'Bakano Ads: Impulsando tu ROAS' },
+        meta: {
+          title: 'metrics.bakano.ec — Plataforma de clientes de Bakano',
+          seo: {
+            description:
+              'metrics.bakano.ec es la plataforma de clientes de Bakano, agencia de marketing en Ecuador. Aquí los clientes ven su facturación y ROAS de Meta Ads, la planificación mensual de videos y aprueban contenido. El acceso es solo para clientes.',
+          },
+        },
       },
       {
         path: 'login',
         name: 'AuthLogin',
         component: () => import('../views/LoginView.vue'),
-        meta: { title: 'Bakano Ads: Acceso Cliente' },
+        meta: {
+          title: 'Entrar — Plataforma de clientes de Bakano',
+          seo: {
+            description:
+              'Accede a metrics.bakano.ec, la plataforma de clientes de Bakano. Necesitas la cuenta que te entregó tu equipo; si aún no eres cliente, conoce Bakano en mkt.bakano.ec.',
+          },
+        },
       },
       {
         path: 'recuperar-contrasena',
         name: 'AuthForgotPassword',
         component: () => import('../views/auth/ForgotPasswordView.vue'),
-        meta: { title: 'Bakano Ads: Recuperar contraseña' },
+        meta: {
+          title: 'Recuperar contraseña — Plataforma de clientes de Bakano',
+          seo: {
+            description:
+              'Recupera el acceso a metrics.bakano.ec. Te enviamos un enlace al correo de tu cuenta de cliente de Bakano.',
+          },
+        },
       },
       {
         // El token viaja en la ruta porque llega desde un enlace del correo.
         path: 'restablecer-contrasena/:token',
         name: 'AuthResetPassword',
         component: () => import('../views/auth/ResetPasswordView.vue'),
-        meta: { title: 'Bakano Ads: Nueva contraseña' },
+        meta: {
+          title: 'Nueva contraseña — Plataforma de clientes de Bakano',
+          // Lleva un token de un solo uso en la URL: fuera de los índices.
+          seo: { noindex: true },
+        },
       },
     ],
   },
@@ -431,8 +454,7 @@ router.beforeEach((to, _from, next) => {
 })
 
 router.afterEach((to) => {
-  const title = to.meta?.title as string | undefined
-  document.title = title || 'Bakano Ads - Plataforma de Clientes'
+  applySeo(to)
 })
 
 export default router
