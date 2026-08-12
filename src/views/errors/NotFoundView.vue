@@ -8,11 +8,9 @@
       <p class="nf__code" aria-hidden="true">404</p>
       <h1 class="nf__sr">Página no encontrada</h1>
 
-      <p class="nf__eyebrow">Ruta no encontrada</p>
-      <p class="nf__lead">Esta página no existe.</p>
-      <p class="nf__body">
-        El enlace puede estar mal escrito, o la página se movió de sitio.
-      </p>
+      <p class="nf__eyebrow">{{ caso.eyebrow }}</p>
+      <p class="nf__lead">{{ caso.titulo }}</p>
+      <p class="nf__body">{{ caso.detalle }}</p>
 
       <p class="nf__path">
         <span class="nf__path-label">Intentaste abrir</span>
@@ -40,13 +38,39 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { resolveHomeRoute, homeRouteLabel } from '@/router/home'
+import { resolveHomeRoute, homeRouteLabel, isWorkspaceIdValido } from '@/router/home'
 
 const route = useRoute()
 const router = useRouter()
 
 const destino = computed(() => resolveHomeRoute())
 const etiqueta = computed(() => homeRouteLabel())
+
+/**
+ * Un id de espacio mal formado no es "la página no existe": la página existe,
+ * el identificador del enlace está roto. Decirlo evita que alguien reporte que
+ * "se cayó la planificación" cuando lo que pasó es que el enlace vino cortado.
+ */
+const caso = computed(() => {
+  const segmentos = route.path.split('/')
+  const idx = segmentos.indexOf('workspaces')
+  const posibleId = idx >= 0 ? segmentos[idx + 1] : undefined
+
+  if (posibleId && !isWorkspaceIdValido(posibleId)) {
+    return {
+      eyebrow: 'Espacio de trabajo inválido',
+      titulo: 'Este enlace no apunta a ningún espacio.',
+      detalle:
+        'El identificador del espacio de trabajo está mal formado, casi siempre porque el enlace se cortó al copiarlo o al pegarlo en un chat.',
+    }
+  }
+
+  return {
+    eyebrow: 'Ruta no encontrada',
+    titulo: 'Esta página no existe.',
+    detalle: 'El enlace puede estar mal escrito, o la página se movió de sitio.',
+  }
+})
 
 /** La ruta que se intentó abrir, recortada para que no rompa el ancho. */
 const intentado = computed(() => {
