@@ -18,6 +18,7 @@ function goToLogin() {
     <!-- Hero Section -->
     <section class="hero">
       <img :src="fotoEquipo" alt="" class="hero__foto" aria-hidden="true" />
+      <div class="hero__scrim" aria-hidden="true" />
       <div class="hero__gfx">
         <div class="hero__orb hero__orb--1" />
         <div class="hero__orb hero__orb--2" />
@@ -99,18 +100,34 @@ function goToLogin() {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 30%;
-  // Muy apagada: es atmósfera detrás del titular, no la protagonista.
-  opacity: 0.22;
+  // Las caras quedaban justo detrás del titular y competían con él. Se baja el
+  // encuadre y se apaga la foto: aquí es textura, no protagonista.
+  object-position: center 78%;
+  opacity: 0.16;
+  filter: grayscale(0.4);
+}
+
+/* Capa oscura entre la foto y el texto: el titular se lee sobre color plano. */
+.hero__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba($primary-dark, 0.92) 0%, rgba($primary-dark, 0.55) 60%, transparent 100%),
+    linear-gradient(180deg, rgba($primary-dark, 0.5) 0%, rgba($primary-dark, 0.2) 45%, rgba($primary-dark, 0.85) 100%);
 }
 
 .hero__secondary {
+  padding: 0.5rem 0.75rem;
   font-size: 0.88rem;
   font-weight: 700;
-  color: rgba($white, 0.75);
+  color: rgba($white, 0.82);
   text-decoration: none;
+  border-radius: 8px;
 
-  &:hover { color: $white; text-decoration: underline; }
+  &:hover { color: $white; background: rgba($white, 0.1); }
+  &:focus-visible { outline: 2px solid $white; outline-offset: 2px; }
 }
 
 .home-footer {
