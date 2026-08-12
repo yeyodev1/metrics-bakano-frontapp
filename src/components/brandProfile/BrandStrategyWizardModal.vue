@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
-import { useConfirm } from '@/composables/useConfirm'
+import { ref, computed, watch, toRef } from 'vue'
+import { useUnsavedCloseGuard } from '@/composables/useUnsavedCloseGuard'
 import type { BrandProfile, SegmentoMercado, CustomerJourneyCase } from '@/types'
 
 const props = defineProps<{
@@ -61,73 +61,34 @@ function resetFromProfile() {
       ]
 }
 
-/** Foto de los datos al abrir; contra esto se decide si hay algo que perder. */
-const snapshot = ref('')
-
-function currentState() {
-  return JSON.stringify({
-    propuestaValor: propuestaValor.value,
-    segmentos: segmentos.value,
-    canales: canales.value,
-    actividades: actividades.value,
-    casos: casos.value,
-  })
-}
-
-const isDirty = computed(() => snapshot.value !== currentState())
-
 watch(
   () => props.show,
   (val) => {
     if (val) {
       step.value = 1
       resetFromProfile()
-      snapshot.value = currentState()
-      document.addEventListener('keydown', onKeydown)
-    } else {
-      document.removeEventListener('keydown', onKeydown)
     }
   },
   { immediate: true }
 )
 
-onUnmounted(() => document.removeEventListener('keydown', onKeydown))
-
-const { confirm } = useConfirm()
-
-/** Evita encadenar dos confirmaciones si vuelven a pulsar Escape o la X. */
-const askingClose = ref(false)
-
-/**
- * Único camino de salida del wizard. Sin nada escrito cierra directo — pedir
- * confirmación ahí solo estorba. Con datos pregunta, porque el onboarding no
- * guarda nada hasta el paso 6 y cerrarlo por error borra los seis pasos.
- */
-async function requestClose() {
-  if (props.isSaving || askingClose.value) return
-  if (!isDirty.value) {
-    emit('close')
-    return
-  }
-
-  askingClose.value = true
-  const salir = await confirm({
-    title: '¿Salir del onboarding?',
-    message:
-      'Lo que escribiste todavía no se ha guardado. Si sales ahora se pierde y hay que empezar de nuevo desde el paso 1.',
-    confirmText: 'Salir y descartar',
-    cancelText: 'Seguir editando',
-  })
-  askingClose.value = false
-
-  if (salir) emit('close')
-}
-
-function onKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape') return
-  event.stopPropagation()
-  requestClose()
-}
+// El onboarding no guarda nada hasta el paso 6: cerrarlo por error borra los
+// seis pasos, así que las salidas pasan por el guardia compartido.
+const { isDirty, requestClose } = useUnsavedCloseGuard({
+  show: toRef(props, 'show'),
+  state: () => ({
+    propuestaValor: propuestaValor.value,
+    segmentos: segmentos.value,
+    canales: canales.value,
+    actividades: actividades.value,
+    casos: casos.value,
+  }),
+  isBusy: toRef(props, 'isSaving'),
+  onClose: () => emit('close'),
+  title: '¿Salir del onboarding?',
+  message:
+    'Lo que escribiste todavía no se ha guardado. Si sales ahora se pierde y hay que empezar de nuevo desde el paso 1.',
+})
 
 // Lo que realmente se va a guardar. El resumen del paso de confirmación lee
 // estos mismos computed que finish(), así que lo que el usuario ve confirmado

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useUnsavedCloseGuard } from '@/composables/useUnsavedCloseGuard'
 import type { BrandProfile } from '@/types'
 import type { BrandProfile as BrandProfileType } from '@/types'
 import type { VideoItem, CreateVideoItemPayload, GuionIA, TipoGuion, ObjetivoGuion } from '@/types/videoPlanning'
@@ -9,6 +10,7 @@ import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion, Cliente
 import ScriptGeneratorPanel from './ScriptGeneratorPanel.vue'
 import ScriptDistributionWidget from './ScriptDistributionWidget.vue'
 import ItemModalOnboarding from './itemModal/ItemModalOnboarding.vue'
+import ItemRejectionAlert from './itemModal/ItemRejectionAlert.vue'
 import ItemClientView from './itemModal/ItemClientView.vue'
 import ItemBasicFields from './itemModal/ItemBasicFields.vue'
 import ItemPublishFields from './itemModal/ItemPublishFields.vue'
@@ -51,10 +53,12 @@ const router = useRouter()
  * Navigating to the route we are already on is a duplicated-navigation error in
  * vue-router; it is swallowed because the user is, by then, already there.
  */
-function goToBuilder(target: 'brand-profile' | 'journey' = 'journey') {
+async function goToBuilder(target: 'brand-profile' | 'journey' = 'journey') {
   if (!props.workspaceId) return
 
-  emit('close')
+  // Irse a definir la marca también descarta el formulario, así que pasa por
+  // la misma confirmación. Si dicen que no, se quedan donde estaban.
+  if (!(await requestClose())) return
 
   const to =
     target === 'brand-profile'
@@ -166,19 +170,35 @@ watch(() => form.value.tipo, (tipo) => {
     form.value.tipoGuion = TIPO_REEL_TO_GUION[tipo]
   }
 })
+
+// El modal no guarda hasta "Agregar video": cerrarlo sin querer borraba todo.
+const { isDirty, requestClose } = useUnsavedCloseGuard({
+  show: toRef(props, 'show'),
+  state: () => form.value,
+  isBusy: toRef(props, 'isSaving'),
+  onClose: () => emit('close'),
+  title: '¿Cerrar sin guardar el video?',
+  message:
+    'Lo que escribiste en este video todavía no se ha guardado. Si cierras ahora se pierde y hay que llenarlo de nuevo.',
+})
 </script>
 
 <template>
   <Transition name="fade">
     <div v-if="show" class="vp-item-modal">
-      <div class="vp-item-modal__overlay" @click="emit('close')" />
+      <div class="vp-item-modal__overlay" @click="requestClose" />
       <div class="vp-item-modal__container" :class="{ 'is-view': isReadOnly }">
         <div class="vp-item-modal__header">
           <div class="vp-item-modal__header-title">
             <i class="fa-solid fa-clapperboard" />
             <h3>{{ isReadOnly ? form.tema : (item ? 'Editar video' : 'Nuevo video') }}</h3>
           </div>
-          <button class="vp-item-modal__close" @click="emit('close')">
+          <button
+            class="vp-item-modal__close"
+            :title="isDirty ? 'Cerrar (te pedirá confirmación)' : 'Cerrar'"
+            aria-label="Cerrar"
+            @click="requestClose"
+          >
             <i class="fa-solid fa-xmark" />
           </button>
         </div>
@@ -193,13 +213,7 @@ watch(() => form.value.tipo, (tipo) => {
             />
 
             <!-- Rejection Alert -->
-            <div v-if="isRejected" class="vp-item-modal__rejection">
-              <div class="rejection-header">
-                <i class="fa-solid fa-circle-exclamation" />
-                <span>MOTIVO DE RECHAZO</span>
-              </div>
-              <p>{{ ideaRejection || 'Sin comentario de rechazo' }}</p>
-            </div>
+            <ItemRejectionAlert v-if="isRejected" :motivo="ideaRejection" />
 
             <!-- Information View (Client) -->
             <ItemClientView v-if="isReadOnly" :form="form" />
@@ -250,7 +264,11 @@ watch(() => form.value.tipo, (tipo) => {
           </div>
 
           <div class="vp-item-modal__footer">
-            <button type="button" class="vp-item-modal__btn-ghost" @click="emit('close')">{{ isReadOnly ? 'Cerrar' : 'Cancelar' }}</button>
+            <!-- Que se vea que nada se ha guardado, antes de intentar cerrar. -->
+            <span v-if="isDirty && !isReadOnly" class="vp-item-modal__unsaved">
+              <i class="fa-solid fa-circle" /> Sin guardar
+            </span>
+            <button type="button" class="vp-item-modal__btn-ghost" @click="requestClose">{{ isReadOnly ? 'Cerrar' : 'Cancelar' }}</button>
             <button v-if="!isReadOnly" type="submit" class="vp-item-modal__btn-primary" :disabled="isSaving">
               <span v-if="isSaving" class="spinner" />
               <span v-else>{{ item ? 'Guardar cambios' : 'Agregar video' }}</span>
@@ -299,19 +317,7 @@ watch(() => form.value.tipo, (tipo) => {
     @media (max-width: 600px) { padding: 1rem; gap: 1rem; }
   }
 
-  &__rejection {
-    background: #fef2f2; border: 1.5px solid #ef4444; border-radius: 16px;
-    padding: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem;
-    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-    .rejection-header {
-      display: flex; align-items: center; gap: 0.6rem; color: #b91c1c;
-      i { font-size: 1.1rem; }
-      span { font-size: 0.75rem; font-weight: 900; letter-spacing: 0.1em; }
-    }
-    p { margin: 0; font-size: 0.95rem; font-weight: 600; color: #991b1b; line-height: 1.5; }
-  }
-
-  &__row { 
+  &__row {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; 
     &.is-statuses { 
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); 
@@ -352,6 +358,12 @@ watch(() => form.value.tipo, (tipo) => {
     @media (max-width: 600px) { padding: 1rem; }
   }
 
+  &__unsaved {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin-right: auto;
+    font-size: 0.72rem; font-weight: 800; color: #d97706;
+    i { font-size: 0.4rem; }
+  }
+
   &__btn-ghost {
     background: transparent; border: none; color: $text-secondary; font-weight: 700;
     padding: 0.75rem 1.5rem; border-radius: 12px; cursor: pointer; transition: all 0.2s;
@@ -372,12 +384,6 @@ watch(() => form.value.tipo, (tipo) => {
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes shake {
-  10%, 90% { transform: translate3d(-1px, 0, 0); }
-  20%, 80% { transform: translate3d(2px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-  40%, 60% { transform: translate3d(4px, 0, 0); }
-}
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
