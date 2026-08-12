@@ -25,6 +25,19 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/LoginView.vue'),
         meta: { title: 'Bakano Ads: Acceso Cliente' },
       },
+      {
+        path: 'recuperar-contrasena',
+        name: 'AuthForgotPassword',
+        component: () => import('../views/auth/ForgotPasswordView.vue'),
+        meta: { title: 'Bakano Ads: Recuperar contraseña' },
+      },
+      {
+        // El token viaja en la ruta porque llega desde un enlace del correo.
+        path: 'restablecer-contrasena/:token',
+        name: 'AuthResetPassword',
+        component: () => import('../views/auth/ResetPasswordView.vue'),
+        meta: { title: 'Bakano Ads: Nueva contraseña' },
+      },
     ],
   },
 
