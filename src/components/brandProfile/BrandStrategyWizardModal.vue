@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { useConfirm } from '@/composables/useConfirm'
 import type { BrandProfile, SegmentoMercado, CustomerJourneyCase } from '@/types'
 
 const props = defineProps<{
@@ -60,16 +61,73 @@ function resetFromProfile() {
       ]
 }
 
+/** Foto de los datos al abrir; contra esto se decide si hay algo que perder. */
+const snapshot = ref('')
+
+function currentState() {
+  return JSON.stringify({
+    propuestaValor: propuestaValor.value,
+    segmentos: segmentos.value,
+    canales: canales.value,
+    actividades: actividades.value,
+    casos: casos.value,
+  })
+}
+
+const isDirty = computed(() => snapshot.value !== currentState())
+
 watch(
   () => props.show,
   (val) => {
     if (val) {
       step.value = 1
       resetFromProfile()
+      snapshot.value = currentState()
+      document.addEventListener('keydown', onKeydown)
+    } else {
+      document.removeEventListener('keydown', onKeydown)
     }
   },
   { immediate: true }
 )
+
+onUnmounted(() => document.removeEventListener('keydown', onKeydown))
+
+const { confirm } = useConfirm()
+
+/** Evita encadenar dos confirmaciones si vuelven a pulsar Escape o la X. */
+const askingClose = ref(false)
+
+/**
+ * Único camino de salida del wizard. Sin nada escrito cierra directo — pedir
+ * confirmación ahí solo estorba. Con datos pregunta, porque el onboarding no
+ * guarda nada hasta el paso 6 y cerrarlo por error borra los seis pasos.
+ */
+async function requestClose() {
+  if (props.isSaving || askingClose.value) return
+  if (!isDirty.value) {
+    emit('close')
+    return
+  }
+
+  askingClose.value = true
+  const salir = await confirm({
+    title: '¿Salir del onboarding?',
+    message:
+      'Lo que escribiste todavía no se ha guardado. Si sales ahora se pierde y hay que empezar de nuevo desde el paso 1.',
+    confirmText: 'Salir y descartar',
+    cancelText: 'Seguir editando',
+  })
+  askingClose.value = false
+
+  if (salir) emit('close')
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape') return
+  event.stopPropagation()
+  requestClose()
+}
 
 // Lo que realmente se va a guardar. El resumen del paso de confirmación lee
 // estos mismos computed que finish(), así que lo que el usuario ve confirmado
@@ -99,7 +157,7 @@ function nextStep() {
 }
 function prevStep() {
   if (step.value > 1) step.value--
-  else emit('close')
+  else requestClose()
 }
 function goToStep(n: number) {
   step.value = n
@@ -149,7 +207,7 @@ function finish() {
 <template>
   <Teleport to="body">
     <Transition name="bsw-fade">
-      <div v-if="show" class="bsw-overlay" @click.self="emit('close')">
+      <div v-if="show" class="bsw-overlay" @click.self="requestClose">
         <div class="bsw-modal">
           <!-- Header -->
           <header class="bsw-header">
@@ -160,7 +218,13 @@ function finish() {
                 <p>Define tu propuesta de valor, mercado y Customer Journey paso a paso.</p>
               </div>
             </div>
-            <button class="bsw-close" :disabled="isSaving" @click="emit('close')">
+            <button
+              class="bsw-close"
+              :disabled="isSaving"
+              :title="isDirty ? 'Cerrar (te pedirá confirmación)' : 'Cerrar'"
+              aria-label="Cerrar"
+              @click="requestClose"
+            >
               <i class="fa-solid fa-xmark" />
             </button>
           </header>
@@ -403,7 +467,13 @@ function finish() {
             <button type="button" class="bsw-btn-ghost" :disabled="isSaving" @click="prevStep">
               <i class="fa-solid fa-arrow-left" /> {{ step === 1 ? 'Cancelar' : 'Atrás' }}
             </button>
-            <span class="bsw-footer__progress">Paso {{ step }} de {{ STEPS.length }}</span>
+            <span class="bsw-footer__progress">
+              Paso {{ step }} de {{ STEPS.length }}
+              <!-- Que sepan que nada se ha guardado todavía, antes de cerrar. -->
+              <em v-if="isDirty" class="bsw-unsaved">
+                <i class="fa-solid fa-circle" /> Sin guardar
+              </em>
+            </span>
             <button
               v-if="step < STEPS.length"
               type="button"
@@ -897,9 +967,25 @@ function finish() {
 }
 
 .bsw-footer__progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
   font-size: 0.78rem;
   font-weight: 700;
   color: $text-secondary;
+}
+
+.bsw-unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 800;
+  color: #d97706;
+
+  i { font-size: 0.4rem; }
 }
 
 .bsw-btn-ghost, .bsw-btn-primary {
