@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import fotoEquipo from '@/assets/auth/equipo-reunion.webp'
+import HomeProspecto from './home/HomeProspecto.vue'
 
 const router = useRouter()
 
@@ -30,7 +31,9 @@ function goToLogin() {
           El entorno de trabajo de <span class="hero__title-highlight">los clientes de Bakano</span>
         </h1>
         <p class="hero__subtitle">
-          Facturación y ROAS, planificación de videos, guiones y aprobaciones. Todo lo de tu marca en un solo sitio. Entra con la cuenta que te dio tu equipo de Bakano.
+          Facturación y ROAS, planificación de videos, guiones y aprobaciones. Todo lo de tu
+          marca en un solo sitio. <strong>El acceso es solo para clientes de Bakano</strong>, con
+          la cuenta que te dio tu equipo.
         </p>
         <div class="hero__actions">
           <button class="btn btn--primary" @click="goToLogin">
@@ -80,6 +83,8 @@ function goToLogin() {
         </div>
       </div>
     </section>
+
+    <HomeProspecto />
 
     <!-- Sin esto, alguien sin acceso se quedaba sin a quién escribirle. -->
     <footer class="home-footer">
