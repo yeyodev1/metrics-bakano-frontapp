@@ -78,10 +78,12 @@ class BrandProfileService extends APIBase {
     objetivo?: ObjetivoGuion,
     /** >1 returns options to choose from instead of saving directly. */
     variantes?: number,
+    /** Saca el Hook 2 a su propio campo en vez de esconderlo en el cuerpo. */
+    dobleHook?: boolean,
   ): Promise<ScriptGenerateResponse> {
     const res = await this.post<ScriptGenerateResponse>(
       `video-planning/${videoItemId}/generate-script`,
-      { contextoMes, tipoGuion, objetivo, variantes },
+      { contextoMes, tipoGuion, objetivo, variantes, dobleHook },
       undefined,
       { timeout: 60000 },
     )
@@ -100,10 +102,11 @@ class BrandProfileService extends APIBase {
     contextoMes?: { productoMes?: string; ofertaEspecial?: string; referenciasAdicionales?: string },
     tipoGuion?: TipoGuion,
     objetivo?: ObjetivoGuion,
+    dobleHook?: boolean,
   ): Promise<ScriptGenerateResponse> {
     const res = await this.post<ScriptGenerateResponse>(
       'video-planning/generate-script-quick',
-      { workspaceId, tema, tipo, contextoMes, tipoGuion, objetivo },
+      { workspaceId, tema, tipo, contextoMes, tipoGuion, objetivo, dobleHook },
       undefined,
       { timeout: 60000 },
     )
