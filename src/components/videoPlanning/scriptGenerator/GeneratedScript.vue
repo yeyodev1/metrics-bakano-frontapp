@@ -35,29 +35,39 @@
         </div>
       </Transition>
 
+      <!-- Solo cuando se generó con doble hook separado. -->
+      <Transition name="gsc-field">
+        <div v-if="isFieldVisible(2) && guionIA.hook2" class="gsc__field gsc__field--highlight">
+          <div class="gsc__field-header">
+            <i class="fa-solid fa-bolt-lightning" /><span>Hook 2 (seg 3-5)</span>
+            <span class="gsc__chip">El giro que reengancha</span>
+          </div>
+          <div class="gsc__field-content gsc__field-content--bold">{{ guionIA.hook2 }}</div>
+        </div>
+      </Transition>
+
       <Transition name="gsc-field">
         <div v-if="isFieldVisible(3)" class="gsc__field">
           <div class="gsc__field-header">
-            <i class="fa-solid fa-scroll" /><span>Cuerpo — abre con el Hook 2 (máx. 45 seg)</span>
+            <i class="fa-solid fa-scroll" />
+            <span>{{ guionIA.hook2 ? 'Cuerpo (máx. 45 seg)' : 'Cuerpo — abre con el Hook 2 (máx. 45 seg)' }}</span>
           </div>
           <div class="gsc__field-content gsc__field-content--script">{{ guionIA.cuerpo }}</div>
         </div>
       </Transition>
 
       <Transition name="gsc-field">
-        <div v-if="isFieldVisible(4)" class="gsc__field-row">
-          <div class="gsc__field gsc__field--cta">
-            <div class="gsc__field-header">
-              <i class="fa-solid fa-bullhorn" /><span>CTA (Llamado a acción)</span>
-            </div>
-            <div class="gsc__field-content gsc__field-content--bold">{{ guionIA.cta }}</div>
+        <div v-if="isFieldVisible(4)">
+          <ScriptFinales :guion-i-a="guionIA" :usado="finalUsado" @use="onUseFinal" />
+        </div>
+      </Transition>
+
+      <Transition name="gsc-field">
+        <div v-if="isFieldVisible(4)" class="gsc__field">
+          <div class="gsc__field-header">
+            <i class="fa-solid fa-film" /><span>B-Roll / Apoyo visual</span>
           </div>
-          <div class="gsc__field">
-            <div class="gsc__field-header">
-              <i class="fa-solid fa-film" /><span>B-Roll / Apoyo visual</span>
-            </div>
-            <div class="gsc__field-content">{{ guionIA.broll }}</div>
-          </div>
+          <div class="gsc__field-content">{{ guionIA.broll }}</div>
         </div>
       </Transition>
     </div>
@@ -66,12 +76,21 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import ScriptFinales from './ScriptFinales.vue'
+import type { FinalKey } from './constants'
 import type { GuionIA } from '@/types/videoPlanning'
 
 const props = defineProps<{
   guionIA: GuionIA
   isFieldVisible: (index: number) => boolean
+  finalUsado?: FinalKey | null
 }>()
+
+const emit = defineEmits<{ (e: 'use-final', key: FinalKey, texto: string): void }>()
+
+function onUseFinal(key: FinalKey, texto: string) {
+  emit('use-final', key, texto)
+}
 
 const generatedAtLabel = computed(() => {
   if (!props.guionIA.generadoEn) return ''

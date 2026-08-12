@@ -97,14 +97,12 @@ const props = defineProps<{
 
 defineEmits<{ (e: 'save', guion: any): void; (e: 'discard'): void }>()
 
-const FIELDS = [
-  { key: 'gancho', label: 'Hook 1', hint: '0-3 seg · el que detiene el scroll', rows: 2 },
-  { key: 'textoPantalla', label: 'Texto en pantalla', hint: 'debe funcionar sin sonido', rows: 2 },
-  { key: 'cuerpo', label: 'Cuerpo', hint: 'abre con el Hook 2', rows: 5 },
-  { key: 'cta', label: 'CTA', hint: 'una sola acción', rows: 2 },
-  { key: 'broll', label: 'B-roll', rows: 2 },
-  { key: 'conceptoVisual', label: 'Concepto visual', rows: 2 },
-] as const
+interface VariantField {
+  key: string
+  label: string
+  hint?: string
+  rows: number
+}
 
 const active = ref(0)
 const touched = ref(false)
@@ -123,6 +121,37 @@ watch(
 )
 
 const current = computed(() => drafts.value[active.value] ?? null)
+
+/**
+ * Los campos dependen de cómo se generó: el Hook 2 solo se edita aparte si se
+ * pidió doble hook, y los dos finales reemplazan al CTA único cuando existen.
+ */
+const FIELDS = computed<VariantField[]>(() => {
+  const d = current.value
+  const tieneFinales = !!(d?.ctaFeed || d?.ctaAds)
+
+  return [
+    { key: 'gancho', label: 'Hook 1', hint: '0-3 seg · el que detiene el scroll', rows: 2 },
+    { key: 'textoPantalla', label: 'Texto en pantalla', hint: 'debe funcionar sin sonido', rows: 2 },
+    ...(d?.hook2
+      ? [{ key: 'hook2', label: 'Hook 2', hint: 'seg 3-5 · el giro que reengancha', rows: 2 }]
+      : []),
+    {
+      key: 'cuerpo',
+      label: 'Cuerpo',
+      hint: d?.hook2 ? 'arranca después del Hook 2' : 'abre con el Hook 2',
+      rows: 5,
+    },
+    ...(tieneFinales
+      ? [
+          { key: 'ctaFeed', label: 'Final · Feed', hint: 'comentar, guardar o seguir', rows: 2 },
+          { key: 'ctaAds', label: 'Final · Anuncio', hint: 'una sola acción comercial', rows: 2 },
+        ]
+      : [{ key: 'cta', label: 'CTA', hint: 'una sola acción', rows: 2 }]),
+    { key: 'broll', label: 'B-roll', rows: 2 },
+    { key: 'conceptoVisual', label: 'Concepto visual', rows: 2 },
+  ]
+})
 
 const missing = computed(() => {
   const d = props.contexto?.datosDisponibles

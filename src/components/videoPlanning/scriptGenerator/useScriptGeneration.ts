@@ -47,6 +47,12 @@ export function useScriptGeneration(options: UseScriptGenerationOptions) {
     referenciasAdicionales: '',
   })
 
+  /**
+   * Doble hook separado. Va apagado por defecto: el Hook 2 ya vive dentro del
+   * cuerpo, y sacarlo aparte es una decisión de quien graba, no el default.
+   */
+  const dobleHook = ref(false)
+
   const localGuionIA = ref<GuionIA | null>(options.item.value?.guionIA ?? null)
 
   // Fields appear one by one so the result reads as it is written.
@@ -111,7 +117,8 @@ export function useScriptGeneration(options: UseScriptGenerationOptions) {
         },
         options.tipoGuion.value,
         options.objetivo.value,
-        count
+        count,
+        dobleHook.value
       )
       variants.value = res.opciones ?? []
       variantContext.value = res.contexto ?? null
@@ -143,7 +150,9 @@ export function useScriptGeneration(options: UseScriptGenerationOptions) {
           options.item.value._id,
           ctx,
           options.tipoGuion.value,
-          options.objetivo.value
+          options.objetivo.value,
+          undefined,
+          dobleHook.value
         )
       } else {
         const temaTopic = options.tema.value ?? ''
@@ -157,7 +166,8 @@ export function useScriptGeneration(options: UseScriptGenerationOptions) {
           options.tipo.value,
           ctx,
           options.tipoGuion.value,
-          options.objetivo.value
+          options.objetivo.value,
+          dobleHook.value
         )
       }
 
@@ -179,6 +189,7 @@ export function useScriptGeneration(options: UseScriptGenerationOptions) {
     llmStatus,
     llmChecking,
     contextoMes,
+    dobleHook,
     localGuionIA,
     hasExistingScript,
     canGenerate,

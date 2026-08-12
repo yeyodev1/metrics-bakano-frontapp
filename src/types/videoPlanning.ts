@@ -72,8 +72,15 @@ export interface GuionIA {
   conceptoVisual: string
   gancho: string
   textoPantalla: string
+  /** Hook 2 aparte; solo si el guión se generó con doble hook separado. */
+  hook2?: string
   cuerpo: string
+  /** Cierre por defecto. Los guiones viejos solo tienen este. */
   cta: string
+  /** Cierre suave para el feed: comentar, guardar, seguir. */
+  ctaFeed?: string
+  /** Cierre duro para pauta: una sola acción comercial. */
+  ctaAds?: string
   broll: string
   generadoEn?: string
   contextoMes?: {
