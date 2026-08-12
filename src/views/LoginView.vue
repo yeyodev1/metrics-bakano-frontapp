@@ -135,7 +135,7 @@ const showRecoveryHint = ref(false)
 
       <div class="auth-field">
         <div class="auth-label-row">
-          <label class="auth-label" for="password">Contraseña</label>
+          <label class="auth-label" for="clave">Contraseña</label>
           <RouterLink :to="{ name: 'AuthForgotPassword' }" class="auth-link">
             ¿Olvidaste tu contraseña?
           </RouterLink>
@@ -143,7 +143,7 @@ const showRecoveryHint = ref(false)
         <div class="auth-input-wrap">
           <i class="fa-solid fa-lock auth-input-icon" aria-hidden="true" />
           <input
-            id="password"
+            id="clave"
             v-model="password"
             class="auth-input auth-input--has-eye"
             :type="showPassword ? 'text' : 'password'"

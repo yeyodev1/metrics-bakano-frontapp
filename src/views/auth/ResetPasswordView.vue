@@ -36,11 +36,11 @@
 
     <form v-else class="auth-form" novalidate @submit.prevent="guardar">
       <div class="auth-field">
-        <label class="auth-label" for="password">Contraseña nueva</label>
+        <label class="auth-label" for="clave-nueva">Contraseña nueva</label>
         <div class="auth-input-wrap">
           <i class="fa-solid fa-lock auth-input-icon" aria-hidden="true" />
           <input
-            id="password"
+            id="clave-nueva"
             v-model="password"
             class="auth-input auth-input--has-eye"
             :type="verPassword ? 'text' : 'password'"
@@ -66,11 +66,11 @@
       </div>
 
       <div class="auth-field">
-        <label class="auth-label" for="password2">Repite la contraseña</label>
+        <label class="auth-label" for="clave-repetida">Repite la contraseña</label>
         <div class="auth-input-wrap">
           <i class="fa-solid fa-lock auth-input-icon" aria-hidden="true" />
           <input
-            id="password2"
+            id="clave-repetida"
             v-model="password2"
             class="auth-input"
             :type="verPassword ? 'text' : 'password'"
