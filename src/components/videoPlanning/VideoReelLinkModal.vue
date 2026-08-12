@@ -3,18 +3,7 @@
     <Transition name="modal-fade">
       <div v-if="show && item" class="rlm__overlay" @click.self="emit('close')">
         <div class="rlm">
-          <header class="rlm__header">
-            <div class="rlm__header-title">
-              <i class="fa-solid fa-link rlm__header-icon" />
-              <div>
-                <h3>Vincular publicación al Guion #{{ item.numero }}</h3>
-                <p>Conecta el reel orgánico, el anuncio pautado, o los dos.</p>
-              </div>
-            </div>
-            <button class="rlm__close" aria-label="Cerrar" @click="emit('close')">
-              <i class="fa-solid fa-xmark" />
-            </button>
-          </header>
+          <LinkModalHeader :numero="item.numero" @close="emit('close')" />
 
           <div class="rlm__body">
             <div class="rlm__context">
@@ -99,6 +88,7 @@ import { useToast } from '@/composables/useToast'
 import MetaAdPicker from './MetaAdPicker.vue'
 import ReelPreviewModal from './ReelPreviewModal.vue'
 import JourneyCaseSelector from './reelLink/JourneyCaseSelector.vue'
+import LinkModalHeader from './reelLink/LinkModalHeader.vue'
 import LinkSourceSection from './reelLink/LinkSourceSection.vue'
 import ReelPickerList from './reelLink/ReelPickerList.vue'
 import { useReelPicker } from './reelLink/useReelPicker'
@@ -234,61 +224,31 @@ async function handleConfirmLink() {
   flex-direction: column;
   width: 100%;
   max-width: 640px;
+  // dvh evita que la barra del navegador (móvil) recorte el footer.
   max-height: 92vh;
+  max-height: 92dvh;
+  min-height: 0;
   overflow: hidden;
   background: $white;
   border-radius: 16px;
 }
 
-.rlm__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.1rem 1.25rem;
-  background: linear-gradient(135deg, rgba(#e1306c, 0.06), rgba($secondary, 0.04));
-  border-bottom: 1px solid rgba($text-secondary, 0.15);
-
-  h3 { margin: 0 0 0.2rem; font-size: 1rem; color: $primary-dark; }
-  p { margin: 0; font-size: 0.8rem; line-height: 1.4; color: $text-secondary; }
-}
-
-.rlm__header-title {
-  display: flex;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.rlm__header-icon {
-  flex-shrink: 0;
-  margin-top: 0.15rem;
-  font-size: 1.4rem;
-  color: #e1306c;
-}
-
-.rlm__close {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  color: $text-secondary;
-  background: rgba($text-secondary, 0.1);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-
-  &:hover { background: rgba($text-secondary, 0.2); }
-}
-
 .rlm__body {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 1.25rem;
+  // min-height: 0 es lo que permite que este bloque encoja dentro del flex
+  // column y sea él quien scrollee, en vez de desbordar y empujar el footer.
+  min-height: 0;
   padding: 1.25rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
+
+  // Sin esto los hijos se encogen para caber en la altura visible en vez de
+  // desbordar, y la sección (que tiene overflow:hidden por las esquinas)
+  // recortaba la lista de reels sin dejar scrollear.
+  > * { flex-shrink: 0; }
 }
 
 .rlm__context {
@@ -339,6 +299,8 @@ async function handleConfirmLink() {
 
 .rlm__footer {
   display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
@@ -374,6 +336,33 @@ async function handleConfirmLink() {
 
     &:hover:not(:disabled) { filter: brightness(1.08); }
   }
+}
+
+/*
+ * Pantallas bajas: portátiles Windows a 125%/150% de escala dejan ~600px de
+ * alto útil. Ahí el modal se pega a los bordes y se compacta para que quepan
+ * las dos secciones sin que el usuario pelee con scrolls anidados diminutos.
+ */
+@media (max-height: 780px) {
+  .rlm__overlay { padding: 0.5rem; }
+
+  .rlm {
+    max-height: 96vh;
+    max-height: 96dvh;
+  }
+
+  .rlm__body {
+    gap: 0.85rem;
+    padding: 0.9rem 1rem;
+  }
+
+  .rlm__context { padding: 0.5rem 0.7rem; }
+
+  // El párrafo explica algo que las dos secciones ya dicen con su hint; en
+  // pantalla baja vale más ese alto para las tarjetas de reel.
+  .rlm__sources-intro { display: none; }
+
+  .rlm__footer { padding: 0.7rem 1rem; }
 }
 
 .modal-fade-enter-active,

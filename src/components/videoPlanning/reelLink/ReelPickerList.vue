@@ -243,8 +243,22 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 22rem;
+  max-height: min(22rem, 38vh);
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Pantalla baja (portátil Windows escalado): la lista deja de tener scroll
+ * propio. Con 600px de alto quedaban dos scrollbars anidados y una ventanita
+ * de un reel y medio; así el modal scrollea una sola vez y las tarjetas se ven
+ * completas.
+ */
+@media (max-height: 780px) {
+  .rpl__grid {
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .rpl__more {

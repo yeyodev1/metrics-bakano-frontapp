@@ -251,8 +251,18 @@ const num = (n: number) => new Intl.NumberFormat('es-EC').format(n)
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  max-height: 20rem;
+  // Igual que el picker de reels: el tope escala con la pantalla.
+  max-height: min(20rem, 34vh);
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+// Pantalla baja: un solo scroll, el del modal. Ver ReelPickerList.
+@media (max-height: 780px) {
+  .adp__list {
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .adp__card {
