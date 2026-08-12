@@ -51,3 +51,10 @@ export function resolveHomeRoute(): RouteLocationRaw {
 export function homeRouteLabel(): string {
   return localStorage.getItem('access_token') ? 'Ir a mi panel' : 'Iniciar sesión'
 }
+
+/** Un _id de Mongo: 24 caracteres hexadecimales. */
+const MONGO_ID = /^[a-f\d]{24}$/i
+
+export function isWorkspaceIdValido(id: unknown): id is string {
+  return typeof id === 'string' && MONGO_ID.test(id)
+}
