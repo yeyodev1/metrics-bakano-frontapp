@@ -16,11 +16,13 @@ const userStore = useUserStore()
 // The httpBase interceptor fires this event on every 401 response
 // that HAD an Authorization header — i.e. a real authenticated request.
 function handleTokenExpired(): void {
-  // Already on Login — nothing to do
-  if (router.currentRoute.value.name === 'Login') return
+  // La ruta se llama 'AuthLogin'. Con 'Login' vue-router rechazaba la
+  // navegación: la sesión quedaba borrada pero el usuario se quedaba mirando
+  // una pantalla que ya no podía cargar nada.
+  if (router.currentRoute.value.name === 'AuthLogin') return
 
   userStore.clear()                             // Wipes localStorage + store state
-  router.push({ name: 'Login', replace: true })
+  router.push({ name: 'AuthLogin', replace: true })
 }
 
 onMounted(async () => {

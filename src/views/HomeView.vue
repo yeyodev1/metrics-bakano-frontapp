@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import fotoEquipo from '@/assets/auth/equipo-reunion.webp'
 
 const router = useRouter()
 
+const anio = new Date().getFullYear()
+
 function goToLogin() {
-  router.push({ name: 'Login' })
+  // La ruta se llama 'AuthLogin'. Con 'Login' vue-router rechazaba la
+  // navegación y el botón principal del home no hacía absolutamente nada.
+  router.push({ name: 'AuthLogin' })
 }
 </script>
 
@@ -12,6 +17,7 @@ function goToLogin() {
   <div class="home-view">
     <!-- Hero Section -->
     <section class="hero">
+      <img :src="fotoEquipo" alt="" class="hero__foto" aria-hidden="true" />
       <div class="hero__gfx">
         <div class="hero__orb hero__orb--1" />
         <div class="hero__orb hero__orb--2" />
@@ -30,6 +36,11 @@ function goToLogin() {
             Acceder al Dashboard
             <i class="fa-solid fa-arrow-right" aria-hidden="true" />
           </button>
+          <!-- Esto no es una web de venta: quien llega aquí ya es cliente, y la
+               otra mitad de las veces lo que necesita es recuperar su acceso. -->
+          <RouterLink :to="{ name: 'AuthForgotPassword' }" class="hero__secondary">
+            ¿Olvidaste tu contraseña?
+          </RouterLink>
         </div>
       </div>
     </section>
@@ -68,10 +79,55 @@ function goToLogin() {
         </div>
       </div>
     </section>
+
+    <!-- Sin esto, alguien sin acceso se quedaba sin a quién escribirle. -->
+    <footer class="home-footer">
+      <p class="home-footer__help">
+        ¿Problemas para entrar? Escríbenos a
+        <a href="mailto:soporte@bakano.ec">soporte@bakano.ec</a>
+      </p>
+      <p class="home-footer__legal">© {{ anio }} Bakano · Plataforma ROAS</p>
+    </footer>
   </div>
 </template>
 
 <style lang="scss" scoped>
+.hero__foto {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  // Muy apagada: es atmósfera detrás del titular, no la protagonista.
+  opacity: 0.22;
+}
+
+.hero__secondary {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: rgba($white, 0.75);
+  text-decoration: none;
+
+  &:hover { color: $white; text-decoration: underline; }
+}
+
+.home-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem 2.5rem;
+  border-top: 1px solid rgba($primary-dark, 0.08);
+
+  p { margin: 0; font-size: 0.82rem; color: $text-secondary; }
+
+  a { font-weight: 700; color: $primary; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+}
+
 .home-view {
   display: flex;
   flex-direction: column;
