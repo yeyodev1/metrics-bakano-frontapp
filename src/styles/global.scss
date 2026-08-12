@@ -32,3 +32,37 @@ body {
   background-color: var(--bg);
   color: var(--text);
 }
+
+/*
+ * Scrollbars.
+ * En macOS el scrollbar es un overlay que aparece solo al hacer scroll. En
+ * Windows y Linux ocupa ~17px permanentes y se dibuja gris grueso: en modales
+ * con listas internas (ej. vincular reel) eso robaba ancho, cortaba el
+ * contenido y mostraba dos barras enormes a la vez. Aquí se homogeniza.
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba($primary-dark, 0.25) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba($primary-dark, 0.22);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+
+  &:hover { background-color: rgba($primary-dark, 0.38); }
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
