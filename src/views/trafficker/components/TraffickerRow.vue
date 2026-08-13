@@ -1,10 +1,25 @@
 <template>
-  <article class="trow" :class="[`trow--${estado.tono}`, { 'is-open': abierta }]">
+  <article class="trow" :class="[`trow--${estado.tono}`, { 'is-open': abierta, 'is-cargando': card.loading }]">
     <!-- Cabecera: siempre visible, es lo que se escanea de un vistazo. -->
     <button type="button" class="trow__head" :aria-expanded="abierta" @click="emit('toggle')">
       <i class="fa-solid fa-chevron-right trow__chevron" aria-hidden="true" />
 
+      <span class="trow__logo" aria-hidden="true">
+        <img v-if="card.logoUrl" :src="card.logoUrl" :alt="''" loading="lazy" />
+        <span v-else>{{ iniciales }}</span>
+      </span>
+
       <span class="trow__name">{{ card.name }}</span>
+
+      <!-- Conectar a medias es la causa silenciosa de la mitad de los ceros. -->
+      <span
+        v-if="!card.conexion.completa"
+        class="trow__incompleta"
+        :title="`Falta conectar: ${card.conexion.faltan.join(', ')}`"
+      >
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+        Conexión incompleta
+      </span>
 
       <span class="trow__estado" :title="estado.detalle">{{ estado.label }}</span>
 
@@ -24,17 +39,20 @@
 
       <span class="trow__metric">
         <small>ROAS</small>
-        <strong>{{ card.spend > 0 ? card.roas.toFixed(2) : '—' }}</strong>
+        <strong v-if="!card.loading">{{ card.spend > 0 ? card.roas.toFixed(2) : '—' }}</strong>
+        <span v-else class="trow__cargando" aria-label="Cargando" />
       </span>
 
       <span class="trow__metric trow__metric--hide-sm">
         <small>Inversión</small>
-        <strong>{{ money(card.spend) }}</strong>
+        <strong v-if="!card.loading">{{ money(card.spend) }}</strong>
+        <span v-else class="trow__cargando" aria-hidden="true" />
       </span>
 
       <span class="trow__metric trow__metric--hide-sm">
         <small>Facturación</small>
-        <strong>{{ money(card.revenue) }}</strong>
+        <strong v-if="!card.loading">{{ money(card.revenue) }}</strong>
+        <span v-else class="trow__cargando" aria-hidden="true" />
       </span>
     </button>
 
@@ -73,6 +91,12 @@
         </dl>
       </div>
 
+      <TraffickerAdsBreakdown
+        :workspace-id="card.id"
+        :activo="abierta"
+        :conexion-completa="card.conexion.completa"
+      />
+
       <p class="trow__nota">{{ estado.detalle }}</p>
 
       <div class="trow__acciones">
@@ -96,6 +120,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import TraffickerAdsBreakdown from './TraffickerAdsBreakdown.vue'
 import type { Card } from '../composables/useTraffickerDashboard'
 
 const props = defineProps<{
@@ -113,6 +138,11 @@ const emit = defineEmits<{
 
 const num = (n: number) => new Intl.NumberFormat('es-EC').format(n || 0)
 
+const iniciales = computed(() =>
+  props.card.name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase()
+)
+
+
 const money = (n: number) =>
   new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 
@@ -123,16 +153,20 @@ const money = (n: number) =>
  * campaña, el segundo es que falta un dato y por eso el ROAS no se puede leer.
  */
 const estado = computed(() => {
-  const { spend, revenue, roas } = props.card
+  const { spend, revenue, roas, loading } = props.card
+
+  if (loading) {
+    return { tono: 'cargando', label: 'Cargando…', detalle: 'Trayendo las cifras de este entorno.' }
+  }
 
   if (spend > 0 && revenue === 0) {
     return { tono: 'alerta', label: 'Pauta sin facturar', detalle: 'Hay inversión pero nadie registró facturación este mes: el ROAS no se puede calcular.' }
   }
   if (spend === 0 && revenue > 0) {
-    return { tono: 'neutro', label: 'Sin pauta', detalle: 'Factura, pero este mes no tiene inversión en Meta.' }
+    return { tono: 'sin-pauta', label: 'Sin pauta', detalle: 'Factura, pero este mes no tiene inversión en Meta.' }
   }
   if (spend === 0 && revenue === 0) {
-    return { tono: 'neutro', label: 'Sin movimiento', detalle: 'Ni inversión ni facturación registradas este mes.' }
+    return { tono: 'sin-pauta', label: 'Sin pauta ni facturación', detalle: 'Ni inversión ni facturación registradas este mes.' }
   }
   if (roas < 1) {
     return { tono: 'critico', label: 'Pierde dinero', detalle: 'Factura menos de lo que invierte: cada dólar en pauta devuelve menos de un dólar.' }
@@ -205,6 +239,39 @@ const estado = computed(() => {
   .trow--alerta & { color: #b45309; background: rgba(#d97706, 0.14); }
   .trow--critico & { color: #b91c1c; background: rgba(#dc2626, 0.12); }
 }
+
+.trow__logo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: $text-secondary;
+  background: rgba($primary-dark, 0.06);
+  border-radius: 8px;
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+.trow__incompleta {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #b45309;
+  background: rgba(#d97706, 0.14);
+  border-radius: 100px;
+}
+
+
+
 
 .trow__activos {
   display: inline-flex;

@@ -8,6 +8,7 @@ import TraffickerHeader from './components/TraffickerHeader.vue'
 import TraffickerSummaryStrip from './components/TraffickerSummaryStrip.vue'
 import TraffickerFilters from './components/TraffickerFilters.vue'
 import TraffickerSkeleton from './components/TraffickerSkeleton.vue'
+import TraffickerLoteBar from './components/TraffickerLoteBar.vue'
 import TraffickerRow from './components/TraffickerRow.vue'
 
 const router = useRouter()
@@ -15,6 +16,9 @@ const userStore = useUserStore()
 
 const {
   isLoading,
+  lote,
+  loteFaltan,
+  lotePorcentaje,
   cards,
   groups,
   avgRoas,
@@ -71,7 +75,7 @@ onMounted(() => load())
 
     <!-- Summary strip -->
     <TraffickerSummaryStrip
-      v-if="cards.length > 0 && !isLoading"
+      v-if="cards.length > 0 && !lote.activo"
       :cards-length="cards.length"
       :avg-roas="avgRoas"
       :total-revenue="totalRevenue"
@@ -86,8 +90,17 @@ onMounted(() => load())
       @remind-all="sendReminderToAll"
     />
 
-    <!-- Skeleton loading -->
-    <TraffickerSkeleton v-if="isLoading" />
+    <!-- Cuántos del lote ya cargaron: reemplaza la espera muda -->
+    <TraffickerLoteBar
+      v-if="lote.activo"
+      :listos="lote.listos"
+      :total="lote.total"
+      :faltan="loteFaltan"
+      :porcentaje="lotePorcentaje"
+    />
+
+    <!-- Esqueleto solo en la primera pintada, cuando aún no hay ni nombres -->
+    <TraffickerSkeleton v-if="isLoading && cards.length === 0" />
 
     <!-- Empty -->
     <div v-else-if="cards.length === 0" class="trf__empty">
@@ -107,7 +120,10 @@ onMounted(() => load())
       />
 
       <!-- Lista en acordeón: una fila por entorno, el detalle se abre debajo -->
-      <div class="trf__lista">
+      <!-- El cambio de página era un salto seco: la lista se reemplazaba y
+           costaba notar que el contenido ya era otro. -->
+      <Transition name="pagina" mode="out-in">
+      <div :key="pagina" class="trf__lista">
         <TraffickerRow
           v-for="card in cards"
           :key="card.id"
@@ -120,6 +136,7 @@ onMounted(() => load())
           @remind="sendReminder(card.id)"
         />
       </div>
+      </Transition>
 
       <nav v-if="totalPaginas > 1" class="trf__paginacion" aria-label="Paginación">
         <button type="button" :disabled="pagina === 1" @click="irAPagina(pagina - 1, searchQuery)">
@@ -163,6 +180,17 @@ onMounted(() => load())
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Corta: acompaña el cambio sin hacer esperar. */
+.pagina-enter-active,
+.pagina-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.pagina-enter-from { opacity: 0; transform: translateY(8px); }
+.pagina-leave-to { opacity: 0; transform: translateY(-6px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pagina-enter-active,
+  .pagina-leave-active { transition: opacity 0.01s; transform: none; }
 }
 
 .trf__paginacion {
