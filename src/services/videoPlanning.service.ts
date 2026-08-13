@@ -10,6 +10,10 @@ import type {
   VideoCalendarResponse,
   WorkspaceVideoItem,
   MetaAdOption,
+  DestinatariosAviso,
+  UsuarioAviso,
+  HistorialAvisos,
+  ResultadoNotificacion,
 } from '@/types/videoPlanning'
 
 class VideoPlanningService extends APIBase {
@@ -157,6 +161,45 @@ class VideoPlanningService extends APIBase {
       {},
     )
     return res.data.planning
+  }
+
+  // ── Avisos al cliente ─────────────────────────────────────────────────────
+
+  /** Quién recibe qué, para poder revisarlo antes de disparar. */
+  async getDestinatarios(planningId: string): Promise<DestinatariosAviso> {
+    const res = await this.get<DestinatariosAviso>(`video-planning/${planningId}/recipients`)
+    return res.data
+  }
+
+  /**
+   * Carga el teléfono en la ficha del usuario, no en la planificación: sirve
+   * para el próximo aviso y para el mes que viene.
+   */
+  async guardarTelefonoDestinatario(
+    planningId: string,
+    userId: string,
+    payload: { phoneNumber: string; phoneExtension: string },
+  ): Promise<UsuarioAviso> {
+    const res = await this.patch<{ usuario: UsuarioAviso }>(
+      `video-planning/${planningId}/recipients/${userId}/phone`,
+      payload,
+    )
+    return res.data.usuario
+  }
+
+  /** Dispara WhatsApp y correo. Manda mensajes reales. */
+  async notificar(planningId: string): Promise<ResultadoNotificacion> {
+    const res = await this.post<{ resultado: ResultadoNotificacion }>(
+      `video-planning/${planningId}/notify`,
+      {},
+    )
+    return res.data.resultado
+  }
+
+  /** Auditoría: cuántos avisos salieron, cuántos se abrieron y cuántos se clicaron. */
+  async getHistorialAvisos(planningId: string): Promise<HistorialAvisos> {
+    const res = await this.get<HistorialAvisos>(`video-planning/${planningId}/notifications`)
+    return res.data
   }
 }
 

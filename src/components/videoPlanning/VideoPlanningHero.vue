@@ -45,6 +45,7 @@ const emit = defineEmits<{
   (e: 'reopen'): void
   (e: 'share'): void
   (e: 'add'): void
+  (e: 'notify'): void
 }>()
 </script>
 
@@ -104,6 +105,18 @@ const emit = defineEmits<{
         >
           <i :class="props.copiedLink ? 'fa-solid fa-check' : 'fa-solid fa-link'" />
           {{ props.copiedLink ? 'Enlace copiado' : 'Compartir con cliente' }}
+        </button>
+        <!--
+          Sigue visible con la planificación bloqueada: aunque ya no se pueda
+          volver a avisar, dentro está la auditoría de qué salió, qué se abrió
+          y qué se clicó.
+        -->
+        <button
+          v-if="props.canManageFull && !props.backendMissing"
+          class="vp-view__notify-btn"
+          @click="emit('notify')"
+        >
+          <i class="fa-brands fa-whatsapp" /> Notificar al cliente
         </button>
         <button
           v-if="props.canManageFull && !props.backendMissing"
@@ -174,7 +187,15 @@ const emit = defineEmits<{
 
 .vp-view__hero-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; flex-wrap: wrap; }
 
-.vp-view__print-btn, .vp-view__pdf-btn, .vp-view__reopen-btn, .vp-view__share-btn, .vp-view__add-btn {
+.vp-view__notify-btn {
+  background: $white;
+  color: #128c3f;
+  border: 1.5px solid rgba(#128c3f, 0.35);
+
+  &:hover { background: rgba(#128c3f, 0.08); border-color: #128c3f; }
+}
+
+.vp-view__print-btn, .vp-view__pdf-btn, .vp-view__reopen-btn, .vp-view__share-btn, .vp-view__notify-btn, .vp-view__add-btn {
   display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.2rem;
   border-radius: 12px; font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
   @media (max-width: 768px) { width: 100%; justify-content: center; }

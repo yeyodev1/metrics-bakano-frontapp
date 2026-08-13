@@ -17,6 +17,7 @@ import ScriptDistributionWidget from '@/components/videoPlanning/ScriptDistribut
 import VideoPlanningHero from '@/components/videoPlanning/VideoPlanningHero.vue'
 import VideoPlanningStates from '@/components/videoPlanning/VideoPlanningStates.vue'
 import VideoPlanningEmpty from '@/components/videoPlanning/VideoPlanningEmpty.vue'
+import NotifyClientModal from '@/components/videoPlanning/NotifyClientModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,6 +45,7 @@ const completedItem = ref<VideoItem | null>(null)
 const savingLink = ref(false)
 const copiedLink = ref(false)
 const reopening = ref(false)
+const showNotifyModal = ref(false)
 
 const isEditor = computed(() => userStore.isInternal && userStore.internalRole === 'editor')
 const canManageFull = computed(() => userStore.role === 'superadmin' || (userStore.isInternal && !isEditor.value))
@@ -245,6 +247,7 @@ onMounted(async () => {
       @reopen="handleReopen"
       @share="copyClientLink"
       @add="openAddModal"
+      @notify="showNotifyModal = true"
     />
 
     <div v-if="loading" class="vp-view__loading">
@@ -334,6 +337,11 @@ onMounted(async () => {
       :all-items="items"
       @close="showReelModal = false"
       @linked="handleReelLinked"
+    />
+    <NotifyClientModal
+      v-if="showNotifyModal && planning?._id"
+      :planning-id="planning._id"
+      @close="showNotifyModal = false"
     />
   </div>
 </template>
