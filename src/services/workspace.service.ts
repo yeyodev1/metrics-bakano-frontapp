@@ -18,8 +18,23 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
-  async listWorkspaces(params: { search?: string; page?: number; limit?: number } = {}): Promise<WorkspaceListResponse> {
+  async listWorkspaces(params: { search?: string; page?: number; limit?: number; minimal?: boolean } = {}): Promise<WorkspaceListResponse> {
     const res = await this.get<WorkspaceListResponse>('workspaces', undefined, { params })
+    return res.data
+  }
+
+  /** Conteos del panel de superadmin. Un solo agregado en el servidor. */
+  async getWorkspacesSummary(): Promise<{
+    summary: {
+      total: number
+      activos: number
+      inactivos: number
+      sinPerfilMarca: number
+      sinMetaVinculada: number
+      traffickers: number
+    }
+  }> {
+    const res = await this.get<any>('workspaces/summary')
     return res.data
   }
 
@@ -82,8 +97,15 @@ class WorkspaceService extends APIBase {
   async deleteSuperadmin(userId: string): Promise<void> {
     await this.delete(`admin/superadmins/${userId}`)
   }
-  async listAllCollaborators(search?: string, workspaceId?: string): Promise<UserListResponse> {
-    const res = await this.get<UserListResponse>('workspaces/all-users', undefined, { params: { search, workspaceId } })
+  /** `onlyAccountAdmins` deja solo a los administradores de cuenta de clientes. */
+  async listAllCollaborators(
+    search?: string,
+    workspaceId?: string,
+    onlyAccountAdmins?: boolean,
+  ): Promise<UserListResponse> {
+    const res = await this.get<UserListResponse>('workspaces/all-users', undefined, {
+      params: { search, workspaceId, onlyAccountAdmins: onlyAccountAdmins || undefined },
+    })
     return res.data
   }
 
@@ -106,8 +128,16 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
-  async toggleWorkspaceActive(workspaceId: string, isActive: boolean): Promise<WorkspaceResponse> {
-    const res = await this.patch<WorkspaceResponse>(`workspaces/${workspaceId}/toggle-active`, { isActive })
+  /** Al desactivar, el backend exige un motivo. */
+  async toggleWorkspaceActive(
+    workspaceId: string,
+    isActive: boolean,
+    desactivacion?: { motivo: string; nota?: string },
+  ): Promise<WorkspaceResponse> {
+    const res = await this.patch<WorkspaceResponse>(`workspaces/${workspaceId}/toggle-active`, {
+      isActive,
+      ...desactivacion,
+    })
     return res.data
   }
 }

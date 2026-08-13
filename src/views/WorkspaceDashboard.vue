@@ -72,22 +72,6 @@ onMounted(() => {
     </div>
 
     <main v-else class="workspace-dashboard__content">
-      <!-- SURVEY BANNER FOR CLIENTS -->
-      <section v-if="!userStore.isInternal && userStore.pendingSurveysCount > 0" class="workspace-dashboard__survey-banner">
-        <div class="workspace-dashboard__survey-banner-content">
-          <div class="workspace-dashboard__survey-banner-icon">
-            <i class="fa-solid fa-clipboard-question" />
-          </div>
-          <div class="workspace-dashboard__survey-banner-text">
-            <h3>Tienes encuestas pendientes</h3>
-            <p>Tu opinión es fundamental para mejorar nuestra estrategia. Por favor, tómate un momento para responderlas.</p>
-          </div>
-        </div>
-        <button class="workspace-dashboard__survey-banner-btn" @click="router.push({ name: 'MySurveys', params: { workspaceId } })">
-          <span>Ver encuestas</span>
-          <i class="fa-solid fa-arrow-right" />
-        </button>
-      </section>
 
       <!-- AVISO CRM HERO -->
       <section class="crm-hero">
@@ -289,80 +273,6 @@ onMounted(() => {
   }
 }
 
-// SURVEY BANNER
-.workspace-dashboard__survey-banner {
-  background: linear-gradient(135deg, $primary 0%, lighten($primary, 15%) 100%);
-  border-radius: 16px;
-  padding: 1.5rem 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  color: $white;
-  box-shadow: 0 10px 30px rgba($primary, 0.2);
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1.5rem;
-  }
-
-  &-content {
-    display: flex;
-    align-items: flex-start;
-    gap: 1.25rem;
-  }
-
-  &-icon {
-    font-size: 2rem;
-    background: rgba(255, 255, 255, 0.2);
-    width: 56px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    flex-shrink: 0;
-  }
-
-  &-text {
-    h3 {
-      margin: 0 0 0.25rem;
-      font-size: 1.2rem;
-      font-weight: 800;
-    }
-
-    p {
-      margin: 0;
-      font-size: 0.95rem;
-      opacity: 0.9;
-      line-height: 1.4;
-      max-width: 500px;
-    }
-  }
-
-  &-btn {
-    background: $white;
-    color: $primary;
-    border: none;
-    padding: 0.85rem 1.5rem;
-    border-radius: 100px;
-    font-weight: 700;
-    font-size: 0.95rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    white-space: nowrap;
-    transition: all 0.2s;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    }
-  }
-}
 
 // CRM HERO SECTION
 .crm-hero {

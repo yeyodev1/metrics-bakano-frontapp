@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 import type { Workspace } from '@/types'
 import GlobalUserModal from '@/components/common/GlobalUserModal.vue'
@@ -9,32 +9,21 @@ import DashboardTopBar from './components/DashboardTopBar.vue'
 import DashboardTabsNavigation from './components/DashboardTabsNavigation.vue'
 import WorkspacesTab from './components/WorkspacesTab.vue'
 import AccountAdminsTab from './components/AccountAdminsTab.vue'
-import TraffickersTab from './components/TraffickersTab.vue'
 import SuperadminsTab from './components/SuperadminsTab.vue'
 import PlanningTab from './components/PlanningTab.vue'
-import SurveysTab from './components/SurveysTab.vue'
 import CreateWorkspaceWizardModal from './components/CreateWorkspaceWizardModal.vue'
 
 // Refs to children tabs
 const workspacesTabRef = ref<InstanceType<typeof WorkspacesTab> | null>(null)
 const superadminsTabRef = ref<InstanceType<typeof SuperadminsTab> | null>(null)
 
-const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'surveys' | 'traffickers'>('workspaces')
+const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning'>('workspaces')
 const showCreateWorkspace = ref(false)
-const traffickersCount = ref(0)
 
 const selectedWorkspace = computed(() => {
   return workspacesTabRef.value?.selectedWorkspace || null
 })
 
-async function fetchTraffickersCount(): Promise<void> {
-  try {
-    const { users } = await workspaceService.listAllCollaborators()
-    traffickersCount.value = users.filter((u: any) => u.internalRole === 'trafficker').length
-  } catch {
-    // Fail silently
-  }
-}
 
 function openCreateSuperadmin(): void {
   superadminsTabRef.value?.openCreate()
@@ -43,16 +32,12 @@ function openCreateSuperadmin(): void {
 function onWorkspaceCreated(workspace: Workspace) {
   showCreateWorkspace.value = false
   workspacesTabRef.value?.onCreated(workspace)
-  fetchTraffickersCount()
 }
 
-function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'surveys' | 'traffickers'): void {
+function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning'): void {
   activeTab.value = tab
 }
 
-onMounted(() => {
-  fetchTraffickersCount()
-})
 </script>
 
 <template>
@@ -67,7 +52,6 @@ onMounted(() => {
 
     <DashboardTabsNavigation
       :active-tab="activeTab"
-      :traffickers-count="traffickersCount"
       @switch-tab="switchTab"
     />
 
@@ -83,12 +67,6 @@ onMounted(() => {
       v-if="activeTab === 'account-admins'"
     />
 
-    <!-- Content: Traffickers Tab -->
-    <TraffickersTab
-      v-if="activeTab === 'traffickers'"
-      @refresh-count="fetchTraffickersCount"
-    />
-
     <!-- Content: Superadmins Tab -->
     <SuperadminsTab
       v-if="activeTab === 'superadmins'"
@@ -100,10 +78,6 @@ onMounted(() => {
       v-if="activeTab === 'planning'"
     />
 
-    <!-- Content: Surveys Tab -->
-    <SurveysTab
-      v-if="activeTab === 'surveys'"
-    />
 
     <!-- Modals -->
     <CreateWorkspaceWizardModal

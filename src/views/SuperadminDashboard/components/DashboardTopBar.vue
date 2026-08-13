@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 import type { Workspace } from '@/types'
 
 const props = defineProps<{
-  activeTab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'surveys' | 'traffickers'
+  activeTab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'traffickers'
   selectedWorkspace: Workspace | null
 }>()
 
@@ -40,15 +40,6 @@ const router = useRouter()
       >
         <i class="fa-solid fa-plus" aria-hidden="true" />
         Nuevo entorno
-      </button>
-      <button
-        v-else-if="activeTab === 'surveys'"
-        class="superadmin-dashboard__btn-primary"
-        type="button"
-        @click="router.push({ name: 'SurveyNew' })"
-      >
-        <i class="fa-solid fa-plus" />
-        Nueva encuesta
       </button>
       <button
         v-else

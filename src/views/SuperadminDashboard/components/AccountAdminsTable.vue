@@ -1,9 +1,36 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { WorkspaceUser } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   users: WorkspaceUser[]
 }>()
+
+/**
+ * El rol interno solo aplica al equipo de Bakano. En la vista de usuarios de
+ * cuenta la columna salia con un guion en todas las filas: ocupaba ~150px de
+ * ancho para no decir nada, y empujaba "Estado" fuera del borde de la tarjeta.
+ */
+const muestraRolInterno = computed(() =>
+  props.users.some((u) => u.isInternal && u.internalRole)
+)
+
+const ROLES_INTERNOS: Record<string, string> = {
+  director: 'Director',
+  estratega: 'Estratega',
+  project_manager: 'Project Manager',
+  content_manager: 'Content Manager',
+  account_manager: 'Account Manager',
+  community_manager: 'Community Manager',
+  productor: 'Productor',
+  asistente_produccion: 'Asistente de Producción',
+  editor: 'Editor',
+  disenador: 'Diseñador',
+  copywriter: 'Copywriter',
+  analista: 'Analista',
+  desarrollador: 'Desarrollador',
+  trafficker: 'Trafficker',
+}
 
 const emit = defineEmits<{
   (e: 'edit-user', user: WorkspaceUser): void
@@ -16,9 +43,9 @@ const emit = defineEmits<{
     <table class="superadmin-dashboard__user-table">
       <thead>
         <tr>
-          <th>Colaborador</th>
-          <th>Rol Interno</th>
-          <th>Entornos Asignados</th>
+          <th>Usuario</th>
+          <th v-if="muestraRolInterno">Rol interno</th>
+          <th>Cuenta</th>
           <th>Estado</th>
           <th>Acciones</th>
         </tr>
@@ -37,27 +64,12 @@ const emit = defineEmits<{
               <span>{{ user.email }}</span>
             </div>
           </td>
-          <td>
+          <td v-if="muestraRolInterno">
             <span
               v-if="user.isInternal && user.internalRole"
               class="superadmin-dashboard__internal-role-chip"
             >
-              {{ {
-                director: 'Director',
-                estratega: 'Estratega',
-                project_manager: 'Project Manager',
-                content_manager: 'Content Manager',
-                account_manager: 'Account Manager',
-                community_manager: 'Community Manager',
-                productor: 'Productor',
-                asistente_produccion: 'Asistente de Producción',
-                editor: 'Editor',
-                disenador: 'Diseñador',
-                copywriter: 'Copywriter',
-                analista: 'Analista',
-                desarrollador: 'Desarrollador',
-                trafficker: 'Trafficker',
-              }[user.internalRole] || user.internalRole }}
+              {{ ROLES_INTERNOS[user.internalRole] || user.internalRole }}
             </span>
             <span v-else class="superadmin-dashboard__no-role">—</span>
           </td>
@@ -108,8 +120,13 @@ const emit = defineEmits<{
 
 <style lang="scss" scoped>
 .superadmin-dashboard__user-table-container {
+  // min-width: 0 es lo que permite encoger dentro de un contenedor flex; sin
+  // el, overflow-x no llegaba a activarse y la columna Estado quedaba cortada
+  // contra el borde de la tarjeta en vez de poder desplazarse.
   width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   margin-top: 1.5rem;
 }
 

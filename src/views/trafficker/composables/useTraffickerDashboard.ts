@@ -5,6 +5,23 @@ import { salesSummaryService } from '@/services/salesSummary.service'
 import { metaService } from '@/services/meta.service'
 import { notificationService } from '@/services/notification.service'
 
+export interface AdsActivity {
+  conectado: boolean
+  activos: number
+  pausados: number
+  impresiones: number
+  clics: number
+  gasto: number
+  ctr: number | null
+  cpc: number | null
+  error?: string
+}
+
+export interface EstadoConexion {
+  completa: boolean
+  faltan: string[]
+}
+
 export interface Card {
   id: string
   name: string
@@ -14,7 +31,12 @@ export interface Card {
   revenue: number
   onlineRevenue: number
   spend: number
+  logoUrl?: string | null
+  conexion: EstadoConexion
+  actividad?: AdsActivity
   ts?: number
+  /** Sus cifras todavía vienen en camino; la fila ya se pinta con el nombre. */
+  loading?: boolean
 }
 
 export type FilterMode = 'all' | 'con_pauta' | 'sin_pauta'
@@ -43,6 +65,17 @@ interface CachedBilling {
 export function useTraffickerDashboard() {
   const isLoading = ref(false)
   const cards = ref<Card[]>([])
+
+  /**
+   * Cuántos entornos del lote ya tienen sus cifras. El panel tardaba lo mismo
+   * antes, pero sin decirlo: diez esqueletos quietos no distinguen "cargando"
+   * de "colgado".
+   */
+  const lote = ref({ activo: false, total: 0, listos: 0 })
+  const loteFaltan = computed(() => Math.max(0, lote.value.total - lote.value.listos))
+  const lotePorcentaje = computed(() =>
+    lote.value.total ? Math.round((lote.value.listos / lote.value.total) * 100) : 0,
+  )
   
   const currentYear = ref(new Date().getFullYear())
   const currentMonth = ref(new Date().getMonth() + 1)
@@ -188,71 +221,159 @@ export function useTraffickerDashboard() {
       const spend = await metaService.getMonthSpend(wsId, year, month)
       if (spend <= 0) return
       metaSpendCache.set(key, spend)
-      const idx = cards.value.findIndex(c => c.id === wsId)
-      if (idx === -1) return
-      const card = cards.value[idx]
+      const card = cards.value.find(c => c.id === wsId)
+      if (!card) return
       const roas = card.revenue > 0 ? card.revenue / spend : 0
-      cards.value = [...cards.value.slice(0, idx), { ...card, spend, roas }, ...cards.value.slice(idx + 1)]
+      parchearCard(wsId, { spend, roas })
       const bKey = `${wsId}:${year}:${month}`
       const hit = billingCache.get(bKey)
       if (hit) billingCache.set(bKey, { ...hit, spend, roas })
     } catch { /* silent */ }
   }
 
-  async function fetchAllWorkspaces(search?: string) {
-    const all: any[] = []
-    let page = 1
-    let hasMore = true
-    while (hasMore) {
-      const res = await workspaceService.listWorkspaces({ limit: 50, page, search: search || undefined })
-      all.push(...res.workspaces)
-      hasMore = res.metadata?.hasMore ?? false
-      page++
-    }
-    return all
+  /** Tamaño de página. Antes se traían TODOS los entornos de una. */
+  const POR_PAGINA = 10
+
+  const pagina = ref(1)
+  const totalEntornos = ref(0)
+  const totalPaginas = computed(() =>
+    Math.max(1, Math.ceil(totalEntornos.value / POR_PAGINA))
+  )
+
+  /**
+   * Qué le falta a la conexión de Meta.
+   *
+   * "Conectado" no es binario: se puede tener la página pero no la cuenta
+   * publicitaria, y entonces el gasto sale en cero sin que nadie sepa por qué.
+   * Nombrar la pieza que falta evita ir a buscar el error.
+   */
+  function revisarConexion(ws: any): EstadoConexion {
+    const m = ws?.metaAds ?? {}
+    const faltan: string[] = []
+    if (!m.pageId) faltan.push('página de Facebook')
+    if (!m.adAccountId) faltan.push('cuenta publicitaria')
+    if (!m.instagramAccountId) faltan.push('cuenta de Instagram')
+    return { completa: faltan.length === 0, faltan }
   }
 
+  async function fetchPaginaWorkspaces(search?: string) {
+    const res = await workspaceService.listWorkspaces({
+      limit: POR_PAGINA,
+      page: pagina.value,
+      search: search || undefined,
+    })
+    totalEntornos.value = res.metadata?.total ?? res.workspaces.length
+    return res.workspaces
+  }
+
+  /** Reemplaza una tarjeta por su versión nueva sin tocar el resto de la lista. */
+  function parchearCard(id: string, cambios: Partial<Card>) {
+    const idx = cards.value.findIndex(c => c.id === id)
+    if (idx === -1) return
+    cards.value = [
+      ...cards.value.slice(0, idx),
+      { ...cards.value[idx], ...cambios },
+      ...cards.value.slice(idx + 1),
+    ]
+  }
+
+  /**
+   * Identifica la carga en curso. Cambiar de mes o teclear en el buscador
+   * dispara otra antes de que termine la anterior; sin esto, las respuestas
+   * viejas siguen parcheando tarjetas que ya no están en pantalla y el
+   * contador del lote avanza de más.
+   */
+  let cargaActual = 0
+
+  const cardBase = (ws: any): Card => ({
+    id: ws._id,
+    name: ws.name,
+    pageId: ws.metaAds?.pageId,
+    metaConnected: !!(ws.metaAds?.pageId),
+    logoUrl: ws.metaAds?.pictureUrl ?? null,
+    conexion: revisarConexion(ws),
+    roas: 0,
+    revenue: 0,
+    onlineRevenue: 0,
+    spend: 0,
+    loading: true,
+  })
+
   async function load(search?: string) {
+    const carga = ++cargaActual
     isLoading.value = true
     try {
-      const workspaces = await fetchAllWorkspaces(search)
+      const workspaces = await fetchPaginaWorkspaces(search)
+      if (carga !== cargaActual) return
 
-      const fromCache = workspaces.map((ws: any) => {
-        const key = `${ws._id}:${currentYear.value}:${currentMonth.value}`
-        const hit = billingCache.get(key)
-        if (hit && Date.now() - hit.ts < CACHE_TTL) {
-          return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), ...hit } as Card
-        }
-        return null
-      }).filter(Boolean) as Card[]
+      // Las filas se pintan en cuanto se sabe el nombre y cada una se completa
+      // sola cuando llegan sus cifras, en vez de esperar a que estén todas.
+      cards.value = workspaces.map(cardBase)
+      isLoading.value = false
+      lote.value = { activo: true, total: workspaces.length, listos: 0 }
 
-      if (fromCache.length === workspaces.length) {
-        cards.value = fromCache
-        isLoading.value = false
-      }
-
-      const fresh = await Promise.all(
+      await Promise.all(
         workspaces.map(async (ws: any) => {
           try {
             const data = await getCachedBilling(ws._id, currentYear.value, currentMonth.value)
-            return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), ...data } as Card
+            if (carga === cargaActual) parchearCard(ws._id, { ...data, loading: false })
           } catch {
-            return { id: ws._id, name: ws.name, pageId: ws.metaAds?.pageId, metaConnected: !!(ws.metaAds?.pageId), roas: 0, revenue: 0, onlineRevenue: 0, spend: 0, ts: 0 } as Card
+            if (carga === cargaActual) parchearCard(ws._id, { loading: false })
+          } finally {
+            if (carga === cargaActual) {
+              lote.value = { ...lote.value, listos: lote.value.listos + 1 }
+            }
           }
-        })
+        }),
       )
-      cards.value = fresh
+
+      if (carga !== cargaActual) return
+      lote.value = { ...lote.value, activo: false }
 
       workspaces.forEach((ws: any) => {
         if (ws.metaAds?.adAccountId) {
           loadMetaSpend(ws._id, ws.metaAds.adAccountId, currentYear.value, currentMonth.value)
         }
       })
+
+      // Actividad publicitaria de los 10 visibles, en paralelo. Solo de los
+      // que tienen Meta conectada: al resto no hay nada que preguntarle.
+      cargarActividad(workspaces)
     } catch (e) {
       console.error('TraffickerDashboard load error', e)
+      if (carga === cargaActual) lote.value = { ...lote.value, activo: false }
     } finally {
-      isLoading.value = false
+      if (carga === cargaActual) isLoading.value = false
     }
+  }
+
+  /**
+   * Quién tiene campañas ACTIVAS ahora mismo. El gasto del mes no lo dice: un
+   * cliente puede haber gastado y estar parado hoy, o estar activo y aún sin
+   * gasto registrado.
+   */
+  async function cargarActividad(workspaces: any[]) {
+    await Promise.all(
+      workspaces
+        .filter((ws: any) => ws.metaAds?.adAccountId)
+        .map(async (ws: any) => {
+          try {
+            const actividad = await metaService.getAdsActivity(
+              ws._id,
+              currentYear.value,
+              currentMonth.value,
+            )
+            parchearCard(ws._id, { actividad })
+          } catch { /* una cuenta sin permisos no tumba la lista */ }
+        }),
+    )
+  }
+
+  async function irAPagina(n: number, search?: string) {
+    const destino = Math.min(Math.max(1, n), totalPaginas.value)
+    if (destino === pagina.value) return
+    pagina.value = destino
+    await load(search)
   }
 
   // Reminders
@@ -311,7 +432,14 @@ export function useTraffickerDashboard() {
   }
 
   return {
+    pagina,
+    totalPaginas,
+    totalEntornos,
+    irAPagina,
     isLoading,
+    lote,
+    loteFaltan,
+    lotePorcentaje,
     cards,
     filteredCards,
     groups,

@@ -27,9 +27,13 @@ const isResendingInvite = ref(false)
 async function fetchAllUsers(): Promise<void> {
   isLoading.value = true
   try {
+    // La pestaña se llama "Admins de cuenta" pero traía a todo el mundo:
+    // equipo de Bakano y colaboradores incluidos. Ahora pide solo a quien
+    // administra la cuenta de un cliente.
     const { users: data } = await workspaceService.listAllCollaborators(
       searchQuery.value.trim() || undefined,
-      filterWorkspaceId.value || undefined
+      filterWorkspaceId.value || undefined,
+      true
     )
     users.value = data
   } catch {
@@ -41,7 +45,7 @@ async function fetchAllUsers(): Promise<void> {
 
 async function fetchWorkspacesList(): Promise<void> {
   try {
-    const response = await workspaceService.listWorkspaces({ limit: 100 })
+    const response = await workspaceService.listWorkspaces({ limit: 100, minimal: true })
     workspaces.value = response.workspaces
   } catch {
     // Fail silently
@@ -121,8 +125,8 @@ onMounted(() => {
   <div class="superadmin-dashboard__account-admins">
     <div class="superadmin-dashboard__section-header superadmin-dashboard__section-header--row">
       <div class="superadmin-dashboard__section-title">
-        <h3>Gestión Global de Usuarios</h3>
-        <p>Administradores y colaboradores de todos los entornos</p>
+        <h3>Usuarios de cuenta</h3>
+        <p>Cada persona con acceso a un entorno de cliente, una por fila</p>
       </div>
       <div class="superadmin-dashboard__header-actions">
         <div class="superadmin-dashboard__search-wrap superadmin-dashboard__search-wrap--all-users">
@@ -130,7 +134,7 @@ onMounted(() => {
           <input 
             v-model="searchQuery" 
             type="text" 
-            placeholder="Buscar colaboradores..." 
+            placeholder="Buscar por nombre o correo..." 
             class="superadmin-dashboard__search-input"
           />
         </div>
@@ -147,7 +151,7 @@ onMounted(() => {
 
         <button class="superadmin-dashboard__btn-primary" @click="openCreateGlobalUser">
           <i class="fa-solid fa-user-plus" />
-          Crear Colaborador
+          Nuevo usuario
         </button>
       </div>
 

@@ -23,7 +23,7 @@ const INTERNAL_ROLES: { value: InternalRole; label: string; icon: string }[] = [
   { value: 'copywriter', label: 'Copywriter', icon: 'fa-feather' },
   { value: 'analista', label: 'Analista', icon: 'fa-chart-bar' },
   { value: 'desarrollador', label: 'Desarrollador', icon: 'fa-code' },
-  { value: 'trafficker', label: 'Trafficker', icon: 'fa-bullseye-arrow' },
+  { value: 'trafficker', label: 'Trafficker', icon: 'fa-bullseye' },
 ]
 
 const { isVisible, modalOptions, close } = useGlobalUserModal()
@@ -78,7 +78,7 @@ async function handleResendInvite() {
 async function fetchWorkspaces() {
   isLoadingWorkspaces.value = true
   try {
-    const response = await workspaceService.listWorkspaces({ limit: 100 })
+    const response = await workspaceService.listWorkspaces({ limit: 100, minimal: true })
     allWorkspaces.value = response.workspaces
   } catch (err) {
     toast.error('Error al cargar entornos')

@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useViewAsStore } from '@/stores/viewAs'
+import ViewAsSwitcher from './components/ViewAsSwitcher.vue'
 import { useNotificationStore } from '@/stores/notification'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
@@ -14,6 +16,20 @@ import SoundToggleButton from '@/components/common/SoundToggleButton.vue'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const viewAs = useViewAsStore()
+
+/**
+ * Identidad que manda en el MENÚ. Con "ver como" apagado es la real, así que
+ * la navegación se comporta igual que siempre. Nunca se usa para permisos:
+ * de eso siguen encargándose los guards del router con el rol de verdad.
+ */
+const idVista = computed(() =>
+  viewAs.identidadEfectiva({
+    role: userStore.role,
+    internalRole: userStore.internalRole,
+    isInternal: userStore.isInternal,
+  })
+)
 const notificationStore = useNotificationStore()
 const confirm = useConfirm()
 
@@ -67,14 +83,11 @@ watch(wsSearch, () => {
   }, 300)
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
 
-const isSurveyRoute = computed(() =>
-  ['SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults'].includes(route.name as string)
-)
 
 const currentWorkspaceId = computed(() => {
   if (isGlobalView.value) return null
@@ -192,8 +205,6 @@ onMounted(async () => {
   if (isContractPending.value && currentWorkspaceId.value) {
     showInvasiveOnboardingModal.value = true
   }
-
-  userStore.fetchPendingSurveys()
   notificationStore.fetchUnreadCount()
   document.addEventListener('click', closeDropdownOnClickOutside)
 })
@@ -416,6 +427,11 @@ watch(() => route.params.workspaceId, async (newId) => {
         </div>
       </div>
 
+      <!-- Solo superadmin: es una herramienta para revisar el menu de otros. -->
+      <div v-if="userStore.role === 'superadmin'" class="app-layout__viewas">
+        <ViewAsSwitcher />
+      </div>
+
       <nav class="app-layout__nav">
         <!-- ========================================== -->
         <!-- AGENCY VIEW LINKS (Visible when not in Sub-Account mode) -->
@@ -423,122 +439,91 @@ watch(() => route.params.workspaceId, async (newId) => {
         <template v-if="!isSubAccountMode">
           <!-- Control Central / Vista Global (Superadmin) -->
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'AdminWorkspaces' }"
           >
-            <i class="fa-solid fa-grid-2" aria-hidden="true" />
+            <i class="fa-solid fa-table-cells-large" aria-hidden="true" />
             <span>Vista Global (Superadmin)</span>
           </RouterLink>
 
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SuperadminMetaIntegrations' }"
           >
             <i class="fa-brands fa-meta" aria-hidden="true" />
             <span>Integración Meta</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Métricas & Alertas -->
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SuperadminPublicMetrics' }"
           >
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>Métricas & Alertas</span>
-            <span class="app-layout__nav-tag">API</span>
           </RouterLink>
 
           <!-- API Keys -->
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SuperadminApiKeys' }"
           >
             <i class="fa-solid fa-key" aria-hidden="true" />
             <span>API Keys</span>
-            <span class="app-layout__nav-tag">API</span>
           </RouterLink>
 
           <div class="app-layout__nav-section-label">Herramientas globales</div>
 
           <!-- Global planner — internal team only -->
           <RouterLink
-            v-if="userStore.isInternal"
+            v-if="idVista.isInternal"
             class="app-layout__nav-item"
             :to="{ name: 'InternalPlanning' }"
           >
-            <i class="fa-solid fa-calendar-range" aria-hidden="true" />
+            <i class="fa-solid fa-calendar-days" aria-hidden="true" />
             <span>Planificador Global</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Clients global view — internal team only -->
           <RouterLink
-            v-if="userStore.isInternal"
+            v-if="idVista.isInternal"
             class="app-layout__nav-item"
             :to="{ name: 'ClientsGlobal' }"
           >
             <i class="fa-solid fa-users" aria-hidden="true" />
             <span>Vista de Clientes</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
-
-          <!-- Meetings calendar — internal team only -->
-          <RouterLink
-            v-if="userStore.isInternal"
-            class="app-layout__nav-item"
-            :to="{ name: 'PMCalendar' }"
-          >
-            <i class="fa-solid fa-handshake" aria-hidden="true" />
-            <span>Reuniones</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
-          </RouterLink>
-
           <!-- Trafficker panel — trafficker + project_manager + superadmin -->
           <RouterLink
-            v-if="(userStore.isInternal && ['trafficker', 'project_manager'].includes(userStore.internalRole || '')) || userStore.role === 'superadmin'"
+            v-if="(idVista.isInternal && ['trafficker', 'project_manager'].includes(idVista.internalRole || '')) || idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'TraffickerDashboard' }"
           >
-            <i class="fa-solid fa-bullseye-arrow" aria-hidden="true" />
+            <i class="fa-solid fa-bullseye" aria-hidden="true" />
             <span>Panel Trafficker</span>
-            <span class="app-layout__nav-tag">ADS</span>
           </RouterLink>
 
           <RouterLink
-            v-if="userStore.internalRole === 'sales_executive' || userStore.role === 'superadmin'"
+            v-if="idVista.internalRole === 'sales_executive' || idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SalesExecutiveDashboard' }"
           >
             <i class="fa-solid fa-handshake" aria-hidden="true" />
             <span>Próximas asesorías</span>
-            <span class="app-layout__nav-tag">VENTAS</span>
           </RouterLink>
 
           <!-- Team KPIs — superadmin and project_manager only -->
           <RouterLink
-            v-if="userStore.role === 'superadmin' || (userStore.isInternal && userStore.internalRole === 'project_manager')"
+            v-if="idVista.role === 'superadmin' || (idVista.isInternal && idVista.internalRole === 'project_manager')"
             class="app-layout__nav-item"
             :to="{ name: 'TeamKpis' }"
           >
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>KPIs del Equipo</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
-          </RouterLink>
-
-          <!-- Surveys — internal + superadmin (global tool) -->
-          <RouterLink
-            v-if="userStore.isInternal || userStore.role === 'superadmin'"
-            class="app-layout__nav-item"
-            :to="{ name: 'SurveyList' }"
-          >
-            <i class="fa-solid fa-clipboard-list" aria-hidden="true" />
-            <span>Encuestas</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
         </template>
 
@@ -547,7 +532,7 @@ watch(() => route.params.workspaceId, async (newId) => {
         <!-- ========================================== -->
         <template v-else>
           <!-- Informativo CRM (solo clientes) -->
-          <div v-if="currentWorkspaceId && !userStore.isInternal && userStore.role !== 'superadmin'" class="app-layout__crm-notice">
+          <div v-if="currentWorkspaceId && !idVista.isInternal && idVista.role !== 'superadmin'" class="app-layout__crm-notice">
             <div class="app-layout__crm-notice-header">
               <i class="fa-solid fa-chart-pie" />
               <strong>Analítica en el CRM</strong>
@@ -578,7 +563,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- 1. Facturación & ROAS — superadmin, admin y colaborador externo -->
           <RouterLink
-            v-if="currentWorkspaceId && (userStore.role === 'superadmin' || !userStore.isInternal)"
+            v-if="currentWorkspaceId && (idVista.role === 'superadmin' || !idVista.isInternal)"
             class="app-layout__nav-item"
             :to="{ name: 'BillingRoas', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -593,7 +578,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           </RouterLink>
 
           <RouterLink
-            v-if="currentWorkspaceId && (userStore.role === 'superadmin' || userStore.internalRole === 'content_manager')"
+            v-if="currentWorkspaceId && (idVista.role === 'superadmin' || idVista.internalRole === 'content_manager')"
             class="app-layout__nav-item"
             :to="{ name: 'WorkspaceMetaDashboard', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -611,7 +596,7 @@ watch(() => route.params.workspaceId, async (newId) => {
                Expone métricas comparadas, aprendizajes y el feed del agente:
                material de trabajo del equipo de contenido, no del cliente. -->
           <RouterLink
-            v-if="currentWorkspaceId && (userStore.isInternal || userStore.role === 'superadmin')"
+            v-if="currentWorkspaceId && (idVista.isInternal || idVista.role === 'superadmin')"
             class="app-layout__nav-item"
             :to="{ name: 'WorkspaceContentBuilder', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -638,7 +623,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-palette" aria-hidden="true" />
             <span>Perfil de Marca</span>
-            <span class="app-layout__nav-tag">IA</span>
           </RouterLink>
 
           <!-- Recursos de Marca — logo + línea gráfica para content managers y editores -->
@@ -656,33 +640,23 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Legalidades</span>
           </RouterLink>
 
-          <!-- Surveys — clients (My Surveys) -->
-          <RouterLink
-            v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
-            class="app-layout__nav-item"
-            :to="{ name: 'MySurveys', params: { workspaceId: currentWorkspaceId } }"
-          >
-            <div class="app-layout__nav-icon-container">
-              <i class="fa-solid fa-clipboard-check" aria-hidden="true" />
-              <span v-if="userStore.pendingSurveysCount > 0" class="app-layout__nav-badge">
-                {{ userStore.pendingSurveysCount }}
-              </span>
-            </div>
-            <span>Mis Encuestas</span>
-          </RouterLink>
-
           <!-- Expert agendas — clients only -->
           <RouterLink
-            v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
+            v-if="currentWorkspaceId && (!idVista.isInternal || idVista.role === 'superadmin')"
             class="app-layout__nav-item"
             :to="{ name: 'AppBooking', params: { workspaceId: currentWorkspaceId } }"
           >
             <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
             <span>Agenda y Asesorías</span>
-            <span class="app-layout__nav-tag">NUEVO</span>
           </RouterLink>
         </template>
       </nav>
+
+      <p v-if="viewAs.activo" class="app-layout__viewas-aviso">
+        <i class="fa-solid fa-eye" aria-hidden="true" />
+        <span>Menú filtrado como <strong>{{ viewAs.etiqueta }}</strong>. Tus permisos no cambian.</span>
+        <button type="button" @click="viewAs.salir()">Salir</button>
+      </p>
 
       <div class="app-layout__sidebar-bottom">
         <!-- Settings — client mode only -->
@@ -1005,10 +979,6 @@ watch(() => route.params.workspaceId, async (newId) => {
       cursor: default;
     }
 
-    &--surveys {
-      background: linear-gradient(135deg, rgba($primary, 0.12) 0%, rgba($primary, 0.04) 100%);
-      border: 1px solid rgba($primary, 0.25);
-    }
 
     &--clients {
       background: linear-gradient(135deg, rgba($primary, 0.12) 0%, rgba($primary, 0.04) 100%);
@@ -1053,11 +1023,6 @@ watch(() => route.params.workspaceId, async (newId) => {
       border: 1px solid rgba($primary, 0.3);
     }
 
-    &--surveys {
-      background: rgba($primary, 0.2);
-      color: $primary;
-      font-size: 1rem;
-    }
 
     &--clients {
       background: rgba($primary, 0.2);
@@ -1256,6 +1221,39 @@ watch(() => route.params.workspaceId, async (newId) => {
   }
 
   // ── Nav ────────────────────────────────────────────────
+  &__viewas {
+    padding: 0 1rem 0.75rem;
+  }
+
+  &__viewas-aviso {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 1rem 0.75rem;
+    padding: 0.6rem 0.7rem;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: #fbbf24;
+    background: rgba(#d97706, 0.14);
+    border: 1px solid rgba(#d97706, 0.35);
+    border-radius: 10px;
+
+    strong { color: $white; }
+
+    button {
+      margin-left: auto;
+      font-family: inherit;
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: #fbbf24;
+      text-decoration: underline;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+  }
+
   &__nav {
     display: flex;
     flex-direction: column;
@@ -1281,12 +1279,16 @@ watch(() => route.params.workspaceId, async (newId) => {
   &__nav-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
+    // Etiquetas como "Próximas asesorías" o "KPIs del Equipo" se partían en
+    // dos líneas y dejaban la lista dentada. Con el texto un punto más chico y
+    // menos separación entran de una, y la barra deja de ser tan larga.
+    gap: 0.75rem;
+    padding: 0.62rem 0.9rem;
     border-radius: 8px;
     text-decoration: none;
     color: rgba($white, 0.6);
-    font-size: 0.95rem;
+    font-size: 0.875rem;
+    line-height: 1.3;
     font-weight: 500;
     transition:
       background-color 0.15s ease,
@@ -1315,18 +1317,6 @@ watch(() => route.params.workspaceId, async (newId) => {
 
   }
 
-  &__nav-tag {
-    margin-left: auto;
-    font-size: 0.6rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    color: $primary;
-    background: rgba($primary, 0.15);
-    padding: 0.15rem 0.45rem;
-    border-radius: 100px;
-    border: 1px solid rgba($primary, 0.25);
-    flex-shrink: 0;
-  }
 
   &__crm-notice {
     display: flex;
