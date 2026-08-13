@@ -4,13 +4,12 @@ export type SuperadminTab =
   | 'account-admins'
   | 'superadmins'
   | 'planning'
-  | 'traffickers'
 
-defineProps<{ activeTab: SuperadminTab; traffickersCount: number }>()
+defineProps<{ activeTab: SuperadminTab }>()
 const emit = defineEmits<{ (e: 'switchTab', tab: SuperadminTab): void }>()
 
 /**
- * Las cinco pestañas, en una lista.
+ * Las cuatro pestañas, en una lista.
  *
  * Antes eran seis botones casi idénticos escritos a mano, cada uno con su
  * propio color de activo: rosa, rojo, ámbar... Seis acentos distintos no son
@@ -26,7 +25,6 @@ const TABS: Array<{ id: SuperadminTab; label: string; icon: string }> = [
   { id: 'account-admins', label: 'Admins de cuenta', icon: 'fa-solid fa-users-gear' },
   { id: 'superadmins', label: 'Superadmins', icon: 'fa-solid fa-user-shield' },
   { id: 'planning', label: 'Planificación', icon: 'fa-solid fa-calendar-days' },
-  { id: 'traffickers', label: 'Traffickers', icon: 'fa-solid fa-bullseye' },
 ]
 </script>
 
@@ -43,10 +41,6 @@ const TABS: Array<{ id: SuperadminTab; label: string; icon: string }> = [
     >
       <i :class="tab.icon" aria-hidden="true" />
       <span>{{ tab.label }}</span>
-      <span
-        v-if="tab.id === 'traffickers' && traffickersCount > 0"
-        class="sdt__count"
-      >{{ traffickersCount }}</span>
     </button>
   </nav>
 </template>
@@ -107,14 +101,6 @@ const TABS: Array<{ id: SuperadminTab; label: string; icon: string }> = [
   }
 }
 
-.sdt__count {
-  padding: 0.1rem 0.4rem;
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: $white;
-  background: $primary;
-  border-radius: 100px;
-}
 
 @media (min-width: 640px) {
   .sdt__tab { padding: 0.75rem 1.1rem; font-size: 0.9rem; }

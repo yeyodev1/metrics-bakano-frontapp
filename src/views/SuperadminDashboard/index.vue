@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 import type { Workspace } from '@/types'
 import GlobalUserModal from '@/components/common/GlobalUserModal.vue'
@@ -9,7 +9,6 @@ import DashboardTopBar from './components/DashboardTopBar.vue'
 import DashboardTabsNavigation from './components/DashboardTabsNavigation.vue'
 import WorkspacesTab from './components/WorkspacesTab.vue'
 import AccountAdminsTab from './components/AccountAdminsTab.vue'
-import TraffickersTab from './components/TraffickersTab.vue'
 import SuperadminsTab from './components/SuperadminsTab.vue'
 import PlanningTab from './components/PlanningTab.vue'
 import CreateWorkspaceWizardModal from './components/CreateWorkspaceWizardModal.vue'
@@ -18,27 +17,13 @@ import CreateWorkspaceWizardModal from './components/CreateWorkspaceWizardModal.
 const workspacesTabRef = ref<InstanceType<typeof WorkspacesTab> | null>(null)
 const superadminsTabRef = ref<InstanceType<typeof SuperadminsTab> | null>(null)
 
-const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'traffickers'>('workspaces')
+const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning'>('workspaces')
 const showCreateWorkspace = ref(false)
-const traffickersCount = ref(0)
 
 const selectedWorkspace = computed(() => {
   return workspacesTabRef.value?.selectedWorkspace || null
 })
 
-/**
- * Antes descargaba TODOS los colaboradores (168 kB, 1.2 s en cada carga del
- * panel) para quedarse con un número. Ahora ese número viene contado del
- * servidor, junto al resto del resumen.
- */
-async function fetchTraffickersCount(): Promise<void> {
-  try {
-    const { summary } = await workspaceService.getWorkspacesSummary()
-    traffickersCount.value = summary.traffickers
-  } catch {
-    // Sin el conteo la navegación sigue funcionando; solo falta el badge.
-  }
-}
 
 function openCreateSuperadmin(): void {
   superadminsTabRef.value?.openCreate()
@@ -47,16 +32,12 @@ function openCreateSuperadmin(): void {
 function onWorkspaceCreated(workspace: Workspace) {
   showCreateWorkspace.value = false
   workspacesTabRef.value?.onCreated(workspace)
-  fetchTraffickersCount()
 }
 
-function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'traffickers'): void {
+function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning'): void {
   activeTab.value = tab
 }
 
-onMounted(() => {
-  fetchTraffickersCount()
-})
 </script>
 
 <template>
@@ -71,7 +52,6 @@ onMounted(() => {
 
     <DashboardTabsNavigation
       :active-tab="activeTab"
-      :traffickers-count="traffickersCount"
       @switch-tab="switchTab"
     />
 
@@ -85,12 +65,6 @@ onMounted(() => {
     <!-- Content: Account Admins Tab -->
     <AccountAdminsTab
       v-if="activeTab === 'account-admins'"
-    />
-
-    <!-- Content: Traffickers Tab -->
-    <TraffickersTab
-      v-if="activeTab === 'traffickers'"
-      @refresh-count="fetchTraffickersCount"
     />
 
     <!-- Content: Superadmins Tab -->

@@ -433,7 +433,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-brands fa-meta" aria-hidden="true" />
             <span>Integración Meta</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Métricas & Alertas -->
@@ -444,7 +443,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>Métricas & Alertas</span>
-            <span class="app-layout__nav-tag">API</span>
           </RouterLink>
 
           <!-- API Keys -->
@@ -455,7 +453,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-key" aria-hidden="true" />
             <span>API Keys</span>
-            <span class="app-layout__nav-tag">API</span>
           </RouterLink>
 
           <div class="app-layout__nav-section-label">Herramientas globales</div>
@@ -468,7 +465,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-calendar-days" aria-hidden="true" />
             <span>Planificador Global</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
 
           <!-- Clients global view — internal team only -->
@@ -479,7 +475,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-users" aria-hidden="true" />
             <span>Vista de Clientes</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
           <!-- Trafficker panel — trafficker + project_manager + superadmin -->
           <RouterLink
@@ -489,7 +484,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-bullseye" aria-hidden="true" />
             <span>Panel Trafficker</span>
-            <span class="app-layout__nav-tag">ADS</span>
           </RouterLink>
 
           <RouterLink
@@ -499,7 +493,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-handshake" aria-hidden="true" />
             <span>Próximas asesorías</span>
-            <span class="app-layout__nav-tag">VENTAS</span>
           </RouterLink>
 
           <!-- Team KPIs — superadmin and project_manager only -->
@@ -510,7 +503,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>KPIs del Equipo</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
         </template>
 
@@ -610,7 +602,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-palette" aria-hidden="true" />
             <span>Perfil de Marca</span>
-            <span class="app-layout__nav-tag">IA</span>
           </RouterLink>
 
           <!-- Recursos de Marca — logo + línea gráfica para content managers y editores -->
@@ -636,7 +627,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
             <span>Agenda y Asesorías</span>
-            <span class="app-layout__nav-tag">NUEVO</span>
           </RouterLink>
         </template>
       </nav>
@@ -1267,20 +1257,6 @@ watch(() => route.params.workspaceId, async (newId) => {
 
   }
 
-  &__nav-tag {
-    margin-left: auto;
-    font-size: 0.55rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    // Antes eran píldoras rosadas con borde: doce de ellas competían con el
-    // nombre de la sección, que es lo que uno viene a leer. Ahora son
-    // metadato: gris, sin borde, presente pero callado.
-    color: rgba($white, 0.4);
-    background: rgba($white, 0.07);
-    padding: 0.12rem 0.4rem;
-    border-radius: 5px;
-    flex-shrink: 0;
-  }
 
   &__crm-notice {
     display: flex;
