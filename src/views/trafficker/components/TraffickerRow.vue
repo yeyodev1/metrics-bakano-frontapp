@@ -8,6 +8,20 @@
 
       <span class="trow__estado" :title="estado.detalle">{{ estado.label }}</span>
 
+      <!-- Lo que se venía a saber: quién tiene campañas corriendo AHORA. -->
+      <span
+        v-if="card.actividad?.conectado"
+        class="trow__activos"
+        :class="{ 'is-cero': !card.actividad.activos }"
+        :title="card.actividad.error || `${card.actividad.activos} activos · ${card.actividad.pausados} pausados`"
+      >
+        <i class="fa-solid fa-circle" aria-hidden="true" />
+        {{ card.actividad.activos }} {{ card.actividad.activos === 1 ? 'activo' : 'activos' }}
+      </span>
+      <span v-else-if="card.actividad" class="trow__activos is-cero" title="Meta no está conectada en este entorno">
+        Sin Meta
+      </span>
+
       <span class="trow__metric">
         <small>ROAS</small>
         <strong>{{ card.spend > 0 ? card.roas.toFixed(2) : '—' }}</strong>
@@ -44,6 +58,20 @@
           <dd>{{ card.metaConnected ? 'Conectada' : 'Sin conectar' }}</dd>
         </div>
       </dl>
+
+      <div v-if="card.actividad?.conectado" class="trow__ads">
+        <p class="trow__ads-titulo">
+          Anuncios este mes
+          <span>{{ card.actividad.activos }} activos · {{ card.actividad.pausados }} pausados</span>
+        </p>
+        <p v-if="card.actividad.error" class="trow__ads-error">{{ card.actividad.error }}</p>
+        <dl v-else class="trow__ads-metricas">
+          <div><dt>Impresiones</dt><dd>{{ num(card.actividad.impresiones) }}</dd></div>
+          <div><dt>Clics</dt><dd>{{ num(card.actividad.clics) }}</dd></div>
+          <div><dt>CTR</dt><dd>{{ card.actividad.ctr !== null ? card.actividad.ctr.toFixed(2) + '%' : '—' }}</dd></div>
+          <div><dt>CPC</dt><dd>{{ card.actividad.cpc !== null ? money(card.actividad.cpc) : '—' }}</dd></div>
+        </dl>
+      </div>
 
       <p class="trow__nota">{{ estado.detalle }}</p>
 
@@ -82,6 +110,8 @@ const emit = defineEmits<{
   (e: 'go-detail'): void
   (e: 'remind'): void
 }>()
+
+const num = (n: number) => new Intl.NumberFormat('es-EC').format(n || 0)
 
 const money = (n: number) =>
   new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
@@ -174,6 +204,62 @@ const estado = computed(() => {
   .trow--aviso & { color: #b45309; background: rgba(#d97706, 0.14); }
   .trow--alerta & { color: #b45309; background: rgba(#d97706, 0.14); }
   .trow--critico & { color: #b91c1c; background: rgba(#dc2626, 0.12); }
+}
+
+.trow__activos {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #15803d;
+  background: rgba(#16a34a, 0.1);
+  border-radius: 100px;
+
+  i { font-size: 0.4rem; }
+
+  &.is-cero { color: $text-secondary; background: rgba($primary-dark, 0.06); }
+}
+
+.trow__ads {
+  padding: 0.8rem 0.9rem;
+  margin-top: 0.9rem;
+  background: rgba($primary-dark, 0.02);
+  border: 1px solid rgba($primary-dark, 0.07);
+  border-radius: 10px;
+}
+
+.trow__ads-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: $primary-dark;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  span { font-weight: 600; color: $text-secondary; text-transform: none; letter-spacing: 0; }
+}
+
+.trow__ads-error {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: #b45309;
+}
+
+.trow__ads-metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+
+  dt { font-size: 0.65rem; color: $text-secondary; text-transform: uppercase; }
+  dd { margin: 0.1rem 0 0; font-size: 0.92rem; font-weight: 800; color: $primary-dark; }
 }
 
 .trow__metric {

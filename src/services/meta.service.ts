@@ -81,6 +81,28 @@ class MetaService extends APIBase {
   }
 
   /** Convenience: fetch total Meta spend for a specific year/month */
+  /** Actividad publicitaria compacta: cuántos anuncios activos y cómo van. */
+  async getAdsActivity(
+    workspaceId: string,
+    year: number,
+    month: number,
+  ): Promise<{
+    conectado: boolean
+    activos: number
+    pausados: number
+    impresiones: number
+    clics: number
+    gasto: number
+    ctr: number | null
+    cpc: number | null
+    error?: string
+  }> {
+    const res = await this.get<any>(`meta/${workspaceId}/ads-activity`, undefined, {
+      params: { year, month },
+    })
+    return res.data
+  }
+
   async getMonthSpend(workspaceId: string, year: number, month: number): Promise<number> {
     const since = `${year}-${String(month).padStart(2, '0')}-01`
     const lastDay = new Date(year, month, 0).getDate()

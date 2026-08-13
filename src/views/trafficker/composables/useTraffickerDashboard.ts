@@ -5,6 +5,18 @@ import { salesSummaryService } from '@/services/salesSummary.service'
 import { metaService } from '@/services/meta.service'
 import { notificationService } from '@/services/notification.service'
 
+export interface AdsActivity {
+  conectado: boolean
+  activos: number
+  pausados: number
+  impresiones: number
+  clics: number
+  gasto: number
+  ctr: number | null
+  cpc: number | null
+  error?: string
+}
+
 export interface Card {
   id: string
   name: string
@@ -14,6 +26,7 @@ export interface Card {
   revenue: number
   onlineRevenue: number
   spend: number
+  actividad?: AdsActivity
   ts?: number
 }
 
@@ -254,11 +267,43 @@ export function useTraffickerDashboard() {
           loadMetaSpend(ws._id, ws.metaAds.adAccountId, currentYear.value, currentMonth.value)
         }
       })
+
+      // Actividad publicitaria de los 10 visibles, en paralelo. Solo de los
+      // que tienen Meta conectada: al resto no hay nada que preguntarle.
+      cargarActividad(workspaces)
     } catch (e) {
       console.error('TraffickerDashboard load error', e)
     } finally {
       isLoading.value = false
     }
+  }
+
+  /**
+   * Quién tiene campañas ACTIVAS ahora mismo. El gasto del mes no lo dice: un
+   * cliente puede haber gastado y estar parado hoy, o estar activo y aún sin
+   * gasto registrado.
+   */
+  async function cargarActividad(workspaces: any[]) {
+    await Promise.all(
+      workspaces
+        .filter((ws: any) => ws.metaAds?.adAccountId)
+        .map(async (ws: any) => {
+          try {
+            const actividad = await metaService.getAdsActivity(
+              ws._id,
+              currentYear.value,
+              currentMonth.value,
+            )
+            const idx = cards.value.findIndex(c => c.id === ws._id)
+            if (idx === -1) return
+            cards.value = [
+              ...cards.value.slice(0, idx),
+              { ...cards.value[idx], actividad },
+              ...cards.value.slice(idx + 1),
+            ]
+          } catch { /* una cuenta sin permisos no tumba la lista */ }
+        }),
+    )
   }
 
   async function irAPagina(n: number, search?: string) {
