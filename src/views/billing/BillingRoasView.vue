@@ -56,9 +56,12 @@
         :hasAnyData="analytics.hasAnyData.value"
       />
 
-      <section v-if="analytics.canEnterBilling.value" class="bulk-launch">
+      <!-- Solo si de verdad hay días pendientes: si no, el botón abría un toast
+           diciendo que no hay nada que completar, justo debajo del banner que
+           avisa de los días sin registrar. -->
+      <section v-if="analytics.canEnterBilling.value && analytics.missingDates.value.length > 0" class="bulk-launch">
         <div class="bulk-launch__icon"><i class="fa-solid fa-wand-magic-sparkles" /></div>
-        <div class="bulk-launch__content"><span>Carga masiva mensual</span><strong>¿Tienes días pendientes en {{ analytics.monthLabel.value }}?</strong><p>Ingresa un solo total y revisa cómo se distribuye por cada día pendiente.</p></div>
+        <div class="bulk-launch__content"><span>Carga masiva mensual</span><strong>{{ analytics.missingDates.value.length }} {{ analytics.missingDates.value.length === 1 ? 'día pendiente' : 'días pendientes' }} en {{ analytics.monthLabel.value }}</strong><p>Ingresa un solo total y revisa cómo se distribuye por cada día pendiente.</p></div>
         <button :disabled="bulkLoading" @click="openBulkModal"><i :class="bulkLoading ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-arrow-right'" /> {{ bulkLoading ? 'Preparando días...' : 'Completar mes' }}</button>
       </section>
 
@@ -233,11 +236,18 @@ async function handleEntry(payload: { amount: number; notes?: string; onlineReve
 async function openBulkModal() {
   bulkLoading.value = true
   try {
-    // Ensure month data is loaded before computing missing dates
-    if (!analytics.monthData.value) {
-      await analytics.fetchMonth()
+    // Los días los manda el backend: `distribute` valida que las allocations
+    // coincidan exactamente con su propio cálculo (mismo endpoint, includeToday),
+    // así que calcularlos aquí solo abre la puerta a un INVALID_ALLOCATION por
+    // desfase de zona horaria. El cálculo local queda de respaldo.
+    let dates: string[] = []
+    try {
+      const res = await billingService.getMissingCurrentMonthDates(workspaceId.value, analytics.currentYear.value, analytics.currentMonth.value)
+      dates = res.dates ?? []
+    } catch {
+      if (!analytics.monthData.value) await analytics.fetchMonth()
+      dates = analytics.missingDates.value
     }
-    const dates = analytics.missingDates.value
     if (!dates.length) {
       successMsg.value = '✓ No tienes días pendientes por registrar este mes'
       setTimeout(() => (successMsg.value = ''), 4000)
