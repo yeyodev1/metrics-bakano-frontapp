@@ -31,6 +31,7 @@ class WorkspaceService extends APIBase {
       inactivos: number
       sinPerfilMarca: number
       sinMetaVinculada: number
+      traffickers: number
     }
   }> {
     const res = await this.get<any>('workspaces/summary')

@@ -27,12 +27,17 @@ const selectedWorkspace = computed(() => {
   return workspacesTabRef.value?.selectedWorkspace || null
 })
 
+/**
+ * Antes descargaba TODOS los colaboradores (168 kB, 1.2 s en cada carga del
+ * panel) para quedarse con un número. Ahora ese número viene contado del
+ * servidor, junto al resto del resumen.
+ */
 async function fetchTraffickersCount(): Promise<void> {
   try {
-    const { users } = await workspaceService.listAllCollaborators()
-    traffickersCount.value = users.filter((u: any) => u.internalRole === 'trafficker').length
+    const { summary } = await workspaceService.getWorkspacesSummary()
+    traffickersCount.value = summary.traffickers
   } catch {
-    // Fail silently
+    // Sin el conteo la navegación sigue funcionando; solo falta el badge.
   }
 }
 
