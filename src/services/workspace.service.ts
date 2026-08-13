@@ -97,8 +97,15 @@ class WorkspaceService extends APIBase {
   async deleteSuperadmin(userId: string): Promise<void> {
     await this.delete(`admin/superadmins/${userId}`)
   }
-  async listAllCollaborators(search?: string, workspaceId?: string): Promise<UserListResponse> {
-    const res = await this.get<UserListResponse>('workspaces/all-users', undefined, { params: { search, workspaceId } })
+  /** `onlyAccountAdmins` deja solo a los administradores de cuenta de clientes. */
+  async listAllCollaborators(
+    search?: string,
+    workspaceId?: string,
+    onlyAccountAdmins?: boolean,
+  ): Promise<UserListResponse> {
+    const res = await this.get<UserListResponse>('workspaces/all-users', undefined, {
+      params: { search, workspaceId, onlyAccountAdmins: onlyAccountAdmins || undefined },
+    })
     return res.data
   }
 

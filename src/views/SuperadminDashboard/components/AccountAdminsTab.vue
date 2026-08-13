@@ -27,9 +27,13 @@ const isResendingInvite = ref(false)
 async function fetchAllUsers(): Promise<void> {
   isLoading.value = true
   try {
+    // La pestaña se llama "Admins de cuenta" pero traía a todo el mundo:
+    // equipo de Bakano y colaboradores incluidos. Ahora pide solo a quien
+    // administra la cuenta de un cliente.
     const { users: data } = await workspaceService.listAllCollaborators(
       searchQuery.value.trim() || undefined,
-      filterWorkspaceId.value || undefined
+      filterWorkspaceId.value || undefined,
+      true
     )
     users.value = data
   } catch {
