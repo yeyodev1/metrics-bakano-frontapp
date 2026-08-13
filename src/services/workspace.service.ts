@@ -23,6 +23,20 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
+  /** Conteos del panel de superadmin. Un solo agregado en el servidor. */
+  async getWorkspacesSummary(): Promise<{
+    summary: {
+      total: number
+      activos: number
+      inactivos: number
+      sinPerfilMarca: number
+      sinMetaVinculada: number
+    }
+  }> {
+    const res = await this.get<any>('workspaces/summary')
+    return res.data
+  }
+
   async getWorkspace(workspaceId: string): Promise<WorkspaceResponse> {
     const res = await this.get<WorkspaceResponse>(`workspaces/${workspaceId}`)
     return res.data
