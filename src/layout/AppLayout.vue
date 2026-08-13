@@ -427,7 +427,7 @@ watch(() => route.params.workspaceId, async (newId) => {
             class="app-layout__nav-item"
             :to="{ name: 'AdminWorkspaces' }"
           >
-            <i class="fa-solid fa-grid-2" aria-hidden="true" />
+            <i class="fa-solid fa-table-cells-large" aria-hidden="true" />
             <span>Vista Global (Superadmin)</span>
           </RouterLink>
 
@@ -471,7 +471,7 @@ watch(() => route.params.workspaceId, async (newId) => {
             class="app-layout__nav-item"
             :to="{ name: 'InternalPlanning' }"
           >
-            <i class="fa-solid fa-calendar-range" aria-hidden="true" />
+            <i class="fa-solid fa-calendar-days" aria-hidden="true" />
             <span>Planificador Global</span>
             <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
@@ -504,7 +504,7 @@ watch(() => route.params.workspaceId, async (newId) => {
             class="app-layout__nav-item"
             :to="{ name: 'TraffickerDashboard' }"
           >
-            <i class="fa-solid fa-bullseye-arrow" aria-hidden="true" />
+            <i class="fa-solid fa-bullseye" aria-hidden="true" />
             <span>Panel Trafficker</span>
             <span class="app-layout__nav-tag">ADS</span>
           </RouterLink>

@@ -12,7 +12,7 @@ const props = defineProps({
     <div class="internal-planning-header__content">
       <div class="internal-planning-header__brand">
         <div class="internal-planning-header__icon">
-          <i class="fa-solid fa-calendar-range" />
+          <i class="fa-solid fa-calendar-days" />
         </div>
         <div class="internal-planning-header__titles">
           <h1>Planificador Global</h1>

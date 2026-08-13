@@ -78,7 +78,7 @@ function nextMonth() {
   <div class="trf__header">
     <div class="trf__header-left">
       <div class="trf__header-icon">
-        <i class="fa-solid fa-bullseye-arrow" />
+        <i class="fa-solid fa-bullseye" />
       </div>
       <div>
         <h1>Panel Trafficker</h1>
