@@ -68,7 +68,12 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
     return true
   }
   
-  const daysToShow = computed(() => {
+  /**
+   * Todos los días del mes hasta hoy, con o sin registros. Sin los filtros de
+   * la UI: el banner de pendientes tiene que contar lo mismo con "Solo días con
+   * datos" activado que sin él.
+   */
+  const allDays = computed(() => {
     if (!monthData.value) return []
     const existingMap = new Map<string, any>()
     for (const d of (monthData.value.days ?? [])) {
@@ -86,18 +91,20 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
       all.push(existingMap.get(key) ?? { date: key, totalAmount: 0, totalMetaSpend: 0, avgROAS: 0, entries: [], entryCount: 0 })
     }
     
-    return all
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .filter(d => {
-        if (filterOnlyWithData.value && d.entryCount === 0) return false
-        if (filterMyEntries.value && !d.entries?.some((e: any) => isMyEntry(e))) return false
-        return true
-      })
+    return all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   })
-  
+
+  const daysToShow = computed(() =>
+    allDays.value.filter(d => {
+      if (filterOnlyWithData.value && d.entryCount === 0) return false
+      if (filterMyEntries.value && !d.entries?.some((e: any) => isMyEntry(e))) return false
+      return true
+    })
+  )
+
   const pendingDays = computed(() => {
     if (!canEnterBilling.value) return []
-    return daysToShow.value.filter(d => canRegisterOnDay(d))
+    return allDays.value.filter(d => canRegisterOnDay(d))
   })
 
   /**
@@ -124,10 +131,14 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
     const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
     const endStr = isCurrentMonth.value ? todayStr.value : monthEnd
 
-    // Build set of dates that already have entries (from ANY user)
+    // Días que YA tienen facturación de algún usuario.
+    // Ojo: `monthData.days` trae TODOS los días del mes hasta hoy, también los
+    // vacíos (el backend los rellena con ceros para pintar el calendario). Si
+    // no se filtra por `entryCount`, todos los días cuentan como registrados y
+    // la carga masiva siempre responde "no tienes días pendientes".
     const recorded = new Set<string>()
     for (const day of (monthData.value?.days ?? [])) {
-      recorded.add(dateStr(day.date))
+      if ((day.entryCount ?? 0) > 0) recorded.add(dateStr(day.date))
     }
 
     // Generate all dates from start to end, filter out recorded ones
