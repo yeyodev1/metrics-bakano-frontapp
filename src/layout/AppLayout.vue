@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useViewAsStore } from '@/stores/viewAs'
+import ViewAsSwitcher from './components/ViewAsSwitcher.vue'
 import { useNotificationStore } from '@/stores/notification'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
@@ -14,6 +16,20 @@ import SoundToggleButton from '@/components/common/SoundToggleButton.vue'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const viewAs = useViewAsStore()
+
+/**
+ * Identidad que manda en el MENÚ. Con "ver como" apagado es la real, así que
+ * la navegación se comporta igual que siempre. Nunca se usa para permisos:
+ * de eso siguen encargándose los guards del router con el rol de verdad.
+ */
+const idVista = computed(() =>
+  viewAs.identidadEfectiva({
+    role: userStore.role,
+    internalRole: userStore.internalRole,
+    isInternal: userStore.isInternal,
+  })
+)
 const notificationStore = useNotificationStore()
 const confirm = useConfirm()
 
@@ -411,6 +427,11 @@ watch(() => route.params.workspaceId, async (newId) => {
         </div>
       </div>
 
+      <!-- Solo superadmin: es una herramienta para revisar el menu de otros. -->
+      <div v-if="userStore.role === 'superadmin'" class="app-layout__viewas">
+        <ViewAsSwitcher />
+      </div>
+
       <nav class="app-layout__nav">
         <!-- ========================================== -->
         <!-- AGENCY VIEW LINKS (Visible when not in Sub-Account mode) -->
@@ -418,7 +439,7 @@ watch(() => route.params.workspaceId, async (newId) => {
         <template v-if="!isSubAccountMode">
           <!-- Control Central / Vista Global (Superadmin) -->
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'AdminWorkspaces' }"
           >
@@ -427,7 +448,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           </RouterLink>
 
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SuperadminMetaIntegrations' }"
           >
@@ -437,7 +458,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- Métricas & Alertas -->
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SuperadminPublicMetrics' }"
           >
@@ -447,7 +468,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- API Keys -->
           <RouterLink
-            v-if="userStore.role === 'superadmin'"
+            v-if="idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SuperadminApiKeys' }"
           >
@@ -459,7 +480,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- Global planner — internal team only -->
           <RouterLink
-            v-if="userStore.isInternal"
+            v-if="idVista.isInternal"
             class="app-layout__nav-item"
             :to="{ name: 'InternalPlanning' }"
           >
@@ -469,7 +490,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- Clients global view — internal team only -->
           <RouterLink
-            v-if="userStore.isInternal"
+            v-if="idVista.isInternal"
             class="app-layout__nav-item"
             :to="{ name: 'ClientsGlobal' }"
           >
@@ -478,7 +499,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           </RouterLink>
           <!-- Trafficker panel — trafficker + project_manager + superadmin -->
           <RouterLink
-            v-if="(userStore.isInternal && ['trafficker', 'project_manager'].includes(userStore.internalRole || '')) || userStore.role === 'superadmin'"
+            v-if="(idVista.isInternal && ['trafficker', 'project_manager'].includes(idVista.internalRole || '')) || idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'TraffickerDashboard' }"
           >
@@ -487,7 +508,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           </RouterLink>
 
           <RouterLink
-            v-if="userStore.internalRole === 'sales_executive' || userStore.role === 'superadmin'"
+            v-if="idVista.internalRole === 'sales_executive' || idVista.role === 'superadmin'"
             class="app-layout__nav-item"
             :to="{ name: 'SalesExecutiveDashboard' }"
           >
@@ -497,7 +518,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- Team KPIs — superadmin and project_manager only -->
           <RouterLink
-            v-if="userStore.role === 'superadmin' || (userStore.isInternal && userStore.internalRole === 'project_manager')"
+            v-if="idVista.role === 'superadmin' || (idVista.isInternal && idVista.internalRole === 'project_manager')"
             class="app-layout__nav-item"
             :to="{ name: 'TeamKpis' }"
           >
@@ -511,7 +532,7 @@ watch(() => route.params.workspaceId, async (newId) => {
         <!-- ========================================== -->
         <template v-else>
           <!-- Informativo CRM (solo clientes) -->
-          <div v-if="currentWorkspaceId && !userStore.isInternal && userStore.role !== 'superadmin'" class="app-layout__crm-notice">
+          <div v-if="currentWorkspaceId && !idVista.isInternal && idVista.role !== 'superadmin'" class="app-layout__crm-notice">
             <div class="app-layout__crm-notice-header">
               <i class="fa-solid fa-chart-pie" />
               <strong>Analítica en el CRM</strong>
@@ -542,7 +563,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- 1. Facturación & ROAS — superadmin, admin y colaborador externo -->
           <RouterLink
-            v-if="currentWorkspaceId && (userStore.role === 'superadmin' || !userStore.isInternal)"
+            v-if="currentWorkspaceId && (idVista.role === 'superadmin' || !idVista.isInternal)"
             class="app-layout__nav-item"
             :to="{ name: 'BillingRoas', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -557,7 +578,7 @@ watch(() => route.params.workspaceId, async (newId) => {
           </RouterLink>
 
           <RouterLink
-            v-if="currentWorkspaceId && (userStore.role === 'superadmin' || userStore.internalRole === 'content_manager')"
+            v-if="currentWorkspaceId && (idVista.role === 'superadmin' || idVista.internalRole === 'content_manager')"
             class="app-layout__nav-item"
             :to="{ name: 'WorkspaceMetaDashboard', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -575,7 +596,7 @@ watch(() => route.params.workspaceId, async (newId) => {
                Expone métricas comparadas, aprendizajes y el feed del agente:
                material de trabajo del equipo de contenido, no del cliente. -->
           <RouterLink
-            v-if="currentWorkspaceId && (userStore.isInternal || userStore.role === 'superadmin')"
+            v-if="currentWorkspaceId && (idVista.isInternal || idVista.role === 'superadmin')"
             class="app-layout__nav-item"
             :to="{ name: 'WorkspaceContentBuilder', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -621,7 +642,7 @@ watch(() => route.params.workspaceId, async (newId) => {
 
           <!-- Expert agendas — clients only -->
           <RouterLink
-            v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
+            v-if="currentWorkspaceId && (!idVista.isInternal || idVista.role === 'superadmin')"
             class="app-layout__nav-item"
             :to="{ name: 'AppBooking', params: { workspaceId: currentWorkspaceId } }"
           >
@@ -630,6 +651,12 @@ watch(() => route.params.workspaceId, async (newId) => {
           </RouterLink>
         </template>
       </nav>
+
+      <p v-if="viewAs.activo" class="app-layout__viewas-aviso">
+        <i class="fa-solid fa-eye" aria-hidden="true" />
+        <span>Menú filtrado como <strong>{{ viewAs.etiqueta }}</strong>. Tus permisos no cambian.</span>
+        <button type="button" @click="viewAs.salir()">Salir</button>
+      </p>
 
       <div class="app-layout__sidebar-bottom">
         <!-- Settings — client mode only -->
@@ -1194,6 +1221,39 @@ watch(() => route.params.workspaceId, async (newId) => {
   }
 
   // ── Nav ────────────────────────────────────────────────
+  &__viewas {
+    padding: 0 1rem 0.75rem;
+  }
+
+  &__viewas-aviso {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 1rem 0.75rem;
+    padding: 0.6rem 0.7rem;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: #fbbf24;
+    background: rgba(#d97706, 0.14);
+    border: 1px solid rgba(#d97706, 0.35);
+    border-radius: 10px;
+
+    strong { color: $white; }
+
+    button {
+      margin-left: auto;
+      font-family: inherit;
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: #fbbf24;
+      text-decoration: underline;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+  }
+
   &__nav {
     display: flex;
     flex-direction: column;
