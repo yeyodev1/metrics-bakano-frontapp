@@ -1,4 +1,32 @@
 <script setup lang="ts">
+/**
+ * Un entorno inactivo sin explicación obligaba a preguntar por WhatsApp si era
+ * falta de pago o una pausa acordada. El motivo se guarda al desactivar.
+ */
+const MOTIVOS_DESACTIVACION: Record<string, string> = {
+  falta_de_pago: 'Sin pago',
+  fin_de_contrato: 'Contrato terminado',
+  pausa_acordada: 'En pausa',
+  otro: 'Inactivo',
+}
+
+function etiquetaDesactivacion(ws: any): string {
+  const motivo = ws?.desactivacion?.motivo
+  return motivo ? MOTIVOS_DESACTIVACION[motivo] ?? 'Inactivo' : 'Inactivo'
+}
+
+function detalleDesactivacion(ws: any): string {
+  const d = ws?.desactivacion
+  if (!d) return 'Desactivado antes de que se registrara el motivo'
+  const cuando = d.fecha ? new Date(d.fecha).toLocaleDateString('es-EC') : ''
+  return [
+    MOTIVOS_DESACTIVACION[d.motivo] ?? 'Inactivo',
+    d.nota,
+    cuando && `Desactivado el ${cuando}`,
+    d.porNombre && `por ${d.porNombre}`,
+  ].filter(Boolean).join(' · ')
+}
+
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Workspace } from '@/types'
@@ -128,7 +156,11 @@ function getBpLabel(ws: any): string {
           <div class="superadmin-dashboard__ws-info-top">
             <span class="superadmin-dashboard__ws-name">
               {{ ws.name }}
-              <span v-if="!ws.isActive" class="superadmin-dashboard__ws-inactive-badge">Inactivo</span>
+              <span
+                v-if="!ws.isActive"
+                class="superadmin-dashboard__ws-inactive-badge"
+                :title="detalleDesactivacion(ws)"
+              >{{ etiquetaDesactivacion(ws) }}</span>
             </span>
             <span v-if="ws.adminId" class="superadmin-dashboard__ws-admin-email">{{ ws.adminId.email }}</span>
             <span v-else class="superadmin-dashboard__ws-meta-empty">Sin admin asignado</span>

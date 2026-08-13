@@ -199,23 +199,29 @@ export function useTraffickerDashboard() {
     } catch { /* silent */ }
   }
 
-  async function fetchAllWorkspaces(search?: string) {
-    const all: any[] = []
-    let page = 1
-    let hasMore = true
-    while (hasMore) {
-      const res = await workspaceService.listWorkspaces({ limit: 50, page, search: search || undefined })
-      all.push(...res.workspaces)
-      hasMore = res.metadata?.hasMore ?? false
-      page++
-    }
-    return all
+  /** Tamaño de página. Antes se traían TODOS los entornos de una. */
+  const POR_PAGINA = 10
+
+  const pagina = ref(1)
+  const totalEntornos = ref(0)
+  const totalPaginas = computed(() =>
+    Math.max(1, Math.ceil(totalEntornos.value / POR_PAGINA))
+  )
+
+  async function fetchPaginaWorkspaces(search?: string) {
+    const res = await workspaceService.listWorkspaces({
+      limit: POR_PAGINA,
+      page: pagina.value,
+      search: search || undefined,
+    })
+    totalEntornos.value = res.metadata?.total ?? res.workspaces.length
+    return res.workspaces
   }
 
   async function load(search?: string) {
     isLoading.value = true
     try {
-      const workspaces = await fetchAllWorkspaces(search)
+      const workspaces = await fetchPaginaWorkspaces(search)
 
       const fromCache = workspaces.map((ws: any) => {
         const key = `${ws._id}:${currentYear.value}:${currentMonth.value}`
@@ -253,6 +259,13 @@ export function useTraffickerDashboard() {
     } finally {
       isLoading.value = false
     }
+  }
+
+  async function irAPagina(n: number, search?: string) {
+    const destino = Math.min(Math.max(1, n), totalPaginas.value)
+    if (destino === pagina.value) return
+    pagina.value = destino
+    await load(search)
   }
 
   // Reminders
@@ -311,6 +324,10 @@ export function useTraffickerDashboard() {
   }
 
   return {
+    pagina,
+    totalPaginas,
+    totalEntornos,
+    irAPagina,
     isLoading,
     cards,
     filteredCards,

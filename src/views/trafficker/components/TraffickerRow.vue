@@ -1,0 +1,247 @@
+<template>
+  <article class="trow" :class="[`trow--${estado.tono}`, { 'is-open': abierta }]">
+    <!-- Cabecera: siempre visible, es lo que se escanea de un vistazo. -->
+    <button type="button" class="trow__head" :aria-expanded="abierta" @click="emit('toggle')">
+      <i class="fa-solid fa-chevron-right trow__chevron" aria-hidden="true" />
+
+      <span class="trow__name">{{ card.name }}</span>
+
+      <span class="trow__estado" :title="estado.detalle">{{ estado.label }}</span>
+
+      <span class="trow__metric">
+        <small>ROAS</small>
+        <strong>{{ card.spend > 0 ? card.roas.toFixed(2) : '—' }}</strong>
+      </span>
+
+      <span class="trow__metric trow__metric--hide-sm">
+        <small>Inversión</small>
+        <strong>{{ money(card.spend) }}</strong>
+      </span>
+
+      <span class="trow__metric trow__metric--hide-sm">
+        <small>Facturación</small>
+        <strong>{{ money(card.revenue) }}</strong>
+      </span>
+    </button>
+
+    <!-- Cuerpo: solo se pinta al abrir. -->
+    <div v-if="abierta" class="trow__body">
+      <dl class="trow__datos">
+        <div>
+          <dt>Inversión en Meta</dt>
+          <dd>{{ money(card.spend) }}</dd>
+        </div>
+        <div>
+          <dt>Facturación del mes</dt>
+          <dd>{{ money(card.revenue) }}</dd>
+        </div>
+        <div>
+          <dt>ROAS</dt>
+          <dd>{{ card.spend > 0 ? card.roas.toFixed(2) : 'Sin pauta' }}</dd>
+        </div>
+        <div>
+          <dt>Meta</dt>
+          <dd>{{ card.metaConnected ? 'Conectada' : 'Sin conectar' }}</dd>
+        </div>
+      </dl>
+
+      <p class="trow__nota">{{ estado.detalle }}</p>
+
+      <div class="trow__acciones">
+        <button type="button" class="trow__btn trow__btn--primary" @click="emit('go-detail')">
+          <i class="fa-solid fa-arrow-right" aria-hidden="true" /> Ver el entorno
+        </button>
+        <button
+          v-if="card.revenue === 0"
+          type="button"
+          class="trow__btn"
+          :disabled="isReminding || isReminded"
+          @click="emit('remind')"
+        >
+          <i :class="isReminded ? 'fa-solid fa-check' : 'fa-solid fa-bell'" aria-hidden="true" />
+          {{ isReminded ? 'Recordatorio enviado' : isReminding ? 'Enviando…' : 'Recordar facturación' }}
+        </button>
+      </div>
+    </div>
+  </article>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import type { Card } from '../composables/useTraffickerDashboard'
+
+const props = defineProps<{
+  card: Card
+  abierta: boolean
+  isReminding: boolean
+  isReminded: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'toggle'): void
+  (e: 'go-detail'): void
+  (e: 'remind'): void
+}>()
+
+const money = (n: number) =>
+  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
+
+/**
+ * El estado dice qué hacer, no solo cómo va.
+ *
+ * Un ROAS bajo y "no facturó" son problemas distintos: el primero es de
+ * campaña, el segundo es que falta un dato y por eso el ROAS no se puede leer.
+ */
+const estado = computed(() => {
+  const { spend, revenue, roas } = props.card
+
+  if (spend > 0 && revenue === 0) {
+    return { tono: 'alerta', label: 'Pauta sin facturar', detalle: 'Hay inversión pero nadie registró facturación este mes: el ROAS no se puede calcular.' }
+  }
+  if (spend === 0 && revenue > 0) {
+    return { tono: 'neutro', label: 'Sin pauta', detalle: 'Factura, pero este mes no tiene inversión en Meta.' }
+  }
+  if (spend === 0 && revenue === 0) {
+    return { tono: 'neutro', label: 'Sin movimiento', detalle: 'Ni inversión ni facturación registradas este mes.' }
+  }
+  if (roas < 1) {
+    return { tono: 'critico', label: 'Pierde dinero', detalle: 'Factura menos de lo que invierte: cada dólar en pauta devuelve menos de un dólar.' }
+  }
+  if (roas < 2) {
+    return { tono: 'aviso', label: 'Ajustado', detalle: 'Devuelve la inversión pero con poco margen.' }
+  }
+  return { tono: 'ok', label: 'En objetivo', detalle: 'La inversión está rindiendo por encima del doble.' }
+})
+</script>
+
+<style lang="scss" scoped>
+.trow {
+  border: 1.5px solid rgba($primary-dark, 0.09);
+  border-radius: 12px;
+  background: $white;
+  overflow: hidden;
+  transition: border-color 0.18s;
+
+  &.is-open { border-color: rgba($primary, 0.4); }
+}
+
+.trow__head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font-family: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+
+  &:hover { background: rgba($primary-dark, 0.02); }
+  &:focus-visible { outline: 2px solid $primary; outline-offset: -2px; }
+}
+
+.trow__chevron {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: $text-secondary;
+  transition: transform 0.18s;
+
+  .is-open & { transform: rotate(90deg); }
+}
+
+.trow__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: $primary-dark;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trow__estado {
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  border-radius: 100px;
+  color: $text-secondary;
+  background: rgba($primary-dark, 0.06);
+
+  .trow--ok & { color: #15803d; background: rgba(#16a34a, 0.12); }
+  .trow--aviso & { color: #b45309; background: rgba(#d97706, 0.14); }
+  .trow--alerta & { color: #b45309; background: rgba(#d97706, 0.14); }
+  .trow--critico & { color: #b91c1c; background: rgba(#dc2626, 0.12); }
+}
+
+.trow__metric {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: flex-end;
+  min-width: 5.5rem;
+
+  small { font-size: 0.6rem; letter-spacing: 0.04em; color: $text-secondary; text-transform: uppercase; }
+  strong { font-size: 0.88rem; font-weight: 800; color: $primary-dark; }
+}
+
+.trow__body {
+  padding: 0 1rem 1rem 2.6rem;
+  border-top: 1px solid rgba($primary-dark, 0.06);
+}
+
+.trow__datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  margin: 0.9rem 0 0;
+
+  dt { font-size: 0.68rem; color: $text-secondary; text-transform: uppercase; letter-spacing: 0.04em; }
+  dd { margin: 0.15rem 0 0; font-size: 1rem; font-weight: 800; color: $primary-dark; }
+}
+
+.trow__nota {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: $text-secondary;
+}
+
+.trow__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.trow__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: $text-secondary;
+  background: rgba($primary-dark, 0.05);
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { color: $primary-dark; background: rgba($primary-dark, 0.1); }
+  &:disabled { opacity: 0.6; cursor: default; }
+
+  &--primary {
+    color: $white;
+    background: $primary;
+
+    &:hover:not(:disabled) { color: $white; filter: brightness(1.08); }
+  }
+}
+
+@media (max-width: 720px) {
+  .trow__metric--hide-sm { display: none; }
+}
+</style>

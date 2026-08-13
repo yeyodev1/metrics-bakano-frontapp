@@ -8,8 +8,7 @@ import TraffickerHeader from './components/TraffickerHeader.vue'
 import TraffickerSummaryStrip from './components/TraffickerSummaryStrip.vue'
 import TraffickerFilters from './components/TraffickerFilters.vue'
 import TraffickerSkeleton from './components/TraffickerSkeleton.vue'
-import TraffickerGroup from './components/TraffickerGroup.vue'
-import TraffickerCard from './components/TraffickerCard.vue'
+import TraffickerRow from './components/TraffickerRow.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -34,14 +33,22 @@ const {
   remindedSet,
   sendReminder,
   sendReminderToAll,
-  load
+  load,
+  pagina,
+  totalPaginas,
+  totalEntornos,
+  irAPagina,
 } = useTraffickerDashboard()
 
-const expandedGroups = ref(new Set(['pauta_sin_factura', 'sin_factura', 'critico', 'peligro', 'optimo', 'factura_sin_pauta']))
+/**
+ * Una fila abierta a la vez: con diez entornos en pantalla, abrir varias
+ * convierte la lista en un muro y se pierde la comparacion, que es para lo
+ * que sirve el listado.
+ */
+const abierta = ref<string | null>(null)
 
-function toggleGroup(id: string) {
-  if (expandedGroups.value.has(id)) expandedGroups.value.delete(id)
-  else expandedGroups.value.add(id)
+function alternar(id: string) {
+  abierta.value = abierta.value === id ? null : id
 }
 
 function go(id: string) {
@@ -99,26 +106,30 @@ onMounted(() => load())
         :cards-sin-pauta-length="cards.filter(c => c.spend === 0).length"
       />
 
-      <!-- Grouped view -->
-      <div class="trf__groups">
-        <TraffickerGroup
-          v-for="group in groups"
-          :key="group.id"
-          :group="group"
-          :is-expanded="expandedGroups.has(group.id)"
-          @toggle="toggleGroup(group.id)"
-        >
-          <TraffickerCard
-            v-for="card in group.cards"
-            :key="card.id"
-            :card="card"
-            :is-reminding="remindingSet.has(card.id)"
-            :is-reminded="remindedSet.has(card.id)"
-            @go-detail="go(card.id)"
-            @remind="sendReminder(card.id)"
-          />
-        </TraffickerGroup>
+      <!-- Lista en acordeón: una fila por entorno, el detalle se abre debajo -->
+      <div class="trf__lista">
+        <TraffickerRow
+          v-for="card in cards"
+          :key="card.id"
+          :card="card"
+          :abierta="abierta === card.id"
+          :is-reminding="remindingSet.has(card.id)"
+          :is-reminded="remindedSet.has(card.id)"
+          @toggle="alternar(card.id)"
+          @go-detail="go(card.id)"
+          @remind="sendReminder(card.id)"
+        />
       </div>
+
+      <nav v-if="totalPaginas > 1" class="trf__paginacion" aria-label="Paginación">
+        <button type="button" :disabled="pagina === 1" @click="irAPagina(pagina - 1, searchQuery)">
+          <i class="fa-solid fa-chevron-left" aria-hidden="true" /> Anterior
+        </button>
+        <span>Página {{ pagina }} de {{ totalPaginas }} · {{ totalEntornos }} entornos</span>
+        <button type="button" :disabled="pagina === totalPaginas" @click="irAPagina(pagina + 1, searchQuery)">
+          Siguiente <i class="fa-solid fa-chevron-right" aria-hidden="true" />
+        </button>
+      </nav>
     </template>
   </div>
 </template>
@@ -148,9 +159,38 @@ onMounted(() => load())
   p  { margin: 0; font-size: 14px; max-width: 300px; }
 }
 
-.trf__groups {
+.trf__lista {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+}
+
+.trf__paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+
+  span { font-size: 0.8rem; color: $text-secondary; }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: $primary-dark;
+    background: $white;
+    border: 1.5px solid rgba($primary-dark, 0.12);
+    border-radius: 9px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) { border-color: rgba($primary, 0.5); }
+    &:disabled { opacity: 0.45; cursor: not-allowed; }
+  }
 }
 </style>

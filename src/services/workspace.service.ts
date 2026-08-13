@@ -128,8 +128,16 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
-  async toggleWorkspaceActive(workspaceId: string, isActive: boolean): Promise<WorkspaceResponse> {
-    const res = await this.patch<WorkspaceResponse>(`workspaces/${workspaceId}/toggle-active`, { isActive })
+  /** Al desactivar, el backend exige un motivo. */
+  async toggleWorkspaceActive(
+    workspaceId: string,
+    isActive: boolean,
+    desactivacion?: { motivo: string; nota?: string },
+  ): Promise<WorkspaceResponse> {
+    const res = await this.patch<WorkspaceResponse>(`workspaces/${workspaceId}/toggle-active`, {
+      isActive,
+      ...desactivacion,
+    })
     return res.data
   }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import WorkspacesSummaryBar from './WorkspacesSummaryBar.vue'
+import DeactivateWorkspaceModal from './DeactivateWorkspaceModal.vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -36,6 +37,27 @@ let searchTimeout: ReturnType<typeof setTimeout> | null = null
 // recargan, la barra queda mintiendo hasta el proximo refresco de la pagina.
 const summaryRef = ref<InstanceType<typeof WorkspacesSummaryBar> | null>(null)
 const recargarResumen = () => summaryRef.value?.recargar()
+
+const wsADesactivar = ref<Workspace | null>(null)
+const desactivando = ref(false)
+
+async function confirmarDesactivacion(datos: { motivo: string; nota?: string }) {
+  const ws = wsADesactivar.value
+  if (!ws) return
+
+  desactivando.value = true
+  try {
+    await workspaceService.toggleWorkspaceActive(ws._id, false, datos)
+    ws.isActive = false
+    recargarResumen()
+    wsADesactivar.value = null
+    toast.success(`Entorno "${ws.name}" desactivado.`)
+  } catch {
+    toast.error('No se pudo desactivar el entorno.')
+  } finally {
+    desactivando.value = false
+  }
+}
 
 async function fetchWorkspaces(isLoadMore = false): Promise<void> {
   if (isLoadMore) {
@@ -80,9 +102,16 @@ async function handleToggleWorkspaceActive(ws: Workspace, e: Event): Promise<voi
   })
   if (!isConfirmed) return
 
+  // Desactivar exige motivo: sin el, un entorno caido no dejaba rastro y
+  // habia que preguntar por WhatsApp si era falta de pago o una pausa.
+  if (willDeactivate) {
+    wsADesactivar.value = ws
+    return
+  }
+
   togglingWorkspaceId.value = ws._id
   try {
-    await workspaceService.toggleWorkspaceActive(ws._id, !willDeactivate)
+    await workspaceService.toggleWorkspaceActive(ws._id, true)
     ws.isActive = !willDeactivate
     recargarResumen()
     toast.success(`Entorno "${ws.name}" ${ws.isActive ? 'activado' : 'desactivado'}.`)
@@ -209,6 +238,14 @@ onMounted(fetchWorkspaces)
   <div class="superadmin-dashboard__body">
     <!-- Los conteos que el listado paginado no puede dar por si solo. -->
     <WorkspacesSummaryBar ref="summaryRef" />
+
+    <DeactivateWorkspaceModal
+      :show="!!wsADesactivar"
+      :nombre="wsADesactivar?.name || ''"
+      :guardando="desactivando"
+      @close="wsADesactivar = null"
+      @confirmar="confirmarDesactivacion"
+    />
 
     <!-- View: Workspaces Grid -->
     <WorkspaceList
