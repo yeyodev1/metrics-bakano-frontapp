@@ -84,6 +84,10 @@ defineExpose({ recargar: cargar })
 
 <style lang="scss" scoped>
 .wsb {
+  // El contenedor padre usa align-items: start, que encoge a los hijos al
+  // ancho de su contenido: sin esto la rejilla colapsaba a una sola columna
+  // y las cinco tarjetas salian apiladas en vertical.
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.75rem;
