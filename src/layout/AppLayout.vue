@@ -1281,12 +1281,16 @@ watch(() => route.params.workspaceId, async (newId) => {
   &__nav-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
+    // Etiquetas como "Próximas asesorías" o "KPIs del Equipo" se partían en
+    // dos líneas y dejaban la lista dentada. Con el texto un punto más chico y
+    // menos separación entran de una, y la barra deja de ser tan larga.
+    gap: 0.75rem;
+    padding: 0.62rem 0.9rem;
     border-radius: 8px;
     text-decoration: none;
     color: rgba($white, 0.6);
-    font-size: 0.95rem;
+    font-size: 0.875rem;
+    line-height: 1.3;
     font-weight: 500;
     transition:
       background-color 0.15s ease,
@@ -1317,14 +1321,16 @@ watch(() => route.params.workspaceId, async (newId) => {
 
   &__nav-tag {
     margin-left: auto;
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     font-weight: 800;
-    letter-spacing: 0.08em;
-    color: $primary;
-    background: rgba($primary, 0.15);
-    padding: 0.15rem 0.45rem;
-    border-radius: 100px;
-    border: 1px solid rgba($primary, 0.25);
+    letter-spacing: 0.06em;
+    // Antes eran píldoras rosadas con borde: doce de ellas competían con el
+    // nombre de la sección, que es lo que uno viene a leer. Ahora son
+    // metadato: gris, sin borde, presente pero callado.
+    color: rgba($white, 0.4);
+    background: rgba($white, 0.07);
+    padding: 0.12rem 0.4rem;
+    border-radius: 5px;
     flex-shrink: 0;
   }
 
