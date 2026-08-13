@@ -1,16 +1,22 @@
 import axios from 'axios'
 import type { AxiosResponse, AxiosRequestConfig } from 'axios'
+import { resolveApiOrigin } from '@/config/api'
 
 class APIBase {
   private baseUrl: string
   private axiosInstance = axios.create()
 
   constructor() {
-    const raw = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8101/api'
-    const trimmed = raw.replace(/\/+$/, '')
-    this.baseUrl = trimmed.endsWith('/api') || /\/api\//.test(trimmed)
-      ? trimmed
-      : `${trimmed}/api`
+    const origen = resolveApiOrigin()
+    this.baseUrl = origen.baseUrl
+
+    if (origen.aviso) console.warn(`[api] ${origen.aviso}`)
+    // Saber contra qué backend se está hablando evita media hora de confusión
+    // cuando los datos no son los que se esperaban.
+    if (import.meta.env.DEV) {
+      console.info(`[api] ${origen.entorno} → ${this.baseUrl}`)
+    }
+
     this.setupInterceptors()
   }
 
