@@ -78,7 +78,7 @@ async function handleResendInvite() {
 async function fetchWorkspaces() {
   isLoadingWorkspaces.value = true
   try {
-    const response = await workspaceService.listWorkspaces({ limit: 100 })
+    const response = await workspaceService.listWorkspaces({ limit: 100, minimal: true })
     allWorkspaces.value = response.workspaces
   } catch (err) {
     toast.error('Error al cargar entornos')

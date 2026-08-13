@@ -76,7 +76,7 @@ async function fetchGlobalWorkspaces() {
   if (globalWorkspaces.value.length > 0) return
   isLoadingWorkspaces.value = true
   try {
-    const res = await workspaceService.listWorkspaces({ limit: 100, page: 1 })
+    const res = await workspaceService.listWorkspaces({ limit: 100, page: 1, minimal: true })
     globalWorkspaces.value = res.workspaces
   } catch {
   } finally {
