@@ -31,7 +31,9 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["testing-storybrand-frontend.bakano.ec"],
+    // El punto inicial = cualquier subdominio de bakano.ec. Así un túnel nuevo
+    // no obliga a tocar este archivo.
+    allowedHosts: [".bakano.ec"],
   },
   build: {
     target: 'esnext',
