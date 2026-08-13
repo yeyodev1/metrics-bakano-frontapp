@@ -290,6 +290,8 @@ export function useTraffickerDashboard() {
     name: ws.name,
     pageId: ws.metaAds?.pageId,
     metaConnected: !!(ws.metaAds?.pageId),
+    logoUrl: ws.metaAds?.pictureUrl ?? null,
+    conexion: revisarConexion(ws),
     roas: 0,
     revenue: 0,
     onlineRevenue: 0,

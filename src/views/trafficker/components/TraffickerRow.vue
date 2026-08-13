@@ -13,9 +13,9 @@
 
       <!-- Conectar a medias es la causa silenciosa de la mitad de los ceros. -->
       <span
-        v-if="!card.conexion.completa"
+        v-if="card.conexion && !card.conexion.completa"
         class="trow__incompleta"
-        :title="`Falta conectar: ${card.conexion.faltan.join(', ')}`"
+        :title="`Falta conectar: ${(card.conexion?.faltan ?? []).join(', ')}`"
       >
         <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
         Conexión incompleta
@@ -94,7 +94,7 @@
       <TraffickerAdsBreakdown
         :workspace-id="card.id"
         :activo="abierta"
-        :conexion-completa="card.conexion.completa"
+        :conexion-completa="card.conexion?.completa ?? false"
       />
 
       <p class="trow__nota">{{ estado.detalle }}</p>
