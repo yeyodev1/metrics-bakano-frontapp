@@ -9,32 +9,36 @@
         <span v-else>{{ iniciales }}</span>
       </span>
 
-      <span class="trow__name">{{ card.name }}</span>
+      <span class="trow__main">
+        <span class="trow__name">{{ card.name }}</span>
 
-      <!-- Conectar a medias es la causa silenciosa de la mitad de los ceros. -->
-      <span
-        v-if="card.conexion && !card.conexion.completa"
-        class="trow__incompleta"
-        :title="`Falta conectar: ${(card.conexion?.faltan ?? []).join(', ')}`"
-      >
-        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
-        Conexión incompleta
-      </span>
+        <span class="trow__chips">
+          <!-- Conectar a medias es la causa silenciosa de la mitad de los ceros. -->
+          <span
+            v-if="card.conexion && !card.conexion.completa"
+            class="trow__chip trow__chip--aviso"
+            :title="`Falta conectar: ${(card.conexion?.faltan ?? []).join(', ')}`"
+          >
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" /> Conexión incompleta
+          </span>
 
-      <span class="trow__estado" :title="estado.detalle">{{ estado.label }}</span>
+          <span class="trow__chip" :class="`trow__chip--${estado.tono}`" :title="estado.detalle">
+            {{ estado.label }}
+          </span>
 
-      <!-- Lo que se venía a saber: quién tiene campañas corriendo AHORA. -->
-      <span
-        v-if="card.actividad?.conectado"
-        class="trow__activos"
-        :class="{ 'is-cero': !card.actividad.activos }"
-        :title="card.actividad.error || `${card.actividad.activos} activos · ${card.actividad.pausados} pausados`"
-      >
-        <i class="fa-solid fa-circle" aria-hidden="true" />
-        {{ card.actividad.activos }} {{ card.actividad.activos === 1 ? 'activo' : 'activos' }}
-      </span>
-      <span v-else-if="card.actividad" class="trow__activos is-cero" title="Meta no está conectada en este entorno">
-        Sin Meta
+          <span
+            v-if="card.actividad?.conectado"
+            class="trow__chip"
+            :class="card.actividad.activos ? 'trow__chip--ok' : ''"
+            :title="card.actividad.error || `${card.actividad.activos} activos · ${card.actividad.pausados} pausados`"
+          >
+            <i class="fa-solid fa-circle trow__punto" aria-hidden="true" />
+            {{ card.actividad.activos }} {{ card.actividad.activos === 1 ? 'activo' : 'activos' }}
+          </span>
+          <span v-else-if="card.actividad" class="trow__chip" title="Meta no está conectada en este entorno">
+            Sin Meta
+          </span>
+        </span>
       </span>
 
       <span class="trow__metric">
@@ -191,7 +195,7 @@ const estado = computed(() => {
 
 .trow__head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.9rem;
   width: 100%;
   padding: 0.8rem 1rem;
@@ -207,6 +211,7 @@ const estado = computed(() => {
 
 .trow__chevron {
   flex-shrink: 0;
+  margin-top: 0.35rem;
   font-size: 0.7rem;
   color: $text-secondary;
   transition: transform 0.18s;
@@ -214,35 +219,54 @@ const estado = computed(() => {
   .is-open & { transform: rotate(90deg); }
 }
 
-.trow__name {
+.trow__main {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.3rem;
   min-width: 0;
-  overflow: hidden;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: $primary-dark;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.trow__estado {
-  flex-shrink: 0;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.68rem;
-  font-weight: 800;
-  border-radius: 100px;
+/* El nombre es lo que se busca en la lista: nunca se recorta. Si es largo
+   envuelve, que es preferible a leer "CONSTRUCT…". */
+.trow__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: $primary-dark;
+  overflow-wrap: anywhere;
+}
+
+.trow__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.trow__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.66rem;
+  font-weight: 700;
   color: $text-secondary;
   background: rgba($primary-dark, 0.06);
+  border-radius: 6px;
 
-  .trow--ok & { color: #15803d; background: rgba(#16a34a, 0.12); }
-  .trow--aviso & { color: #b45309; background: rgba(#d97706, 0.14); }
-  .trow--alerta & { color: #b45309; background: rgba(#d97706, 0.14); }
-  .trow--critico & { color: #b91c1c; background: rgba(#dc2626, 0.12); }
+  &--ok { color: #15803d; background: rgba(#16a34a, 0.12); }
+  &--aviso { color: #b45309; background: rgba(#d97706, 0.14); }
+  &--alerta { color: #b45309; background: rgba(#d97706, 0.14); }
+  &--critico { color: #b91c1c; background: rgba(#dc2626, 0.12); }
 }
+
+.trow__punto { font-size: 0.36rem; }
+
 
 .trow__logo {
   display: flex;
   flex-shrink: 0;
+  margin-top: 0.1rem;
   align-items: center;
   justify-content: center;
   width: 30px;
@@ -257,38 +281,10 @@ const estado = computed(() => {
   img { width: 100%; height: 100%; object-fit: cover; }
 }
 
-.trow__incompleta {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.66rem;
-  font-weight: 800;
-  color: #b45309;
-  background: rgba(#d97706, 0.14);
-  border-radius: 100px;
-}
 
 
 
 
-.trow__activos {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 800;
-  color: #15803d;
-  background: rgba(#16a34a, 0.1);
-  border-radius: 100px;
-
-  i { font-size: 0.4rem; }
-
-  &.is-cero { color: $text-secondary; background: rgba($primary-dark, 0.06); }
-}
 
 .trow__ads {
   padding: 0.8rem 0.9rem;
@@ -333,6 +329,7 @@ const estado = computed(() => {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  margin-top: 0.1rem;
   align-items: flex-end;
   min-width: 5.5rem;
 
