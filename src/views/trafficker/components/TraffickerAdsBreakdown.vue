@@ -2,6 +2,9 @@
   <div class="tab-ads">
     <p class="tab-ads__titulo">Anuncios</p>
     <p v-if="cargando" class="tab-ads__nota">Cargando anuncios…</p>
+    <p v-else-if="!puedeConsultar" class="tab-ads__nota">
+      No se pueden listar: falta vincular la cuenta publicitaria.
+    </p>
     <p v-else-if="!anuncios.length" class="tab-ads__nota">Sin anuncios en esta cuenta.</p>
     <ul v-else class="tab-ads__lista">
       <li v-for="ad in anuncios" :key="ad.id" class="tab-ads__item">
@@ -25,7 +28,7 @@
 import { ref, watch } from 'vue'
 import { videoPlanningService } from '@/services/videoPlanning.service'
 
-const props = defineProps<{ workspaceId: string; activo: boolean; conexionCompleta: boolean }>()
+const props = defineProps<{ workspaceId: string; activo: boolean; puedeConsultar: boolean }>()
 
 const num = (n: number) => new Intl.NumberFormat('es-EC').format(n || 0)
 const money = (n: number) =>
@@ -40,7 +43,7 @@ let pedido = false
 watch(
   () => props.activo,
   async (abierta) => {
-    if (!abierta || pedido || !props.conexionCompleta) return
+    if (!abierta || pedido || !props.puedeConsultar) return
     pedido = true
     cargando.value = true
     try {

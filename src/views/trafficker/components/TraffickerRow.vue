@@ -60,8 +60,10 @@
       </span>
     </button>
 
-    <!-- Cuerpo: solo se pinta al abrir. -->
-    <div v-if="abierta" class="trow__body">
+    <!-- Cuerpo: solo se pinta al abrir. La altura se mide al vuelo porque
+         'auto' no se puede animar. -->
+    <Transition name="desplegar" @enter="alAbrir" @after-enter="alTerminar" @leave="alCerrar">
+      <div v-if="abierta" class="trow__body">
       <dl class="trow__datos">
         <div>
           <dt>Inversión en Meta</dt>
@@ -77,28 +79,23 @@
         </div>
         <div>
           <dt>Meta</dt>
-          <dd>{{ card.metaConnected ? 'Conectada' : 'Sin conectar' }}</dd>
+          <dd>{{ card.conexion?.completa ? 'Conectada' : `Faltan ${(card.conexion?.faltan ?? []).length}` }}</dd>
         </div>
       </dl>
 
-      <div v-if="card.actividad?.conectado" class="trow__ads">
-        <p class="trow__ads-titulo">
-          Anuncios este mes
-          <span>{{ card.actividad.activos }} activos · {{ card.actividad.pausados }} pausados</span>
-        </p>
-        <p v-if="card.actividad.error" class="trow__ads-error">{{ card.actividad.error }}</p>
-        <dl v-else class="trow__ads-metricas">
-          <div><dt>Impresiones</dt><dd>{{ num(card.actividad.impresiones) }}</dd></div>
-          <div><dt>Clics</dt><dd>{{ num(card.actividad.clics) }}</dd></div>
-          <div><dt>CTR</dt><dd>{{ card.actividad.ctr !== null ? card.actividad.ctr.toFixed(2) + '%' : '—' }}</dd></div>
-          <div><dt>CPC</dt><dd>{{ card.actividad.cpc !== null ? money(card.actividad.cpc) : '—' }}</dd></div>
-        </dl>
-      </div>
+      <TraffickerAdsResumen v-if="card.actividad?.conectado" :actividad="card.actividad" />
+
+
+      <TraffickerConexion
+        v-if="card.conexion && !card.conexion.completa"
+        :faltan="card.conexion.faltan"
+        @conectar="emit('conectar')"
+      />
 
       <TraffickerAdsBreakdown
         :workspace-id="card.id"
         :activo="abierta"
-        :conexion-completa="card.conexion?.completa ?? false"
+        :puede-consultar="!!card.conexion && !card.conexion.faltan.includes('cuenta publicitaria')"
       />
 
       <p class="trow__nota">{{ estado.detalle }}</p>
@@ -117,14 +114,17 @@
           <i :class="isReminded ? 'fa-solid fa-check' : 'fa-solid fa-bell'" aria-hidden="true" />
           {{ isReminded ? 'Recordatorio enviado' : isReminding ? 'Enviando…' : 'Recordar facturación' }}
         </button>
+        </div>
       </div>
-    </div>
+    </Transition>
   </article>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import TraffickerAdsBreakdown from './TraffickerAdsBreakdown.vue'
+import TraffickerConexion from './TraffickerConexion.vue'
+import TraffickerAdsResumen from './TraffickerAdsResumen.vue'
 import type { Card } from '../composables/useTraffickerDashboard'
 
 const props = defineProps<{
@@ -138,7 +138,24 @@ const emit = defineEmits<{
   (e: 'toggle'): void
   (e: 'go-detail'): void
   (e: 'remind'): void
+  (e: 'conectar'): void
 }>()
+
+
+// 'height: auto' no se puede animar: se fija el alto real y se suelta al final.
+function alAbrir(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = '0'
+  requestAnimationFrame(() => { e.style.height = `${e.scrollHeight}px` })
+}
+function alTerminar(el: Element) {
+  ;(el as HTMLElement).style.height = 'auto'
+}
+function alCerrar(el: Element) {
+  const e = el as HTMLElement
+  e.style.height = `${e.scrollHeight}px`
+  requestAnimationFrame(() => { e.style.height = '0' })
+}
 
 const num = (n: number) => new Intl.NumberFormat('es-EC').format(n || 0)
 
@@ -286,44 +303,12 @@ const estado = computed(() => {
 
 
 
-.trow__ads {
-  padding: 0.8rem 0.9rem;
-  margin-top: 0.9rem;
-  background: rgba($primary-dark, 0.02);
-  border: 1px solid rgba($primary-dark, 0.07);
-  border-radius: 10px;
-}
 
-.trow__ads-titulo {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0 0 0.6rem;
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: $primary-dark;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 
-  span { font-weight: 600; color: $text-secondary; text-transform: none; letter-spacing: 0; }
-}
 
-.trow__ads-error {
-  margin: 0;
-  font-size: 0.76rem;
-  line-height: 1.5;
-  color: #b45309;
-}
 
-.trow__ads-metricas {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
-  gap: 0.6rem;
-  margin: 0;
 
-  dt { font-size: 0.65rem; color: $text-secondary; text-transform: uppercase; }
-  dd { margin: 0.1rem 0 0; font-size: 0.92rem; font-weight: 800; color: $primary-dark; }
-}
+
 
 .trow__metric {
   display: flex;
@@ -335,6 +320,21 @@ const estado = computed(() => {
 
   small { font-size: 0.6rem; letter-spacing: 0.04em; color: $text-secondary; text-transform: uppercase; }
   strong { font-size: 0.88rem; font-weight: 800; color: $primary-dark; }
+}
+
+/* La apertura acompaña; sin esto el detalle aparecía de golpe. */
+.desplegar-enter-active,
+.desplegar-leave-active {
+  overflow: hidden;
+  transition: height 0.24s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease;
+}
+
+.desplegar-enter-from,
+.desplegar-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .desplegar-enter-active,
+  .desplegar-leave-active { transition: none; }
 }
 
 .trow__body {

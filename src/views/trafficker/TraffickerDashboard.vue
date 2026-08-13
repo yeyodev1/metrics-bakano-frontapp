@@ -55,6 +55,11 @@ function alternar(id: string) {
   abierta.value = abierta.value === id ? null : id
 }
 
+/** Lleva a la pantalla donde se completa la vinculacion con Meta. */
+function irAConectar(id: string) {
+  router.push({ name: 'SuperadminMetaIntegrations', query: { workspaceId: id } })
+}
+
 function go(id: string) {
   router.push({ name: 'TraffickerWorkspace', params: { workspaceId: id } })
 }
@@ -134,6 +139,7 @@ onMounted(() => load())
           @toggle="alternar(card.id)"
           @go-detail="go(card.id)"
           @remind="sendReminder(card.id)"
+          @conectar="irAConectar(card.id)"
         />
       </div>
       </Transition>
