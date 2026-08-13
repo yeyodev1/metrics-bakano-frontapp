@@ -4,14 +4,13 @@ export type SuperadminTab =
   | 'account-admins'
   | 'superadmins'
   | 'planning'
-  | 'surveys'
   | 'traffickers'
 
 defineProps<{ activeTab: SuperadminTab; traffickersCount: number }>()
 const emit = defineEmits<{ (e: 'switchTab', tab: SuperadminTab): void }>()
 
 /**
- * Las seis pestañas, en una lista.
+ * Las cinco pestañas, en una lista.
  *
  * Antes eran seis botones casi idénticos escritos a mano, cada uno con su
  * propio color de activo: rosa, rojo, ámbar... Seis acentos distintos no son
@@ -27,7 +26,6 @@ const TABS: Array<{ id: SuperadminTab; label: string; icon: string }> = [
   { id: 'account-admins', label: 'Admins de cuenta', icon: 'fa-solid fa-users-gear' },
   { id: 'superadmins', label: 'Superadmins', icon: 'fa-solid fa-user-shield' },
   { id: 'planning', label: 'Planificación', icon: 'fa-solid fa-calendar-days' },
-  { id: 'surveys', label: 'Encuestas', icon: 'fa-solid fa-clipboard-list' },
   { id: 'traffickers', label: 'Traffickers', icon: 'fa-solid fa-bullseye' },
 ]
 </script>

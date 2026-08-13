@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
-import { meetingService } from '@/services/meeting.service'
-import type { Workspace, WorkspaceUser, ClientMeeting } from '@/types'
+import type { Workspace, WorkspaceUser } from '@/types'
 import { useUserStore } from '@/stores/user'
 
 import ClientsGlobalHeader from './components/ClientsGlobalHeader.vue'
 import ClientsGlobalList from './components/ClientsGlobalList.vue'
 import ClientsGlobalUsersList from './components/ClientsGlobalUsersList.vue'
-import ClientsGlobalMeetingModal from './components/ClientsGlobalMeetingModal.vue'
 import ClientsGlobalUserModal from './components/ClientsGlobalUserModal.vue'
 
 const userStore = useUserStore()
@@ -28,20 +26,6 @@ const loadingMore = ref(false)
 const loadingUsers = ref(false)
 const error = ref<string | null>(null)
 
-// ── Meeting state ─────────────────────────────────────────────
-const meetingMap = ref<Map<string, ClientMeeting>>(new Map())
-
-async function fetchMeetings() {
-  if (!userStore.isInternal && userStore.role !== 'superadmin') return
-  try {
-    const list = await meetingService.getMyMeetings()
-    const m = new Map<string, ClientMeeting>()
-    for (const meeting of list) m.set(meeting.workspaceId, meeting)
-    meetingMap.value = m
-  } catch {
-    // silent
-  }
-}
 
 // ── Search & Pagination ───────────────────────────────────────
 async function fetchWorkspaces(append = false) {
@@ -103,42 +87,6 @@ async function selectWorkspace(ws: Workspace | null) {
   }
 }
 
-// ── Meeting Modal ─────────────────────────────────────────────
-const isMeetingModalOpen = ref(false)
-const meetingModalWs = ref<Workspace | null>(null)
-const meetingModalSaving = ref(false)
-const meetingModalError = ref<string | null>(null)
-
-function openMeetingModal(ws: Workspace, e: Event) {
-  e.stopPropagation()
-  meetingModalError.value = null
-  meetingModalWs.value = ws
-  isMeetingModalOpen.value = true
-}
-
-function closeMeetingModal() {
-  isMeetingModalOpen.value = false
-  meetingModalWs.value = null
-}
-
-async function saveMeetingModal(payload: { nextMeetingDate: string; agenda: string }) {
-  if (!meetingModalWs.value) return
-  meetingModalSaving.value = true
-  meetingModalError.value = null
-  try {
-    const saved = await meetingService.createOrUpdate({
-      workspaceId: meetingModalWs.value._id,
-      nextMeetingDate: payload.nextMeetingDate,
-      agenda: payload.agenda,
-    })
-    meetingMap.value = new Map(meetingMap.value).set(saved.workspaceId, saved)
-    closeMeetingModal()
-  } catch {
-    meetingModalError.value = 'Error al guardar. Intenta de nuevo.'
-  } finally {
-    meetingModalSaving.value = false
-  }
-}
 
 // ── User Modal ────────────────────────────────────────────────
 const isUserModalOpen = ref(false)
@@ -160,13 +108,11 @@ function closeUserDetail() {
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     closeUserDetail()
-    closeMeetingModal()
   }
 }
 
 onMounted(() => {
   fetchWorkspaces()
-  fetchMeetings()
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -190,10 +136,8 @@ onUnmounted(() => {
         :error="error"
         :hasMore="hasMore"
         :loadingMore="loadingMore"
-        :meetingMap="meetingMap"
         @load-more="loadMore"
         @toggle-workspace="selectWorkspace"
-        @open-meeting-modal="openMeetingModal"
       />
     </template>
     <template v-else>
@@ -205,16 +149,6 @@ onUnmounted(() => {
         @open-user-modal="openUserDetail"
       />
     </template>
-
-    <ClientsGlobalMeetingModal
-      :isOpen="isMeetingModalOpen"
-      :workspace="meetingModalWs"
-      :meeting="meetingModalWs ? meetingMap.get(meetingModalWs._id) : undefined"
-      :saving="meetingModalSaving"
-      :error="meetingModalError"
-      @close="closeMeetingModal"
-      @save="saveMeetingModal"
-    />
 
     <ClientsGlobalUserModal
       :isOpen="isUserModalOpen"

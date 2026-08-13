@@ -67,14 +67,11 @@ watch(wsSearch, () => {
   }, 300)
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults', 'PMCalendar', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
 
-const isSurveyRoute = computed(() =>
-  ['SurveyList', 'SurveyNew', 'SurveyEdit', 'SurveyResults'].includes(route.name as string)
-)
 
 const currentWorkspaceId = computed(() => {
   if (isGlobalView.value) return null
@@ -192,8 +189,6 @@ onMounted(async () => {
   if (isContractPending.value && currentWorkspaceId.value) {
     showInvasiveOnboardingModal.value = true
   }
-
-  userStore.fetchPendingSurveys()
   notificationStore.fetchUnreadCount()
   document.addEventListener('click', closeDropdownOnClickOutside)
 })
@@ -486,18 +481,6 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Vista de Clientes</span>
             <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
-
-          <!-- Meetings calendar — internal team only -->
-          <RouterLink
-            v-if="userStore.isInternal"
-            class="app-layout__nav-item"
-            :to="{ name: 'PMCalendar' }"
-          >
-            <i class="fa-solid fa-handshake" aria-hidden="true" />
-            <span>Reuniones</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
-          </RouterLink>
-
           <!-- Trafficker panel — trafficker + project_manager + superadmin -->
           <RouterLink
             v-if="(userStore.isInternal && ['trafficker', 'project_manager'].includes(userStore.internalRole || '')) || userStore.role === 'superadmin'"
@@ -527,17 +510,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>KPIs del Equipo</span>
-            <span class="app-layout__nav-tag">GLOBAL</span>
-          </RouterLink>
-
-          <!-- Surveys — internal + superadmin (global tool) -->
-          <RouterLink
-            v-if="userStore.isInternal || userStore.role === 'superadmin'"
-            class="app-layout__nav-item"
-            :to="{ name: 'SurveyList' }"
-          >
-            <i class="fa-solid fa-clipboard-list" aria-hidden="true" />
-            <span>Encuestas</span>
             <span class="app-layout__nav-tag">GLOBAL</span>
           </RouterLink>
         </template>
@@ -654,21 +626,6 @@ watch(() => route.params.workspaceId, async (newId) => {
           <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'WorkspaceLegal', params: { workspaceId: currentWorkspaceId } }">
             <i class="fa-solid fa-file-contract" aria-hidden="true" />
             <span>Legalidades</span>
-          </RouterLink>
-
-          <!-- Surveys — clients (My Surveys) -->
-          <RouterLink
-            v-if="currentWorkspaceId && (!userStore.isInternal || userStore.role === 'superadmin')"
-            class="app-layout__nav-item"
-            :to="{ name: 'MySurveys', params: { workspaceId: currentWorkspaceId } }"
-          >
-            <div class="app-layout__nav-icon-container">
-              <i class="fa-solid fa-clipboard-check" aria-hidden="true" />
-              <span v-if="userStore.pendingSurveysCount > 0" class="app-layout__nav-badge">
-                {{ userStore.pendingSurveysCount }}
-              </span>
-            </div>
-            <span>Mis Encuestas</span>
           </RouterLink>
 
           <!-- Expert agendas — clients only -->
@@ -1005,10 +962,6 @@ watch(() => route.params.workspaceId, async (newId) => {
       cursor: default;
     }
 
-    &--surveys {
-      background: linear-gradient(135deg, rgba($primary, 0.12) 0%, rgba($primary, 0.04) 100%);
-      border: 1px solid rgba($primary, 0.25);
-    }
 
     &--clients {
       background: linear-gradient(135deg, rgba($primary, 0.12) 0%, rgba($primary, 0.04) 100%);
@@ -1053,11 +1006,6 @@ watch(() => route.params.workspaceId, async (newId) => {
       border: 1px solid rgba($primary, 0.3);
     }
 
-    &--surveys {
-      background: rgba($primary, 0.2);
-      color: $primary;
-      font-size: 1rem;
-    }
 
     &--clients {
       background: rgba($primary, 0.2);

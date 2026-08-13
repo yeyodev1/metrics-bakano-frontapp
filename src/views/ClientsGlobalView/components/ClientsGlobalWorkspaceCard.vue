@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import type { Workspace, ClientMeeting } from '@/types'
+import type { Workspace } from '@/types'
 import { getWorkspaceImage } from '@/utils/workspaceImage'
 
 const userStore = useUserStore()
@@ -17,15 +17,10 @@ const props = defineProps({
     type: Object as () => Workspace,
     required: true,
   },
-  meeting: {
-    type: Object as () => ClientMeeting | undefined,
-    default: undefined,
-  },
 })
 
 const emit = defineEmits<{
   (e: 'select-workspace', workspace: Workspace): void
-  (e: 'open-meeting-modal', workspace: Workspace, event: Event): void
 }>()
 
 function daysUntil(dateStr: string): number {
@@ -36,21 +31,7 @@ function daysUntil(dateStr: string): number {
   return Math.round((d.getTime() - now.getTime()) / 86400000)
 }
 
-function meetingChipLabel(meeting: ClientMeeting | undefined): string {
-  if (!meeting) return 'Sin programar'
-  const d = daysUntil(meeting.nextMeetingDate)
-  if (d === 0) return 'Reunión: Hoy'
-  if (d === 1) return 'Reunión: Mañana'
-  if (d < 0) return `Atrasada ${Math.abs(d)}d`
-  return `En ${d}d · ${new Date(meeting.nextMeetingDate).toLocaleDateString('es-EC', { day: '2-digit', month: 'short' })}`
-}
 
-function meetingChipClass(meeting: ClientMeeting | undefined): string {
-  if (!meeting) return 'clients-global__card-meeting--none'
-  return daysUntil(meeting.nextMeetingDate) < 0
-    ? 'clients-global__card-meeting--overdue'
-    : 'clients-global__card-meeting--ok'
-}
 </script>
 
 <template>
@@ -84,18 +65,6 @@ function meetingChipClass(meeting: ClientMeeting | undefined): string {
       </div>
     </div>
 
-    <div class="clients-global__card-body">
-      <button
-        v-if="userStore.isInternal || userStore.role === 'superadmin'"
-        class="clients-global__card-meeting"
-        :class="meetingChipClass(meeting)"
-        @click="emit('open-meeting-modal', workspace, $event)"
-        :title="meeting ? 'Editar reunión' : 'Programar reunión'"
-      >
-        <i class="fa-solid fa-handshake" />
-        {{ meetingChipLabel(meeting) }}
-      </button>
-    </div>
 
     <div class="clients-global__card-footer">
       <button class="clients-global__btn-primary clients-global__btn-primary--full" @click="emit('select-workspace', workspace)">
@@ -209,37 +178,6 @@ function meetingChipClass(meeting: ClientMeeting | undefined): string {
     gap: 0.75rem;
   }
 
-  &__card-meeting {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1rem;
-    border-radius: 10px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: 100%;
-
-    &--none {
-      background: rgba($primary-dark, 0.04);
-      color: rgba($primary-dark, 0.6);
-      border: 1px dashed rgba($primary-dark, 0.15);
-      &:hover { background: rgba($primary-dark, 0.08); color: $primary-dark; }
-    }
-    &--ok {
-      background: rgba($primary, 0.1);
-      color: $primary;
-      &:hover { background: rgba($primary, 0.15); }
-    }
-    &--overdue {
-      background: rgba(#ef4444, 0.1);
-      color: #ef4444;
-      &:hover { background: rgba(#ef4444, 0.15); }
-    }
-  }
 
   &__card-footer {
     padding: 1rem 1.25rem;

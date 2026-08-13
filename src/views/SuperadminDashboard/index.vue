@@ -12,14 +12,13 @@ import AccountAdminsTab from './components/AccountAdminsTab.vue'
 import TraffickersTab from './components/TraffickersTab.vue'
 import SuperadminsTab from './components/SuperadminsTab.vue'
 import PlanningTab from './components/PlanningTab.vue'
-import SurveysTab from './components/SurveysTab.vue'
 import CreateWorkspaceWizardModal from './components/CreateWorkspaceWizardModal.vue'
 
 // Refs to children tabs
 const workspacesTabRef = ref<InstanceType<typeof WorkspacesTab> | null>(null)
 const superadminsTabRef = ref<InstanceType<typeof SuperadminsTab> | null>(null)
 
-const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'surveys' | 'traffickers'>('workspaces')
+const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'traffickers'>('workspaces')
 const showCreateWorkspace = ref(false)
 const traffickersCount = ref(0)
 
@@ -51,7 +50,7 @@ function onWorkspaceCreated(workspace: Workspace) {
   fetchTraffickersCount()
 }
 
-function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'surveys' | 'traffickers'): void {
+function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'planning' | 'traffickers'): void {
   activeTab.value = tab
 }
 
@@ -105,10 +104,6 @@ onMounted(() => {
       v-if="activeTab === 'planning'"
     />
 
-    <!-- Content: Surveys Tab -->
-    <SurveysTab
-      v-if="activeTab === 'surveys'"
-    />
 
     <!-- Modals -->
     <CreateWorkspaceWizardModal

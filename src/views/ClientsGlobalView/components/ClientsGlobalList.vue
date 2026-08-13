@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import type { Workspace, WorkspaceUser, ClientMeeting } from '@/types'
+import type { Workspace, WorkspaceUser } from '@/types'
 import ClientsGlobalWorkspaceCard from './ClientsGlobalWorkspaceCard.vue'
 
 const props = defineProps({
@@ -24,16 +24,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  meetingMap: {
-    type: Object as PropType<Map<string, ClientMeeting>>,
-    required: true,
-  },
 })
 
 const emit = defineEmits<{
   (e: 'load-more'): void
   (e: 'toggle-workspace', workspace: Workspace): void
-  (e: 'open-meeting-modal', workspace: Workspace, event: Event): void
 }>()
 </script>
 
@@ -59,9 +54,7 @@ const emit = defineEmits<{
         v-for="ws in workspaces"
         :key="ws._id"
         :workspace="ws"
-        :meeting="meetingMap.get(ws._id)"
         @select-workspace="emit('toggle-workspace', ws)"
-        @open-meeting-modal="(wsParam, ev) => emit('open-meeting-modal', wsParam, ev)"
       />
 
       <div v-if="hasMore" class="clients-global__load-more">

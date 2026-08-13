@@ -163,43 +163,6 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/branches/WorkspaceBranchesView.vue'),
         meta: { title: 'Bakano Ads: Sucursales', requiresAuth: true },
       },
-      // ── Surveys ───────────────────────────────────────────
-      {
-        path: 'surveys',
-        name: 'SurveyList',
-        component: () => import('../views/surveys/SurveyListView.vue'),
-        meta: { title: 'Bakano Ads: Encuestas', requiresAuth: true },
-      },
-      {
-        path: 'surveys/new',
-        name: 'SurveyNew',
-        component: () => import('../views/surveys/SurveyBuilderView.vue'),
-        meta: { title: 'Bakano Ads: Nueva Encuesta', requiresAuth: true },
-      },
-      {
-        path: 'surveys/:surveyId/edit',
-        name: 'SurveyEdit',
-        component: () => import('../views/surveys/SurveyBuilderView.vue'),
-        meta: { title: 'Bakano Ads: Editar Encuesta', requiresAuth: true },
-      },
-      {
-        path: 'surveys/:surveyId/results',
-        name: 'SurveyResults',
-        component: () => import('../views/surveys/SurveyResultsView.vue'),
-        meta: { title: 'Bakano Ads: Resultados de Encuesta', requiresAuth: true },
-      },
-      {
-        path: 'survey/:token',
-        name: 'SurveyFill',
-        component: () => import('../views/surveys/SurveyFillView.vue'),
-        meta: { title: 'Bakano Ads: Responder Encuesta', requiresAuth: true },
-      },
-      {
-        path: 'workspaces/:workspaceId/surveys',
-        name: 'MySurveys',
-        component: () => import('../views/surveys/MySurveysView.vue'),
-        meta: { title: 'Bakano Ads: Mis Encuestas', requiresAuth: true },
-      },
       // ── Video Planning ────────────────────────────────────
       {
         path: 'workspaces/:workspaceId/planning/:entryId/video-planning',
@@ -267,13 +230,6 @@ const routes: Array<RouteRecordRaw> = [
         name: 'TeamKpis',
         component: () => import('../views/kpis/TeamKpisView.vue'),
         meta: { title: 'Bakano Ads: KPIs del Equipo', requiresAuth: true, requiresInternal: true },
-      },
-      // ── Meetings calendar ─────────────────────────────────
-      {
-        path: 'meetings',
-        name: 'PMCalendar',
-        component: () => import('../views/meetings/MeetingsView.vue'),
-        meta: { title: 'Bakano Ads: Calendario de Reuniones', requiresAuth: true, requiresInternal: true },
       },
       {
         path: 'sales-executive',
