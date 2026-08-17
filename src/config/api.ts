@@ -94,13 +94,15 @@ export function resolveApiOrigin(host = window.location.hostname): ApiOrigen {
     }
   }
 
-  // Desplegado: la variable manda, para no cambiar el comportamiento de
-  // producción por una tabla escrita a mano aquí dentro.
-  const explicita = env['VITE_API_BASE_URL']
-  if (explicita) return { baseUrl: normalizar(explicita), entorno: 'desplegado' }
-
+  // Dominio conocido manda sobre la variable. El deploy por CLI empaqueta el
+  // directorio local, y el `.env` de desarrollo apunta a staging: con la
+  // variable primero, producción entera quedó hablando con staging (pasó el
+  // 17 de agosto de 2026 y los clientes no podían entrar).
   const porDominio = POR_DOMINIO[host]
   if (porDominio) return { baseUrl: porDominio, entorno: 'desplegado' }
+
+  const explicita = env['VITE_API_BASE_URL']
+  if (explicita) return { baseUrl: normalizar(explicita), entorno: 'desplegado' }
 
   return {
     baseUrl: LOCAL_API,
