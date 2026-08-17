@@ -11,6 +11,8 @@ import type { Workspace } from '@/types'
 import { getWorkspaceImage } from '@/utils/workspaceImage'
 import logoDark from '@/assets/logos/bakano-light.png'
 import SoundToggleButton from '@/components/common/SoundToggleButton.vue'
+import NetworkStatus from '@/components/common/NetworkStatus.vue'
+import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 
 
 const router = useRouter()
@@ -32,6 +34,31 @@ const idVista = computed(() =>
 )
 const notificationStore = useNotificationStore()
 const confirm = useConfirm()
+
+// ── Prefetch del menú ───────────────────────────────────────────────────────
+const prefetch = useRoutePrefetch()
+
+/** El destino sale del `href` que pinta RouterLink, no de una tabla aparte. */
+function destinoDelEvento(e: Event): string | null {
+  const enlace = (e.target as HTMLElement | null)?.closest?.('a.app-layout__nav-item')
+  const href = enlace?.getAttribute('href')
+  // Enlaces externos (el CRM) no son rutas de esta app: no hay nada que adelantar.
+  return href && href.startsWith('/') ? href : null
+}
+
+function alApuntarNav(e: PointerEvent) {
+  const destino = destinoDelEvento(e)
+  if (destino) prefetch.alApuntar(destino)
+}
+
+function alSalirNav() {
+  prefetch.alSalir()
+}
+
+function alTocarNav(e: PointerEvent) {
+  const destino = destinoDelEvento(e)
+  if (destino) prefetch.alTocar(destino)
+}
 
 const workspaces = ref<Workspace[]>([])
 const workspacesLoaded = ref(false)
@@ -279,6 +306,10 @@ watch(() => route.params.workspaceId, async (newId) => {
 
 <template>
   <div class="app-layout">
+    <!-- Estado de la conexión: banner mientras se navega, pantalla completa
+         solo si la app abrió sin red y no hay nada que mostrar. -->
+    <NetworkStatus />
+
     <!-- MOBILE HEADER -->
     <header class="app-layout__mobile-header">
       <button class="app-layout__menu-toggle" @click="isSidebarOpen = true">
@@ -432,7 +463,14 @@ watch(() => route.params.workspaceId, async (newId) => {
         <ViewAsSwitcher />
       </div>
 
-      <nav class="app-layout__nav">
+      <!-- El prefetch va por delegación: así vale para los 22 ítems y para los
+           que se agreguen, sin repetir dos handlers en cada RouterLink. -->
+      <nav
+        class="app-layout__nav"
+        @pointerover="alApuntarNav"
+        @pointerout="alSalirNav"
+        @pointerdown="alTocarNav"
+      >
         <!-- ========================================== -->
         <!-- AGENCY VIEW LINKS (Visible when not in Sub-Account mode) -->
         <!-- ========================================== -->
@@ -592,16 +630,20 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Planificación</span>
           </RouterLink>
 
-          <!-- 3b. Builder Pro de Contenido — equipo interno, no clientes.
-               Expone métricas comparadas, aprendizajes y el feed del agente:
-               material de trabajo del equipo de contenido, no del cliente. -->
+          <!-- 3b. Builder de guiones — equipo interno, no clientes. Expone
+               métricas comparadas, aprendizajes y el feed del agente: material
+               de trabajo del equipo de contenido, no del cliente.
+
+               Va colgado de Planificación, no como hermano: los guiones nacen
+               de una entrada con día y hora, y verlo suelto hacía pensar que
+               era otra sección sin relación con el calendario. -->
           <RouterLink
             v-if="currentWorkspaceId && (idVista.isInternal || idVista.role === 'superadmin')"
-            class="app-layout__nav-item"
+            class="app-layout__nav-item app-layout__nav-item--sub"
             :to="{ name: 'WorkspaceContentBuilder', params: { workspaceId: currentWorkspaceId } }"
           >
             <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
-            <span>Builder Pro</span>
+            <span>Guiones de la planificación</span>
             <span class="app-layout__nav-tag app-layout__nav-tag--purple">PRO</span>
           </RouterLink>
 
@@ -1275,6 +1317,19 @@ watch(() => route.params.workspaceId, async (newId) => {
       border-radius: 2px;
     }
   }
+
+    // Subítem: cuelga del ítem de arriba. La guía a la izquierda es lo que
+    // dice, sin texto, que uno vive dentro del otro.
+    &__nav-item--sub {
+      margin-left: 1.35rem;
+      padding-left: 0.75rem;
+      border-left: 1.5px solid rgba($white, 0.14);
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      font-size: 0.82rem;
+
+      &.router-link-active { border-left-color: rgba($white, 0.45); }
+    }
 
   &__nav-item {
     display: flex;
