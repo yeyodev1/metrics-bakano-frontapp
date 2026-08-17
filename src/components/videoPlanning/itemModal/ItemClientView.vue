@@ -71,11 +71,11 @@
               Ver publicación
             </a>
           </div>
-          <div v-if="form.fechaPublicacion" class="vp-item-view__link-item">
+          <div v-if="fechaLegible(form.fechaPublicacion)" class="vp-item-view__link-item">
             <span class="label">PUBLICACIÓN</span>
             <div class="date-chip">
               <i class="fa-solid fa-calendar-day" />
-              {{ new Date(form.fechaPublicacion + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) }}
+              {{ fechaLegible(form.fechaPublicacion, { day: 'numeric', month: 'long' }, 'es-ES') }}
             </div>
           </div>
         </div>
@@ -85,6 +85,7 @@
 
 <script setup lang="ts">
 import type { CreateVideoItemPayload } from '@/types/videoPlanning'
+import { fechaLegible } from '@/utils/fechas'
 
 defineProps<{ form: CreateVideoItemPayload }>()
 </script>

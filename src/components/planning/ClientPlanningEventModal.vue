@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { PlanningEntry, WorkspaceUser } from '@/types'
 import type { VideoCalendarItem } from '@/types/videoPlanning'
+import { fechaLegible } from '@/utils/fechas'
 
 const router = useRouter()
 
@@ -189,13 +190,13 @@ function goToVideoPlanning() {
             </span>
             <div class="planning-modal__video-dates">
               <div
-                v-for="video in videoItems.slice().sort((a, b) => a.fechaPublicacion.localeCompare(b.fechaPublicacion))"
+                v-for="video in videoItems.slice().sort((a, b) => (a.fechaPublicacion || '').localeCompare(b.fechaPublicacion || ''))"
                 :key="video._id"
                 class="planning-modal__video-date-row"
               >
                 <span class="planning-modal__video-date-chip">
                   <i class="fa-solid fa-calendar-day" />
-                  {{ new Date(video.fechaPublicacion + 'T12:00:00').toLocaleDateString('es-EC', { weekday: 'short', day: 'numeric', month: 'short' }) }}
+                  {{ fechaLegible(video.fechaPublicacion, { weekday: 'short', day: 'numeric', month: 'short' }) }}
                 </span>
                 <span class="planning-modal__video-date-name">{{ video.tema }}</span>
               </div>
