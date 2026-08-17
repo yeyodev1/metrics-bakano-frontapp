@@ -58,6 +58,12 @@ const pageTitle = computed(() => (route.query.title as string) || 'Producción')
 const hasRejected = computed(() => items.value.some(i => i.clienteAprobacion === 'RECHAZADO'))
 const hasScriptsContent = computed(() => items.value.some(i => i.guion?.trim()))
 
+/**
+ * Videos todavía sin fecha de publicación. Bloquean el aviso al cliente: lo que
+ * se le manda a aprobar es un calendario, y sin fecha ese video no está en él.
+ */
+const itemsSinFecha = computed(() => items.value.filter(i => !i.fechaPublicacion).length)
+
 function handleApiError(err: unknown, fallbackMsg: string) {
   const e = err as { status?: number; message?: string }
   if (e?.status === 404) {
@@ -241,6 +247,7 @@ onMounted(async () => {
       :reopening="reopening"
       :copied-link="copiedLink"
       :backend-missing="backendMissing"
+      :items-sin-fecha="itemsSinFecha"
       @go-back="goBack"
       @print="() => printAllScripts(items, pageTitle)"
       @export-pdf="() => exportPdfScripts(items, pageTitle)"
