@@ -12,8 +12,21 @@ const emit = defineEmits(['accept'])
 
 const responsibilitiesChecked = ref(false)
 const videoFinished = ref(false)
+
+/**
+ * Se desbloquea con el video de verdad, no con un reloj de pared: el player
+ * de Wistia (web component) emite eventos estándar de media. El contador de
+ * respaldo solo avanza mientras el video se reproduce — antes corría aunque
+ * nadie hubiera pulsado play. Si el player no reporta ningún evento
+ * (bloqueadores, versiones raras), el contador vuelve a correr solo, para que
+ * nadie se quede atrapado sin poder continuar.
+ */
+const progreso = ref(0)
+const reproduciendo = ref(false)
+const playerReporta = ref(false)
 const timeLeft = ref(120)
 let timer: ReturnType<typeof setInterval>
+let buscarPlayer: ReturnType<typeof setInterval>
 
 const formattedTime = computed(() => {
   const m = Math.floor(timeLeft.value / 60).toString().padStart(2, '0')
@@ -21,9 +34,35 @@ const formattedTime = computed(() => {
   return `${m}:${s}`
 })
 
+function desbloquear() {
+  videoFinished.value = true
+  clearInterval(timer)
+}
+
 function onAcceptVideo() {
   if (!responsibilitiesChecked.value || !videoFinished.value) return
   emit('accept')
+}
+
+function conectarPlayer(): boolean {
+  const el = document.querySelector('wistia-player') as (HTMLElement & { currentTime?: number; duration?: number }) | null
+  if (!el) return false
+
+  el.addEventListener('play', () => { playerReporta.value = true; reproduciendo.value = true })
+  el.addEventListener('pause', () => { reproduciendo.value = false })
+  el.addEventListener('ended', () => { playerReporta.value = true; progreso.value = 100; desbloquear() })
+  el.addEventListener('timeupdate', () => {
+    playerReporta.value = true
+    const d = Number(el.duration) || 0
+    const t = Number(el.currentTime) || 0
+    if (d > 0) {
+      progreso.value = Math.max(progreso.value, Math.min(100, Math.round((t / d) * 100)))
+      // 95%: los últimos segundos suelen ser cierre/logo; exigirlos al pixel
+      // solo produce gente esperando frente a una pantalla negra.
+      if (t / d >= 0.95) desbloquear()
+    }
+  })
+  return true
 }
 
 onMounted(() => {
@@ -42,19 +81,25 @@ onMounted(() => {
     document.head.appendChild(embedScript)
   }
 
-  // Iniciar temporizador de 2 minutos (120 segundos)
+  // El custom element puede tardar en aparecer; se intenta hasta 10 segundos.
+  buscarPlayer = setInterval(() => { if (conectarPlayer()) clearInterval(buscarPlayer) }, 500)
+  setTimeout(() => clearInterval(buscarPlayer), 10000)
+
+  // Respaldo: cuenta mientras se reproduce; sin eventos del player, siempre.
   timer = setInterval(() => {
+    if (videoFinished.value) return
+    if (playerReporta.value && !reproduciendo.value) return
     if (timeLeft.value > 0) {
       timeLeft.value--
     } else {
-      videoFinished.value = true
-      clearInterval(timer)
+      desbloquear()
     }
   }, 1000)
 })
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  if (buscarPlayer) clearInterval(buscarPlayer)
 })
 </script>
 
@@ -75,11 +120,23 @@ onUnmounted(() => {
         </span>
       </label>
       
-      <div v-if="!videoFinished" class="timer-warning">
-        <i class="fas fa-hourglass-half warning-icon"></i>
+      <div v-if="videoFinished" class="timer-warning is-done">
+        <i class="fas fa-circle-check warning-icon"></i>
         <div class="warning-content">
-          <p class="warning-title">Por favor, mira el video completo</p>
-          <p class="warning-desc">Podrás aceptar las responsabilidades en <strong class="time-left">{{ formattedTime }}</strong></p>
+          <p class="warning-title is-done">¡Video completo!</p>
+          <p class="warning-desc">Ya puedes aceptar las responsabilidades y continuar.</p>
+        </div>
+      </div>
+      <div v-else class="timer-warning">
+        <i :class="reproduciendo ? 'fas fa-circle-play warning-icon' : 'fas fa-hourglass-half warning-icon'"></i>
+        <div class="warning-content">
+          <p class="warning-title">{{ reproduciendo ? 'Viendo el video…' : 'Por favor, mira el video completo' }}</p>
+          <p v-if="progreso > 0" class="warning-desc">
+            Llevas el <strong class="time-left">{{ progreso }}%</strong> — al terminarlo se desbloquea el botón.
+          </p>
+          <p v-else-if="playerReporta" class="warning-desc">Dale play al video para continuar.</p>
+          <p v-else class="warning-desc">Podrás aceptar las responsabilidades en <strong class="time-left">{{ formattedTime }}</strong></p>
+          <div v-if="progreso > 0" class="video-progress"><div class="video-progress__fill" :style="{ width: progreso + '%' }" /></div>
         </div>
       </div>
     </div>
@@ -160,6 +217,28 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
+
+  &.is-done {
+    background: rgba(#16a34a, 0.06);
+    border-color: rgba(#16a34a, 0.25);
+    .warning-icon { color: #16a34a; }
+  }
+}
+
+.warning-title.is-done { color: #16a34a; }
+
+.video-progress {
+  margin-top: 0.6rem;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(#c91e4c, 0.12);
+  overflow: hidden;
+
+  &__fill {
+    height: 100%;
+    background: linear-gradient(90deg, #c91e4c, #16a34a);
+    transition: width 0.4s ease;
+  }
 }
 
 .warning-icon {
