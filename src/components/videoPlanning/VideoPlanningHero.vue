@@ -37,13 +37,23 @@ const props = defineProps({
     required: true,
   },
   /**
-   * Videos sin fecha de publicación. Con uno solo ya no se puede avisar: el
-   * cliente aprueba un calendario, y media planificación sin agendar no es un
-   * calendario.
+   * Videos sin fecha de publicación. Ya no bloquea el aviso: el equipo de
+   * contenido agenda cada video al editarlo, así que la señal de terminado
+   * la da la marca de "lista", no el calendario. Se sigue mostrando como
+   * recordatorio de lo que falta agendar.
    */
   itemsSinFecha: {
     type: Number,
     default: 0,
+  },
+  /** Contenido dio por terminada la planificación; es la llave del notificar. */
+  listaParaCliente: {
+    type: Boolean,
+    default: false,
+  },
+  markingLista: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -55,6 +65,7 @@ const emit = defineEmits<{
   (e: 'share'): void
   (e: 'add'): void
   (e: 'notify'): void
+  (e: 'toggle-lista'): void
 }>()
 </script>
 
@@ -120,13 +131,26 @@ const emit = defineEmits<{
           volver a avisar, dentro está la auditoría de qué salió, qué se abrió
           y qué se clicó.
         -->
+        <!-- Paso 1 del aviso: contenido marca que terminó. Sin esta marca el
+             notificar queda apagado; el backend también lo exige. -->
+        <button
+          v-if="props.canManageFull && !props.backendMissing && !props.locked"
+          class="vp-view__ready-btn"
+          :class="{ 'vp-view__ready-btn--on': props.listaParaCliente }"
+          :disabled="props.markingLista"
+          :title="props.listaParaCliente ? 'Clic para volver a marcarla en preparación' : 'Marca que la planificación está terminada para poder avisar al cliente'"
+          @click="emit('toggle-lista')"
+        >
+          <i :class="props.markingLista ? 'fa-solid fa-spinner fa-spin' : (props.listaParaCliente ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle-check')" />
+          {{ props.listaParaCliente ? 'Lista para el cliente' : 'Marcar planificación lista' }}
+        </button>
         <button
           v-if="props.canManageFull && !props.backendMissing"
           class="vp-view__notify-btn"
-          :disabled="props.itemsSinFecha > 0"
+          :disabled="!props.listaParaCliente"
           :title="
-            props.itemsSinFecha > 0
-              ? `${props.itemsSinFecha} video(s) todavía sin fecha de publicación. El cliente no puede aprobar lo que no está agendado.`
+            !props.listaParaCliente
+              ? 'Primero marca la planificación como lista: esa es la señal de que contenido terminó.'
               : undefined
           "
           @click="emit('notify')"
@@ -135,10 +159,14 @@ const emit = defineEmits<{
         </button>
 
         <!-- El botón deshabilitado no explica nada por sí solo; el motivo va al
-             lado, porque es accionable: falta ponerles fecha. -->
-        <span v-if="props.canManageFull && !props.backendMissing && props.itemsSinFecha > 0" class="vp-view__notify-reason">
+             lado, porque es accionable. -->
+        <span v-if="props.canManageFull && !props.backendMissing && !props.listaParaCliente && !props.locked" class="vp-view__notify-reason">
+          <i class="fa-regular fa-hand-point-left" />
+          márcala lista para poder avisar
+        </span>
+        <span v-else-if="props.canManageFull && !props.backendMissing && props.itemsSinFecha > 0" class="vp-view__notify-reason">
           <i class="fa-regular fa-calendar-xmark" />
-          {{ props.itemsSinFecha }} sin fecha definida — agéndalos para poder avisar
+          {{ props.itemsSinFecha }} sin fecha — se agendan al editar
         </span>
         <button
           v-if="props.canManageFull && !props.backendMissing"
@@ -209,6 +237,21 @@ const emit = defineEmits<{
 
 .vp-view__hero-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; flex-wrap: wrap; }
 
+.vp-view__ready-btn {
+  background: rgba($white, 0.06);
+  color: rgba($white, 0.75);
+  border: 1.5px dashed rgba($white, 0.3);
+
+  &:hover:not(:disabled) { background: rgba($white, 0.12); color: $white; }
+
+  &--on {
+    background: rgba(#86efac, 0.15);
+    color: #86efac;
+    border: 1.5px solid rgba(#86efac, 0.4);
+    &:hover:not(:disabled) { background: rgba(#86efac, 0.22); }
+  }
+}
+
 .vp-view__notify-btn {
   background: $white;
   color: #128c3f;
@@ -237,7 +280,7 @@ const emit = defineEmits<{
   border-radius: 10px;
 }
 
-.vp-view__print-btn, .vp-view__pdf-btn, .vp-view__reopen-btn, .vp-view__share-btn, .vp-view__notify-btn, .vp-view__add-btn {
+.vp-view__print-btn, .vp-view__pdf-btn, .vp-view__reopen-btn, .vp-view__share-btn, .vp-view__ready-btn, .vp-view__notify-btn, .vp-view__add-btn {
   display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.2rem;
   border-radius: 12px; font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
   @media (max-width: 768px) { width: 100%; justify-content: center; }

@@ -186,6 +186,23 @@ async function handleSaveLinkVideo(itemId: string, payload: { linkVideo: string;
   }
 }
 
+const markingLista = ref(false)
+
+async function handleToggleLista() {
+  if (!planning.value) return
+  markingLista.value = true
+  try {
+    planning.value = await videoPlanningService.marcarLista(
+      planning.value._id,
+      !planning.value.listaParaCliente,
+    )
+  } catch (err) {
+    handleApiError(err, 'No se pudo cambiar la marca de lista')
+  } finally {
+    markingLista.value = false
+  }
+}
+
 async function handleReopen() {
   if (!planning.value) return
   reopening.value = true
@@ -248,6 +265,9 @@ onMounted(async () => {
       :copied-link="copiedLink"
       :backend-missing="backendMissing"
       :items-sin-fecha="itemsSinFecha"
+      :lista-para-cliente="planning?.listaParaCliente === true"
+      :marking-lista="markingLista"
+      @toggle-lista="handleToggleLista"
       @go-back="goBack"
       @print="() => printAllScripts(items, pageTitle)"
       @export-pdf="() => exportPdfScripts(items, pageTitle)"

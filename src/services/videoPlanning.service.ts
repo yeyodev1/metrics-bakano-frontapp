@@ -94,6 +94,15 @@ class VideoPlanningService extends APIBase {
     return res.data.planning
   }
 
+  /** Contenido marca (o desmarca) la planificación como lista para el cliente. */
+  async marcarLista(planningId: string, lista: boolean): Promise<VideoPlanning> {
+    const res = await this.patch<VideoPlanningResponse>(
+      `video-planning/${planningId}/ready`,
+      { lista },
+    )
+    return res.data.planning
+  }
+
   async submitClientApproval(
     planningId: string,
     payload: ClientApprovalPayload,
