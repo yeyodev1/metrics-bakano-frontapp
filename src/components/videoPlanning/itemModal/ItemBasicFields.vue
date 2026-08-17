@@ -8,21 +8,19 @@
     <div class="ibf__row">
       <div class="ibf__field">
         <label>Tipo de Reel</label>
-        <select v-model="form.tipo">
-          <option value="">— Sin tipo —</option>
-          <option v-for="t in TipoReel" :key="t" :value="t">{{ t }}</option>
-        </select>
+        <SearchableSelect v-model="form.tipo" :opciones="opcionesTipo" placeholder="— Sin tipo —" />
       </div>
 
       <div class="ibf__field">
         <label>Caso Customer Journey</label>
         <!-- Cases come from this brand's own journey, never hardcoded -->
-        <select v-model="form.casoUsoRef" :disabled="!journeyCases.length">
-          <option :value="undefined">— Caso General —</option>
-          <option v-for="c in journeyCases" :key="c.casoNumero" :value="c.casoNumero">
-            {{ c.nombreCaso || `Caso ${c.casoNumero}` }}
-          </option>
-        </select>
+        <SearchableSelect
+          v-model="form.casoUsoRef"
+          :opciones="opcionesCaso"
+          :disabled="!journeyCases.length"
+          placeholder="— Caso General —"
+          texto-vacio="Ningún caso coincide"
+        />
 
         <!-- Actionable, not a dead end: the fix is one click away -->
         <button v-if="!journeyCases.length" type="button" class="ibf__cta" @click="$emit('define-journey')">
@@ -51,16 +49,36 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { TipoReel, type CreateVideoItemPayload } from '@/types/videoPlanning'
 import type { CustomerJourneyCase } from '@/types'
+import SearchableSelect, { type OpcionSelect } from '@/components/common/SearchableSelect.vue'
 
-defineProps<{
+const props = defineProps<{
   journeyCases: CustomerJourneyCase[]
 }>()
 
 defineEmits<{ (e: 'define-journey'): void }>()
 
 const form = defineModel<CreateVideoItemPayload>({ required: true })
+
+const opcionesTipo = computed<OpcionSelect[]>(() => [
+  { valor: '', etiqueta: '— Sin tipo —' },
+  ...Object.values(TipoReel).map((t) => ({ valor: t, etiqueta: String(t) })),
+])
+
+/**
+ * El número de caso no le dice nada a nadie por sí solo, así que va de detalle
+ * bajo el nombre que la marca le puso.
+ */
+const opcionesCaso = computed<OpcionSelect[]>(() => [
+  { valor: undefined, etiqueta: '— Caso General —' },
+  ...props.journeyCases.map((c) => ({
+    valor: c.casoNumero,
+    etiqueta: c.nombreCaso || `Caso ${c.casoNumero}`,
+    detalle: c.nombreCaso ? `Caso ${c.casoNumero}` : undefined,
+  })),
+])
 </script>
 
 <style scoped lang="scss">
