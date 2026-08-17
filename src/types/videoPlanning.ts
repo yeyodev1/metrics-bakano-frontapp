@@ -305,3 +305,16 @@ export interface ResultadoNotificacion {
   whatsapp: { enviado: boolean; error?: string; contactos: { correo: string }[] }
   email: { enviado: boolean; error?: string; destinatarios: string[] }
 }
+
+/** Planificación que un entorno tiene sin aprobar, para aterrizar desde WhatsApp. */
+export interface PlanificacionPendiente {
+  planningId: string
+  planningEntryId: string
+  workspaceId: string
+  totalVideos: number
+  pendientes: number
+  creadaEn: string
+  mes: number | null
+  anio: number | null
+  ultimaNotificacion: string | null
+}

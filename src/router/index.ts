@@ -176,6 +176,23 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/videoPlanning/ClientVideoPlanningView.vue'),
         meta: { title: 'Bakano Ads: Aprobación de Videos', requiresAuth: true },
       },
+      {
+        // URL fija de la plantilla de WhatsApp aprobada por Meta: no puede
+        // llevar ids, así que esta pantalla resuelve cuál planificación abrir.
+        // Es estática, así que vue-router la prioriza sobre workspaces/:workspaceId.
+        path: 'workspaces/new-planning-from-whatsapp',
+        name: 'NewPlanningFromWhatsapp',
+        component: () => import('../views/videoPlanning/NewPlanningFromWhatsappView.vue'),
+        meta: { title: 'Bakano Ads: Tu planificación', requiresAuth: true },
+      },
+      {
+        // La plantilla de WhatsApp puede llegar con basura pegada a la URL
+        // (p. ej. /new-planning-from-whatsapp/billing). Sin esto, ese sufijo
+        // hacía match con workspaces/:workspaceId/billing y el cliente
+        // aterrizaba en Facturación con un workspaceId inválido.
+        path: 'workspaces/new-planning-from-whatsapp/:rest(.*)*',
+        redirect: { name: 'NewPlanningFromWhatsapp' },
+      },
       // ── Billing & ROAS ───────────────────────────────────
       {
         path: 'workspaces/:workspaceId/billing',

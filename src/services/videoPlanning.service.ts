@@ -14,6 +14,7 @@ import type {
   UsuarioAviso,
   HistorialAvisos,
   ResultadoNotificacion,
+  PlanificacionPendiente,
 } from '@/types/videoPlanning'
 
 class VideoPlanningService extends APIBase {
@@ -200,6 +201,20 @@ class VideoPlanningService extends APIBase {
   async getHistorialAvisos(planningId: string): Promise<HistorialAvisos> {
     const res = await this.get<HistorialAvisos>(`video-planning/${planningId}/notifications`)
     return res.data
+  }
+
+  /**
+   * Qué planificación le toca aprobar a un entorno.
+   *
+   * La plantilla de WhatsApp aprobada por Meta lleva una URL fija, sin ids
+   * (`/app/workspaces/new-planning-from-whatsapp`), así que el enlace no puede
+   * decir a qué planificación va: se resuelve aquí al aterrizar.
+   */
+  async getPlanificacionPendiente(workspaceId: string): Promise<PlanificacionPendiente | null> {
+    const res = await this.get<{ pendiente: PlanificacionPendiente | null }>(
+      `video-planning/pending-approval?workspaceId=${workspaceId}`,
+    )
+    return res.data.pendiente
   }
 }
 
