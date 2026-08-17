@@ -14,6 +14,9 @@ const LOCAL_API = 'http://localhost:8100/api'
 /** Dominios conocidos, por si el despliegue se queda sin variable. */
 const POR_DOMINIO: Record<string, string> = {
   'metrics.bakano.ec': 'https://ads-bakano-clients-backapp.vercel.app/api',
+  // Dominio directo del proyecto en Vercel: mismo backend que produccion.
+  // Sirve para verificar un deploy antes de mover el DNS del dominio real.
+  'ads-bakano-clients-frontapp.vercel.app': 'https://ads-bakano-clients-backapp.vercel.app/api',
   'testing-storybrand-frontend.bakano.ec': 'https://testing-storybrand-backapp.bakano.ec/api',
 }
 
