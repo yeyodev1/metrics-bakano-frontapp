@@ -256,7 +256,7 @@ const { isDirty, requestClose } = useUnsavedCloseGuard({
               <div class="vp-item-modal__field">
                 <label>
                   Guión
-                  <span v-if="form.guion" class="vp-item-modal__field-hint">auto-completado por IA — editable</span>
+                  <span v-if="form.guion" class="vp-item-modal__field-hint">auto-completado por IA — editable · **negritas** con dobles asteriscos</span>
                 </label>
                 <textarea v-model="form.guion" placeholder="Se completará automáticamente al generar con IA, o escribe aquí manualmente..." rows="5" />
               </div>

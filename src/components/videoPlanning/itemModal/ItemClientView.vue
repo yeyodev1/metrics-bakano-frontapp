@@ -32,7 +32,7 @@
             <i class="fa-solid fa-scroll" />
             <span>GUIÓN</span>
           </div>
-          <div class="vp-item-view__text-box is-script">{{ form.guion || 'Sin guión' }}</div>
+          <div class="vp-item-view__text-box is-script" v-html="conNegritas(form.guion || 'Sin guión')" />
         </div>
 
         <!-- Status Grid (Colorized) -->
@@ -86,6 +86,7 @@
 <script setup lang="ts">
 import type { CreateVideoItemPayload } from '@/types/videoPlanning'
 import { fechaLegible } from '@/utils/fechas'
+import { conNegritas } from '@/utils/negritas'
 
 defineProps<{ form: CreateVideoItemPayload }>()
 </script>
