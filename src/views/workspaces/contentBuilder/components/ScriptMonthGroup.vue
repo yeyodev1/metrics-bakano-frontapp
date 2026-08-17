@@ -1,18 +1,20 @@
 <template>
-  <section class="smg">
+  <section class="smg" :class="{ 'smg--sin-fecha': group.sinFecha }">
     <button type="button" class="smg__header" :aria-expanded="open" @click="open = !open">
       <i class="smg__chevron fa-solid fa-chevron-right" :class="{ 'is-open': open }" />
 
       <span class="smg__label">
+        <i v-if="group.sinFecha" class="fa-regular fa-calendar-xmark smg__label-icono" />
         {{ group.label }}
-        <span v-if="group.approximate" class="smg__approx" title="Fecha tomada de la planificación, no de la publicación">
-          aprox.
-        </span>
       </span>
 
       <span class="smg__count">{{ group.items.length }} guiones</span>
 
-      <span class="smg__linked" :class="{ 'is-complete': group.linked === group.items.length }">
+      <span
+        v-if="group.sinFecha"
+        class="smg__aviso"
+      >Falta agendarlos</span>
+      <span v-else class="smg__linked" :class="{ 'is-complete': group.linked === group.items.length }">
         <i :class="group.linked === group.items.length ? 'fa-solid fa-circle-check' : 'fa-brands fa-instagram'" />
         {{ group.linked }}/{{ group.items.length }} vinculados
       </span>
@@ -20,6 +22,18 @@
 
     <AccordionTransition>
       <div v-if="open" class="smg__rows">
+        <!-- Sin fecha no hay nada que medir ni que avisar: se dice aquí, junto
+             a los guiones afectados, en vez de dejar que lo descubran cuando el
+             botón de notificar no responda. -->
+        <p v-if="group.sinFecha" class="smg__explicacion">
+          <i class="fa-solid fa-circle-info" />
+          <span>
+            Estos guiones <strong>todavía no tienen fecha de publicación</strong>. Hasta que se la
+            pongas no entran al calendario, no se pueden medir y
+            <strong>no se puede avisar al cliente</strong>. Abre cada uno y elige el día en
+            «Fecha de publicación».
+          </span>
+        </p>
         <ScriptRow
           v-for="item in group.items"
           :key="item._id"
@@ -100,14 +114,46 @@ const open = ref(props.defaultOpen ?? false)
   color: $primary-dark;
 }
 
-.smg__approx {
-  padding: 0.05rem 0.35rem;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: $text-secondary;
-  text-transform: uppercase;
-  background: rgba($text-secondary, 0.12);
+// ── Apartado de los que aún no tienen fecha ─────────────────────────────────
+.smg--sin-fecha {
+  .smg__header {
+    background: rgba($alert-warning, 0.09);
+    border-color: rgba($alert-warning, 0.35);
+
+    &:hover { background: rgba($alert-warning, 0.14); }
+  }
+}
+
+.smg__label-icono {
+  color: $alert-warning;
+  font-size: 0.85rem;
+}
+
+.smg__aviso {
+  flex-shrink: 0;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: $white;
+  background: $alert-warning;
   border-radius: 20px;
+}
+
+.smg__explicacion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: $text-secondary;
+  background: rgba($alert-warning, 0.07);
+  border: 1px dashed rgba($alert-warning, 0.4);
+  border-radius: 10px;
+
+  i { flex-shrink: 0; margin-top: 0.15rem; color: $alert-warning; }
+  strong { color: $primary-dark; }
 }
 
 .smg__count {

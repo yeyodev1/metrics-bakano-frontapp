@@ -2,18 +2,27 @@ import { computed, type Ref } from 'vue'
 import { isLinked } from '@/utils/videoLink'
 import type { WorkspaceVideoItem } from '@/types/videoPlanning'
 
+export const SIN_FECHA = 'sin-fecha'
+
 export interface ScriptGroup {
   key: string
   label: string
   items: WorkspaceVideoItem[]
   linked: number
-  /** True when the group's date came from the planning, not a real publish date. */
-  approximate: boolean
+  /** El apartado de los que todavía no tienen fecha de publicación. */
+  sinFecha: boolean
 }
 
-/** Publish date when there is one, otherwise the planning's own date. */
+/**
+ * La fecha de publicación y ninguna otra.
+ *
+ * Antes, si faltaba, se usaba la fecha de creación de la planificación: el
+ * guion aparecía bajo un mes como si estuviera agendado, cuando en realidad
+ * nadie había decidido cuándo sale. Ese mes prestado escondía justo el trabajo
+ * pendiente.
+ */
 export function itemDate(item: WorkspaceVideoItem): Date | null {
-  const raw = item.fechaPublicacion ?? item.planningCreatedAt
+  const raw = item.fechaPublicacion
   if (!raw) return null
   const date = new Date(raw)
   return Number.isNaN(date.getTime()) ? null : date
@@ -33,7 +42,7 @@ export function useScriptGroups(items: Ref<WorkspaceVideoItem[]>) {
       const date = itemDate(item)
       const key = date
         ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-        : 'sin-fecha'
+        : SIN_FECHA
 
       const list = buckets.get(key) ?? []
       list.push(item)
@@ -42,8 +51,8 @@ export function useScriptGroups(items: Ref<WorkspaceVideoItem[]>) {
 
     const groups: ScriptGroup[] = []
     for (const [key, groupItems] of buckets) {
-      let label = 'Sin fecha'
-      if (key !== 'sin-fecha') {
+      let label = 'Todavía sin fecha definida'
+      if (key !== SIN_FECHA) {
         const [year, month] = key.split('-').map(Number)
         const raw = new Date(year, month - 1, 1).toLocaleDateString('es-EC', {
           month: 'long',
@@ -57,15 +66,15 @@ export function useScriptGroups(items: Ref<WorkspaceVideoItem[]>) {
         label,
         items: groupItems,
         linked: groupItems.filter(isLinked).length,
-        // Only flagged when no item in the month has a real publish date.
-        approximate: groupItems.every((i) => !i.fechaPublicacion),
+        sinFecha: key === SIN_FECHA,
       })
     }
 
-    // Undated scripts sink to the bottom; everything else newest first.
+    // Los que no tienen fecha van primero: son los que bloquean el aviso al
+    // cliente, así que enterrarlos al final era esconder lo único accionable.
     return groups.sort((a, b) => {
-      if (a.key === 'sin-fecha') return 1
-      if (b.key === 'sin-fecha') return -1
+      if (a.key === SIN_FECHA) return -1
+      if (b.key === SIN_FECHA) return 1
       return b.key.localeCompare(a.key)
     })
   })
