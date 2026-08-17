@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { VideoItem } from '@/types/videoPlanning'
+import { conNegritas } from '@/utils/negritas'
 
 const props = defineProps<{
   show: boolean
@@ -29,7 +30,7 @@ function handlePrint() {
     <body>
       <h1>${props.item.tema}</h1>
       <p class="meta">${props.item.tipo ? `Tipo: ${props.item.tipo}` : ''} ${props.item.lugarGrabacion ? `· Lugar: ${props.item.lugarGrabacion}` : ''}</p>
-      <pre>${props.item.guion || '(Sin guión)'}</pre>
+      <pre>${conNegritas(props.item.guion || '(Sin guión)')}</pre>
     </body>
     </html>
   `)
@@ -76,7 +77,8 @@ function handlePrint() {
 
           <div class="script-modal__script-block">
             <p class="script-modal__section-label">Guión</p>
-            <pre v-if="item.guion" class="script-modal__script-text">{{ item.guion }}</pre>
+            <!-- v-html seguro: conNegritas escapa el HTML antes de convertir los asteriscos -->
+            <pre v-if="item.guion" class="script-modal__script-text" v-html="conNegritas(item.guion)" />
             <p v-else class="script-modal__empty">Sin guión registrado.</p>
           </div>
 

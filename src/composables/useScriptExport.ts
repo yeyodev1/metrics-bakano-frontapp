@@ -1,4 +1,5 @@
 import type { VideoItem } from '@/types/videoPlanning'
+import { conNegritas } from '@/utils/negritas'
 
 export function useScriptExport() {
   const printAllScripts = (items: VideoItem[], pageTitle: string) => {
@@ -20,7 +21,7 @@ export function useScriptExport() {
           ${item.descripcion ? `<p class="script-desc">${item.descripcion}</p>` : ''}
           ${refBlock}
           <hr class="script-divider" />
-          <div class="script-body">${(item.guion ?? '').replace(/\\n/g, '<br>')}</div>
+          <div class="script-body">${conNegritas(item.guion ?? '').replace(/\n/g, '<br>')}</div>
         </div>
       `
     }).join('')
@@ -110,7 +111,7 @@ export function useScriptExport() {
           ${(recursosBlock || lugarBlock) ? `<div class="script-meta">${recursosBlock}${lugarBlock}</div>` : ''}
           ${linkBlock}
           <hr class="script-divider" />
-          <div class="script-body">${(item.guion ?? '').replace(/\\n/g, '<br>')}</div>
+          <div class="script-body">${conNegritas(item.guion ?? '').replace(/\n/g, '<br>')}</div>
         </div>
       `
     }).join('')
