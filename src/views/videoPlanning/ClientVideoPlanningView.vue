@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { videoPlanningService } from '@/services/videoPlanning.service'
+import { fechaLegible } from '@/utils/fechas'
 import type { VideoPlanning, VideoItem } from '@/types/videoPlanning'
 import { ClienteAprobacion } from '@/types/videoPlanning'
 import StatusBadge from '@/components/videoPlanning/StatusBadge.vue'
@@ -189,9 +190,9 @@ onMounted(loadPlanning)
                 <span v-if="item.tipo" class="cv-item__tipo">{{ item.tipo }}</span>
               </div>
               <div class="cv-item__badges">
-                <span v-if="item.fechaPublicacion" class="cv-item__date-chip">
+                <span v-if="fechaLegible(item.fechaPublicacion)" class="cv-item__date-chip">
                   <i class="fa-solid fa-calendar-check" />
-                  {{ new Date(item.fechaPublicacion + 'T12:00:00').toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' }) }}
+                  {{ fechaLegible(item.fechaPublicacion) }}
                 </span>
                 <StatusBadge :status="item.estadoProduccion" type="produccion" />
                 <StatusBadge :status="item.edicion" type="edicion" />

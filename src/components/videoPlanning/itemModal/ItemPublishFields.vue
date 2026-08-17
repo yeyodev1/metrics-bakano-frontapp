@@ -58,19 +58,13 @@ import {
   type CreateVideoItemPayload,
 } from '@/types/videoPlanning'
 import SearchableSelect from '@/components/common/SearchableSelect.vue'
+import { fechaLegible } from '@/utils/fechas'
 
 const form = defineModel<CreateVideoItemPayload>({ required: true })
 
-const scheduledLabel = computed(() => {
-  const raw = form.value.fechaPublicacion
-  if (!raw) return ''
-  // Noon avoids the date shifting a day under the local timezone.
-  return new Date(`${raw}T12:00:00`).toLocaleDateString('es-EC', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-})
+const scheduledLabel = computed(() =>
+  fechaLegible(form.value.fechaPublicacion, { weekday: 'long', day: 'numeric', month: 'long' }),
+)
 
 type Tono = 'success' | 'warning' | 'danger' | 'info' | 'gray'
 const tone = (map: Record<string, Tono>) => (v: string): Tono => map[v] || 'gray'
