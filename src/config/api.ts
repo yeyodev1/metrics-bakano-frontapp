@@ -18,6 +18,9 @@ const POR_DOMINIO: Record<string, string> = {
   // Sirve para verificar un deploy antes de mover el DNS del dominio real.
   'ads-bakano-clients-frontapp.vercel.app': 'https://ads-bakano-clients-backapp.vercel.app/api',
   'testing-storybrand-frontend.bakano.ec': 'https://testing-storybrand-backapp.bakano.ec/api',
+  // Preview fijo de la rama develop en Vercel: habla con staging, igual que
+  // testing-storybrand. Un front de desarrollo no debe escribir en la base real.
+  'dev-metrics.bakano.ec': 'https://testing-storybrand-backapp.bakano.ec/api',
 }
 
 /**
