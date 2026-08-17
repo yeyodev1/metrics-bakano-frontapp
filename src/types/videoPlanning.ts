@@ -247,3 +247,74 @@ export interface VideoCalendarItem {
 export interface VideoCalendarResponse {
   items: VideoCalendarItem[]
 }
+
+// ── Avisos al cliente ───────────────────────────────────────────────────────
+
+export type TipoAviso = 'enviada' | 'recordatorio' | 'revisada'
+
+/** Un destinatario, con el teléfono tal como está guardado y ya normalizado. */
+export interface UsuarioAviso {
+  id: string
+  nombre: string
+  apellido: string
+  correo: string
+  telefono: string
+  extension: string
+  /** Vacío cuando no hay número usable: ese es el que hay que cargar. */
+  telefonoE164: string
+  esAdmin: boolean
+}
+
+export interface DestinatariosAviso {
+  entorno: string
+  totalVideos: number
+  tipoAviso: TipoAviso
+  numeroEnvio: number
+  puedeNotificar: boolean
+  /** Todos los usuarios cliente del entorno. */
+  correo: UsuarioAviso[]
+  /** Solo administradores: son quienes aprueban. */
+  whatsapp: UsuarioAviso[]
+}
+
+export interface NotificacionRegistro {
+  canal: 'whatsapp' | 'email'
+  enviadoEn: string
+  porNombre?: string
+  exito: boolean
+  error?: string
+  abiertoEn?: string
+  clicEn?: string
+}
+
+export interface HistorialAvisos {
+  puedeNotificar: boolean
+  notificaciones: NotificacionRegistro[]
+  resumen: {
+    whatsapp: number
+    email: number
+    aperturas: number
+    clics: number
+    ultima: NotificacionRegistro | null
+  }
+}
+
+export interface ResultadoNotificacion {
+  tipoAviso: TipoAviso
+  numeroEnvio: number
+  whatsapp: { enviado: boolean; error?: string; contactos: { correo: string }[] }
+  email: { enviado: boolean; error?: string; destinatarios: string[] }
+}
+
+/** Planificación que un entorno tiene sin aprobar, para aterrizar desde WhatsApp. */
+export interface PlanificacionPendiente {
+  planningId: string
+  planningEntryId: string
+  workspaceId: string
+  totalVideos: number
+  pendientes: number
+  creadaEn: string
+  mes: number | null
+  anio: number | null
+  ultimaNotificacion: string | null
+}

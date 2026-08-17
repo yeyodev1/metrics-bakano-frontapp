@@ -1,4 +1,5 @@
 import APIBase from './httpBase'
+import { prefetchCache } from './prefetchCache'
 
 export interface IBillingBranchEntry {
   branchId: string
@@ -43,15 +44,29 @@ export interface IMonthData {
 }
 
 class BillingService extends APIBase {
+  /** Clave de la caché de prefetch. Compartida con `useRoutePrefetch`. */
+  claveMes(workspaceId: string, year: number, month: number): string {
+    return `billing:${workspaceId}:${year}-${month}`
+  }
+
   async createEntry(workspaceId: string, data: { amount: number; notes?: string; date?: string; onlineRevenue?: number; branches?: { branchId: string; amount: number }[] }) {
     const res = await this.post<{ entry: IDailyBillingEntry; daySummary: IDaySummary }>(
       `billing/${workspaceId}`,
       data
     )
+    prefetchCache.invalidar(`billing:${workspaceId}`)
     return res.data
   }
 
+  /**
+   * Si el mes ya se pidió por adelantado (hover en el sidebar), se reusa esa
+   * misma petición en vez de abrir otra. La caché dura 30s y se tira entera al
+   * escribir, asi que no puede devolver cifras posteriores a un guardado.
+   */
   async getMonthData(workspaceId: string, year: number, month: number) {
+    const cacheada = prefetchCache.leer<IMonthData>(this.claveMes(workspaceId, year, month))
+    if (cacheada) return cacheada
+
     const res = await this.get<IMonthData>(
       `billing/${workspaceId}/month?year=${year}&month=${month}`
     )
@@ -80,6 +95,7 @@ class BillingService extends APIBase {
     data: { total: number; allocations: { date: string; amount: number }[]; year: number; month: number; notes?: string }
   ) {
     const res = await this.post<{ entries: IDailyBillingEntry[] }>(`billing/${workspaceId}/distribute`, data)
+    prefetchCache.invalidar(`billing:${workspaceId}`)
     return res.data
   }
 
@@ -92,6 +108,7 @@ class BillingService extends APIBase {
       `billing/${workspaceId}/entry/${entryId}`,
       data
     )
+    prefetchCache.invalidar(`billing:${workspaceId}`)
     return res.data
   }
 }

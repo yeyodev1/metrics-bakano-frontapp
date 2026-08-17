@@ -7,6 +7,7 @@
   <div v-else class="cb">
     <BuilderHero
       :workspace-name="builder.workspace.value?.name"
+      :workspace-id="workspaceId"
       :avatar="workspaceAvatar"
       :total-scripts="builder.totalScripts.value"
       :total-linked-reels="builder.totalLinkedReels.value"

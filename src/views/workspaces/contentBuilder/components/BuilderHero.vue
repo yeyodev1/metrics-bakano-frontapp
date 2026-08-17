@@ -11,8 +11,15 @@
             <span class="bh__tag">STUDIO PRO</span>
             <span>{{ workspaceName || 'Workspace' }}</span>
           </div>
-          <h1>Builder de Contenido &amp; Matriz de Guiones</h1>
-          <p>Vincula guiones (TOFU/MOFU/BOFU) con Reels en vivo, mide métricas reales e impulsa tu Agente IA.</p>
+          <h1>Guiones de la planificación</h1>
+          <p>
+            Cada guion nace de un video agendado en
+            <RouterLink v-if="workspaceId" :to="{ name: 'AppPlanning', params: { workspaceId } }" class="bh__link">
+              Planificación
+            </RouterLink>
+            <template v-else>Planificación</template>:
+            sin día y hora no hay guion que medir. Aquí los vinculas con el Reel en vivo y ves cuáles funcionan.
+          </p>
         </div>
       </div>
 
@@ -45,6 +52,7 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   workspaceName?: string
+  workspaceId?: string
   avatar?: string | null
   totalScripts: number
   totalLinkedReels: number
@@ -53,6 +61,7 @@ const props = defineProps<{
 }>()
 
 defineEmits<{ (e: 'open-wizard'): void; (e: 'new-script'): void }>()
+// `RouterLink` se resuelve global, no hace falta importarlo.
 
 const kpis = computed(() => [
   {
@@ -131,7 +140,16 @@ const kpis = computed(() => [
   gap: 0.25rem;
 
   h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: $primary-dark; }
-  p { margin: 0; font-size: 0.88rem; color: $text-secondary; }
+  p { margin: 0; font-size: 0.88rem; color: $text-secondary; max-width: 60ch; line-height: 1.5; }
+}
+
+.bh__link {
+  font-weight: 700;
+  color: $secondary-dark;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover { color: $secondary; }
 }
 
 .bh__eyebrow {

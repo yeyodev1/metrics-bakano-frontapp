@@ -17,6 +17,19 @@ const POR_DOMINIO: Record<string, string> = {
   'testing-storybrand-frontend.bakano.ec': 'https://testing-storybrand-backapp.bakano.ec/api',
 }
 
+/**
+ * Túneles propios con dominio fijo (`dev-project-front.bakano.ec` y compañía).
+ * El back siempre es el mismo host con `-front` cambiado por `-back`, así que
+ * no hace falta ni variable de entorno ni tocar la tabla de arriba cuando se
+ * levanta otro túnel con la misma convención.
+ */
+const TUNEL_PROPIO = /^(.*)-front\.bakano\.ec$/
+
+function backDeTunelPropio(host: string): string | null {
+  const m = TUNEL_PROPIO.exec(host)
+  return m ? `https://${m[1]}-back.bakano.ec/api` : null
+}
+
 /** Sufijos de los túneles que usa el equipo para enseñar avances o probar en móvil. */
 const TUNELES = [
   '.ngrok-free.app',
@@ -55,6 +68,12 @@ export function resolveApiOrigin(host = window.location.hostname): ApiOrigen {
   if (esLocal(host)) {
     return { baseUrl: LOCAL_API, entorno: 'local' }
   }
+
+  // Antes que VITE_API_BASE_URL a propósito: el `.env` de desarrollo apunta a
+  // staging, y si mandara la variable, abrir el túnel del front escribiría en
+  // staging en vez de en el backend local que se está probando.
+  const propio = backDeTunelPropio(host)
+  if (propio) return { baseUrl: propio, entorno: 'tunel' }
 
   if (esTunel(host)) {
     const tunel = env['VITE_API_TUNNEL_URL']

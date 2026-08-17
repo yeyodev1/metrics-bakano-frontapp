@@ -36,6 +36,15 @@ const props = defineProps({
     type: Boolean,
     required: true,
   },
+  /**
+   * Videos sin fecha de publicación. Con uno solo ya no se puede avisar: el
+   * cliente aprueba un calendario, y media planificación sin agendar no es un
+   * calendario.
+   */
+  itemsSinFecha: {
+    type: Number,
+    default: 0,
+  },
 })
 
 const emit = defineEmits<{
@@ -45,6 +54,7 @@ const emit = defineEmits<{
   (e: 'reopen'): void
   (e: 'share'): void
   (e: 'add'): void
+  (e: 'notify'): void
 }>()
 </script>
 
@@ -105,6 +115,31 @@ const emit = defineEmits<{
           <i :class="props.copiedLink ? 'fa-solid fa-check' : 'fa-solid fa-link'" />
           {{ props.copiedLink ? 'Enlace copiado' : 'Compartir con cliente' }}
         </button>
+        <!--
+          Sigue visible con la planificación bloqueada: aunque ya no se pueda
+          volver a avisar, dentro está la auditoría de qué salió, qué se abrió
+          y qué se clicó.
+        -->
+        <button
+          v-if="props.canManageFull && !props.backendMissing"
+          class="vp-view__notify-btn"
+          :disabled="props.itemsSinFecha > 0"
+          :title="
+            props.itemsSinFecha > 0
+              ? `${props.itemsSinFecha} video(s) todavía sin fecha de publicación. El cliente no puede aprobar lo que no está agendado.`
+              : undefined
+          "
+          @click="emit('notify')"
+        >
+          <i class="fa-brands fa-whatsapp" /> Notificar al cliente
+        </button>
+
+        <!-- El botón deshabilitado no explica nada por sí solo; el motivo va al
+             lado, porque es accionable: falta ponerles fecha. -->
+        <span v-if="props.canManageFull && !props.backendMissing && props.itemsSinFecha > 0" class="vp-view__notify-reason">
+          <i class="fa-regular fa-calendar-xmark" />
+          {{ props.itemsSinFecha }} sin fecha definida — agéndalos para poder avisar
+        </span>
         <button
           v-if="props.canManageFull && !props.backendMissing"
           class="vp-view__add-btn"
@@ -174,7 +209,35 @@ const emit = defineEmits<{
 
 .vp-view__hero-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; flex-wrap: wrap; }
 
-.vp-view__print-btn, .vp-view__pdf-btn, .vp-view__reopen-btn, .vp-view__share-btn, .vp-view__add-btn {
+.vp-view__notify-btn {
+  background: $white;
+  color: #128c3f;
+  border: 1.5px solid rgba(#128c3f, 0.35);
+
+  &:hover:not(:disabled) { background: rgba(#128c3f, 0.08); border-color: #128c3f; }
+
+  &:disabled {
+    color: $text-secondary;
+    border-color: rgba($text-secondary, 0.25);
+    background: rgba($text-secondary, 0.06);
+    cursor: not-allowed;
+  }
+}
+
+.vp-view__notify-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #92400e;
+  background: rgba($alert-warning, 0.12);
+  border: 1px dashed rgba($alert-warning, 0.45);
+  border-radius: 10px;
+}
+
+.vp-view__print-btn, .vp-view__pdf-btn, .vp-view__reopen-btn, .vp-view__share-btn, .vp-view__notify-btn, .vp-view__add-btn {
   display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.2rem;
   border-radius: 12px; font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
   @media (max-width: 768px) { width: 100%; justify-content: center; }

@@ -35,9 +35,14 @@
     <div class="ipf__statuses">
       <div v-for="s in STATUS_FIELDS" :key="s.key" class="ipf__field">
         <label>{{ s.label }}</label>
-        <select v-model="(form as any)[s.key]" :class="s.color((form as any)[s.key])">
-          <option v-for="v in s.options" :key="v" :value="v">{{ v.replace(/_/g, ' ') }}</option>
-        </select>
+        <SearchableSelect
+          v-model="(form as any)[s.key]"
+          :opciones="s.options.map((v: string) => ({
+            valor: v,
+            etiqueta: v.replace(/_/g, ' '),
+            tono: s.tono(v),
+          }))"
+        />
       </div>
     </div>
   </div>
@@ -52,6 +57,7 @@ import {
   EstadoPublicacion,
   type CreateVideoItemPayload,
 } from '@/types/videoPlanning'
+import SearchableSelect from '@/components/common/SearchableSelect.vue'
 
 const form = defineModel<CreateVideoItemPayload>({ required: true })
 
@@ -66,47 +72,48 @@ const scheduledLabel = computed(() => {
   })
 })
 
-const tone = (map: Record<string, string>) => (v: string) => map[v] || 'is-gray'
+type Tono = 'success' | 'warning' | 'danger' | 'info' | 'gray'
+const tone = (map: Record<string, Tono>) => (v: string): Tono => map[v] || 'gray'
 
 const STATUS_FIELDS = [
   {
     key: 'estadoIdea',
     label: 'Idea',
     options: Object.values(EstadoIdea),
-    color: tone({
-      [EstadoIdea.APROBADO]: 'is-success',
-      [EstadoIdea.POR_REVISAR]: 'is-warning',
-      [EstadoIdea.RECHAZADO]: 'is-danger',
+    tono: tone({
+      [EstadoIdea.APROBADO]: 'success',
+      [EstadoIdea.POR_REVISAR]: 'warning',
+      [EstadoIdea.RECHAZADO]: 'danger',
     }),
   },
   {
     key: 'estadoProduccion',
     label: 'Producción',
     options: Object.values(EstadoProduccion),
-    color: tone({
-      [EstadoProduccion.GRABADO]: 'is-success',
-      [EstadoProduccion.POR_GRABAR]: 'is-warning',
-      [EstadoProduccion.RECHAZADO]: 'is-danger',
+    tono: tone({
+      [EstadoProduccion.GRABADO]: 'success',
+      [EstadoProduccion.POR_GRABAR]: 'warning',
+      [EstadoProduccion.RECHAZADO]: 'danger',
     }),
   },
   {
     key: 'edicion',
     label: 'Edición',
     options: Object.values(EstadoEdicion),
-    color: tone({
-      [EstadoEdicion.EDITADO]: 'is-success',
-      [EstadoEdicion.POR_EDITAR]: 'is-warning',
-      [EstadoEdicion.RECHAZADO]: 'is-danger',
+    tono: tone({
+      [EstadoEdicion.EDITADO]: 'success',
+      [EstadoEdicion.POR_EDITAR]: 'warning',
+      [EstadoEdicion.RECHAZADO]: 'danger',
     }),
   },
   {
     key: 'estadoPublicacion',
     label: 'Publicación',
     options: Object.values(EstadoPublicacion),
-    color: tone({
-      [EstadoPublicacion.PUBLICADO]: 'is-success',
-      [EstadoPublicacion.PROGRAMADO]: 'is-info',
-      [EstadoPublicacion.POR_PUBLICAR]: 'is-warning',
+    tono: tone({
+      [EstadoPublicacion.PUBLICADO]: 'success',
+      [EstadoPublicacion.PROGRAMADO]: 'info',
+      [EstadoPublicacion.POR_PUBLICAR]: 'warning',
     }),
   },
 ]
