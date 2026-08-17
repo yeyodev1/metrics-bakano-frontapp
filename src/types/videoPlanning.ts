@@ -145,6 +145,8 @@ export interface VideoPlanning {
   planningEntryId: string
   workspaceId: string
   items: VideoItem[]
+  /** Contenido dio por terminada la planificación; habilita "Notificar al cliente". */
+  listaParaCliente?: boolean
   clienteAprobado: boolean
   clienteAprobadoAt?: string
   clienteAprobadoPor?: string
