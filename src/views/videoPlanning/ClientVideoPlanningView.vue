@@ -131,6 +131,18 @@ onMounted(loadPlanning)
             </p>
           </div>
         </div>
+        <!-- Carpeta de Drive con los archivos maestros: el enlace es del
+             cliente para siempre, aunque deje de trabajar con la agencia. -->
+        <a
+          v-if="planning?.driveMonthFolderLink"
+          :href="planning.driveMonthFolderLink"
+          target="_blank"
+          rel="noopener"
+          class="cv__drive-btn"
+        >
+          <i class="fa-brands fa-google-drive" />
+          <span>Videos del mes</span>
+        </a>
       </div>
     </div>
 
@@ -328,10 +340,25 @@ onMounted(loadPlanning)
   &__hero-inner {
     position: relative; z-index: 1;
     padding: 2rem 2.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 1rem;
     @media (max-width: 768px) { padding: 1.5rem 1.25rem; }
   }
 
   &__hero-left { display: flex; align-items: center; gap: 1.25rem; }
+
+  &__drive-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.6rem 1.1rem; border-radius: 12px;
+    background: rgba($white, 0.1); border: 1px solid rgba($white, 0.18);
+    color: $white; text-decoration: none;
+    font-size: 0.85rem; font-weight: 700; transition: all 0.2s;
+    flex-shrink: 0;
+
+    i { color: #34d399; }
+
+    &:hover { background: rgba($white, 0.18); }
+  }
 
   &__back-btn {
     width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
