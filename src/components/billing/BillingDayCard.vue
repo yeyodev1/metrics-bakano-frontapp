@@ -204,6 +204,9 @@ function shortName(name: string): string {
 function canEditEntry(entry: any, entryDate: string): boolean {
   if (!props.canEnterBilling) return false
   if (userStore.role === 'superadmin') return true
+  // La entrada de HOY la corrige cualquiera con acceso, sea o no el autor:
+  // un digito mal tipeado no puede quedar esperando a que vuelva quien lo puso.
+  if (dateStr(entryDate) === props.todayStr) return true
   const isOwner = isMyEntry(entry)
   if (!isOwner) return false
   const entryTime = new Date(dateStr(entryDate) + 'T12:00:00').getTime()
