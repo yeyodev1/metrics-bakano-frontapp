@@ -25,6 +25,10 @@ const searchQuery = ref('')
 const page = ref(1)
 const hasMore = ref(false)
 const isLoadingMore = ref(false)
+// Filtro activo de los chips (activos/inactivos/sin_perfil/sin_meta) y el
+// total del filtro, para el "Mostrando X de Y" del pie.
+const filtro = ref<'' | 'activos' | 'inactivos' | 'sin_perfil' | 'sin_meta'>('')
+const total = ref(0)
 
 const selectedWorkspace = ref<Workspace | null>(null)
 const users = ref<WorkspaceUser[]>([])
@@ -73,7 +77,8 @@ async function fetchWorkspaces(isLoadMore = false): Promise<void> {
     const response = await workspaceService.listWorkspaces({
       search: searchQuery.value.trim() || undefined,
       page: page.value,
-      limit: 10
+      limit: 10,
+      filter: filtro.value || undefined
     })
 
     if (isLoadMore) {
@@ -83,6 +88,7 @@ async function fetchWorkspaces(isLoadMore = false): Promise<void> {
     }
 
     hasMore.value = response.metadata?.hasMore ?? false
+    total.value = response.metadata?.total ?? response.workspaces.length
   } catch (err) {
     toast.error('Error al cargar entornos')
   } finally {
@@ -237,6 +243,11 @@ watch(searchQuery, () => {
   }, 400)
 })
 
+// Cambiar de chip recarga desde la página 1 con el criterio del servidor.
+watch(filtro, () => {
+  fetchWorkspaces()
+})
+
 defineExpose({ onCreated, selectedWorkspace })
 
 onMounted(fetchWorkspaces)
@@ -244,8 +255,8 @@ onMounted(fetchWorkspaces)
 
 <template>
   <div class="superadmin-dashboard__body">
-    <!-- Los conteos que el listado paginado no puede dar por si solo. -->
-    <WorkspacesSummaryBar ref="summaryRef" />
+    <!-- Los conteos que el listado paginado no puede dar por si solo; ahora tambien filtran. -->
+    <WorkspacesSummaryBar v-if="!selectedWorkspace" ref="summaryRef" v-model:filtro="filtro" />
 
     <DeactivateWorkspaceModal
       :show="!!wsADesactivar"
@@ -263,6 +274,7 @@ onMounted(fetchWorkspaces)
       :is-loading-workspaces="isLoadingWorkspaces"
       :has-more="hasMore"
       :is-loading-more="isLoadingMore"
+      :total="total"
       :selected-workspace="selectedWorkspace"
       :toggling-workspace-id="togglingWorkspaceId"
       :deleting-workspace-id="deletingWorkspaceId"

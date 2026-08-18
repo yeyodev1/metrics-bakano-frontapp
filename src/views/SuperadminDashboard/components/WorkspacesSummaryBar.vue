@@ -1,12 +1,17 @@
 <template>
-  <div class="wsb" :class="{ 'is-loading': cargando }">
-    <article v-for="dato in datos" :key="dato.label" class="wsb__card" :class="`wsb__card--${dato.tono}`">
-      <span class="wsb__icon"><i :class="dato.icon" aria-hidden="true" /></span>
-      <div class="wsb__body">
-        <strong class="wsb__valor">{{ cargando ? '—' : dato.valor }}</strong>
-        <span class="wsb__label">{{ dato.label }}</span>
-      </div>
-    </article>
+  <div class="wsb" :class="{ 'is-loading': cargando }" role="group" aria-label="Filtrar entornos">
+    <button
+      v-for="chip in chips"
+      :key="chip.valor"
+      type="button"
+      class="wsb__chip"
+      :class="[`wsb__chip--${chip.tono}`, { 'is-active': filtro === chip.valor }]"
+      @click="seleccionar(chip.valor)"
+    >
+      <i v-if="chip.icon" :class="chip.icon" aria-hidden="true" />
+      <span class="wsb__chip-label">{{ chip.label }}</span>
+      <span class="wsb__chip-count">{{ cargando ? '—' : chip.conteo }}</span>
+    </button>
   </div>
 </template>
 
@@ -15,12 +20,13 @@ import { computed, onMounted, ref } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 
 /**
- * Los números que el listado no podía dar.
- *
- * El listado viene paginado de 10 en 10, así que "cuántos entornos hay" o
- * "cuántos siguen sin perfil de marca" no se podían responder sin traerse
- * todos los documentos. Esto sale de un solo agregado en el servidor.
+ * Antes esto era una fila de números pasivos: "71 sin perfil de marca" no
+ * llevaba a ningún lado y habia que buscar esos 71 a mano. Ahora cada conteo
+ * es un filtro: tocarlo filtra el listado con el MISMO criterio con el que
+ * el servidor lo contó, así el número y la lista nunca se contradicen.
  */
+export type FiltroEntornos = '' | 'activos' | 'inactivos' | 'sin_perfil' | 'sin_meta'
+
 interface Resumen {
   total: number
   activos: number
@@ -29,43 +35,25 @@ interface Resumen {
   sinMetaVinculada: number
 }
 
+const filtro = defineModel<FiltroEntornos>('filtro', { default: '' })
+
 const resumen = ref<Resumen | null>(null)
 const cargando = ref(true)
 
-const datos = computed(() => [
-  {
-    label: 'Entornos',
-    valor: resumen.value?.total ?? 0,
-    icon: 'fa-solid fa-layer-group',
-    tono: 'neutro',
-  },
-  {
-    label: 'Activos',
-    valor: resumen.value?.activos ?? 0,
-    icon: 'fa-solid fa-circle-check',
-    tono: 'ok',
-  },
-  {
-    label: 'Inactivos',
-    valor: resumen.value?.inactivos ?? 0,
-    icon: 'fa-solid fa-circle-pause',
-    tono: 'apagado',
-  },
+const chips = computed(() => [
+  { valor: '' as FiltroEntornos, label: 'Todos', conteo: resumen.value?.total ?? 0, tono: 'neutro', icon: '' },
+  { valor: 'activos' as FiltroEntornos, label: 'Activos', conteo: resumen.value?.activos ?? 0, tono: 'ok', icon: '' },
+  { valor: 'inactivos' as FiltroEntornos, label: 'Inactivos', conteo: resumen.value?.inactivos ?? 0, tono: 'apagado', icon: '' },
   // Estos dos son trabajo pendiente del equipo, no estadística: sin perfil de
   // marca la IA no puede escribir guiones, y sin Meta no hay ROAS.
-  {
-    label: 'Sin perfil de marca',
-    valor: resumen.value?.sinPerfilMarca ?? 0,
-    icon: 'fa-solid fa-triangle-exclamation',
-    tono: 'alerta',
-  },
-  {
-    label: 'Sin Meta vinculada',
-    valor: resumen.value?.sinMetaVinculada ?? 0,
-    icon: 'fa-brands fa-meta',
-    tono: 'alerta',
-  },
+  { valor: 'sin_perfil' as FiltroEntornos, label: 'Sin perfil de marca', conteo: resumen.value?.sinPerfilMarca ?? 0, tono: 'alerta', icon: 'fa-solid fa-triangle-exclamation' },
+  { valor: 'sin_meta' as FiltroEntornos, label: 'Sin Meta', conteo: resumen.value?.sinMetaVinculada ?? 0, tono: 'alerta', icon: 'fa-brands fa-meta' },
 ])
+
+function seleccionar(valor: FiltroEntornos) {
+  // Volver a tocar el filtro activo lo apaga: regresa a "Todos".
+  filtro.value = filtro.value === valor ? '' : valor
+}
 
 async function cargar() {
   try {
@@ -83,62 +71,76 @@ defineExpose({ recargar: cargar })
 </script>
 
 <style lang="scss" scoped>
+// Mobile-first: una fila con scroll horizontal; en pantallas anchas envuelve.
 .wsb {
-  // El contenedor padre usa align-items: start, que encoge a los hijos al
-  // ancho de su contenido: sin esto la rejilla colapsaba a una sola columna
-  // y las cinco tarjetas salian apiladas en vertical.
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
 
   &.is-loading { opacity: 0.6; }
+
+  @media (min-width: 768px) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
 }
 
-.wsb__card {
-  display: flex;
+.wsb__chip {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1.5px solid rgba($primary-dark, 0.12);
   background: $white;
-  border: 1.5px solid rgba($primary-dark, 0.08);
-  border-radius: 14px;
-
-  &--alerta { border-color: rgba(#d97706, 0.35); background: rgba(#d97706, 0.04); }
-}
-
-.wsb__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  font-size: 0.9rem;
-  border-radius: 10px;
-  color: $text-secondary;
-  background: rgba($primary-dark, 0.05);
-
-  .wsb__card--ok & { color: $alert-success; background: rgba($alert-success, 0.1); }
-  .wsb__card--alerta & { color: #d97706; background: rgba(#d97706, 0.12); }
-}
-
-.wsb__body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.wsb__valor {
-  font-size: 1.35rem;
-  font-weight: 800;
-  line-height: 1.1;
   color: $primary-dark;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  i { font-size: 0.72rem; }
+
+  &--ok i, &--ok .wsb__chip-count { color: $alert-success; }
+  &--apagado .wsb__chip-count { color: $text-secondary; }
+
+  &--alerta {
+    border-color: rgba(#d97706, 0.35);
+    background: rgba(#d97706, 0.05);
+    color: #92400e;
+
+    i, .wsb__chip-count { color: #d97706; }
+  }
+
+  &:hover:not(.is-active) {
+    border-color: rgba($primary-dark, 0.3);
+  }
+
+  &.is-active {
+    background: $primary-dark;
+    border-color: $primary-dark;
+    color: $white;
+
+    i, .wsb__chip-count { color: $white; }
+
+    .wsb__chip-count {
+      background: rgba($white, 0.18);
+    }
+  }
 }
 
-.wsb__label {
+.wsb__chip-count {
   font-size: 0.72rem;
-  font-weight: 600;
-  color: $text-secondary;
+  font-weight: 800;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: rgba($primary-dark, 0.06);
 }
 </style>
