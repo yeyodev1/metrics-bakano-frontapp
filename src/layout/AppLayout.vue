@@ -563,6 +563,16 @@ watch(() => route.params.workspaceId, async (newId) => {
             <i class="fa-solid fa-chart-bar" aria-hidden="true" />
             <span>KPIs del Equipo</span>
           </RouterLink>
+
+          <!-- Sistema de Banderas — superadmin, PM y content manager (mismo gate que el backend) -->
+          <RouterLink
+            v-if="idVista.role === 'superadmin' || (idVista.isInternal && ['project_manager', 'content_manager'].includes(idVista.internalRole || ''))"
+            class="app-layout__nav-item"
+            :to="{ name: 'FlagsDashboard' }"
+          >
+            <i class="fa-solid fa-flag" aria-hidden="true" />
+            <span>Banderas</span>
+          </RouterLink>
         </template>
 
         <!-- ========================================== -->
