@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useToast } from '@/composables/useToast'
-import SearchableSelect, { type OpcionSelect } from '@/components/common/SearchableSelect.vue'
+import ExistingUserPickerList from './ExistingUserPickerList.vue'
 import type { Workspace, WorkspaceUser } from '@/types'
 
 /**
@@ -33,6 +33,7 @@ const saving = ref(false)
 const error = ref<string | null>(null)
 const selectedId = ref<string | undefined>(undefined)
 const role = ref<'admin' | 'colaborador'>('colaborador')
+const busqueda = ref('')
 
 watch(
   () => props.show,
@@ -40,6 +41,7 @@ watch(
     if (!visible) return
     selectedId.value = undefined
     role.value = 'colaborador'
+    busqueda.value = ''
     error.value = null
     loading.value = true
     try {
@@ -51,6 +53,8 @@ watch(
       loading.value = false
     }
   },
+  // Si el modal se monta ya visible, la carga debe disparar igual.
+  { immediate: true },
 )
 
 // Los internos de Bakano ya tienen acceso global: ofrecer solo externos.
@@ -60,13 +64,15 @@ const candidatos = computed(() =>
   ),
 )
 
-const opciones = computed<OpcionSelect[]>(() =>
-  candidatos.value.map((u) => ({
-    valor: u._id,
-    etiqueta: u.name || u.email,
-    detalle: u.name ? u.email : undefined,
-  })),
-)
+// Lista visible y filtrable, no un dropdown: el desplegable se recortaba
+// contra el borde del modal y solo dejaba ver dos o tres personas.
+const filtrados = computed(() => {
+  const q = busqueda.value.trim().toLowerCase()
+  if (!q) return candidatos.value
+  return candidatos.value.filter((u) =>
+    `${u.name ?? ''} ${u.email}`.toLowerCase().includes(q),
+  )
+})
 
 const seleccionado = computed(() => candidatos.value.find((u) => u._id === selectedId.value))
 
@@ -116,14 +122,20 @@ async function agregar() {
 
         <template v-else>
           <div class="aeu__group">
-            <label class="aeu__label">Usuario</label>
-            <SearchableSelect
-              v-model="selectedId"
-              :opciones="opciones"
-              placeholder="Busca por nombre o correo…"
-              :umbral-busqueda="1"
-              texto-vacio="No hay usuarios externos disponibles"
-            />
+            <div class="aeu__label-row">
+              <label class="aeu__label">Usuario</label>
+              <span class="aeu__count">{{ filtrados.length }} disponibles</span>
+            </div>
+            <div class="aeu__search">
+              <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
+              <input
+                v-model="busqueda"
+                type="text"
+                class="aeu__search-input"
+                placeholder="Filtrar por nombre o correo…"
+              />
+            </div>
+            <ExistingUserPickerList v-model:selected-id="selectedId" :users="filtrados" />
           </div>
 
           <div class="aeu__group">
@@ -245,6 +257,42 @@ async function agregar() {
     letter-spacing: 0.04em;
     color: $primary-dark;
     opacity: 0.8;
+  }
+
+  &__label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  &__count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: $text-secondary;
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1.5px solid rgba($primary-dark, 0.12);
+    border-radius: 10px;
+    padding: 0.55rem 0.8rem;
+    background: rgba($primary-dark, 0.02);
+
+    i { color: $text-secondary; font-size: 0.8rem; }
+
+    &:focus-within { border-color: $primary; background: $white; }
+  }
+
+  &__search-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.88rem;
+    width: 100%;
+    color: $primary-dark;
   }
 
   &__roles {
