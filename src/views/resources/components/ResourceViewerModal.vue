@@ -20,15 +20,22 @@
           <div class="rvm__body">
             <img v-if="isImage(resource)" :src="resource.url" :alt="resource.nombre" />
 
-            <!-- Cloudinary entrega los PDF como `raw`. El navegador puede
-                 decidir descargarlos en vez de mostrarlos, así que el enlace
-                 "Abrir" del encabezado queda siempre como salida. -->
-            <iframe
-              v-else-if="isPdf(resource)"
-              :src="resource.url"
-              :title="resource.nombre"
-              class="rvm__frame"
-            />
+            <!-- Cloudinary sirve los PDF `raw` como application/octet-stream
+                 (y los antiguos ni tienen extension): el iframe directo queda
+                 en blanco. Se baja como blob y se re-etiqueta application/pdf
+                 para que el visor del navegador si lo pinte. -->
+            <template v-else-if="isPdf(resource)">
+              <iframe
+                v-if="pdfBlobUrl"
+                :src="pdfBlobUrl"
+                :title="resource.nombre"
+                class="rvm__frame"
+              />
+              <p v-else-if="pdfError" class="rvm__unsupported">
+                No se pudo cargar el PDF aquí. Usa «Abrir».
+              </p>
+              <p v-else class="rvm__unsupported">Cargando PDF…</p>
+            </template>
 
             <pre v-else-if="isText(resource)" class="rvm__text">{{ textContent || 'Cargando…' }}</pre>
 
@@ -43,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import {
   fileIcon,
   extensionOf,
@@ -59,6 +66,14 @@ const props = defineProps<{ resource: Resource | null }>()
 defineEmits<{ (e: 'close'): void }>()
 
 const textContent = ref('')
+const pdfBlobUrl = ref<string | null>(null)
+const pdfError = ref(false)
+
+function liberarPdf() {
+  if (pdfBlobUrl.value) URL.revokeObjectURL(pdfBlobUrl.value)
+  pdfBlobUrl.value = null
+  pdfError.value = false
+}
 
 // El catálogo escrito a mano se guarda como .txt; se trae para leerlo aquí
 // en vez de obligar a descargar un archivo de dos líneas.
@@ -66,7 +81,25 @@ watch(
   () => props.resource,
   async (resource) => {
     textContent.value = ''
-    if (!resource || !isText(resource)) return
+    liberarPdf()
+    if (!resource) return
+
+    if (isPdf(resource)) {
+      try {
+        const res = await fetch(resource.url)
+        if (!res.ok) throw new Error(String(res.status))
+        const raw = await res.blob()
+        // Re-etiquetar: Cloudinary lo manda como octet-stream y asi el
+        // visor de PDF del navegador no lo abre.
+        const blob = new Blob([raw], { type: 'application/pdf' })
+        pdfBlobUrl.value = URL.createObjectURL(blob)
+      } catch {
+        pdfError.value = true
+      }
+      return
+    }
+
+    if (!isText(resource)) return
     try {
       const res = await fetch(resource.url)
       textContent.value = await res.text()
@@ -76,6 +109,8 @@ watch(
   },
   { immediate: true }
 )
+
+onBeforeUnmount(liberarPdf)
 </script>
 
 <style scoped lang="scss">
