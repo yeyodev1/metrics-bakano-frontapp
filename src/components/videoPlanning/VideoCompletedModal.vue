@@ -3,6 +3,7 @@ import { ref, watch, computed } from 'vue'
 import type { VideoItem } from '@/types/videoPlanning'
 import { EstadoPublicacion } from '@/types/videoPlanning'
 import { planningService } from '@/services/planning.service'
+import DriveUploadCard from './DriveUploadCard.vue'
 
 const props = defineProps<{
   show: boolean
@@ -266,6 +267,11 @@ function handleSave() {
               @change="handleFileSelected(($event.target as HTMLInputElement).files)"
             />
           </div>
+
+          <!-- ── Archivo maestro en Drive ───────────────────────── -->
+          <!-- Autocontenido: sube directo a googleapis.com y el backend
+               persiste driveFileId/driveLink; aqui no se guarda nada. -->
+          <DriveUploadCard :item="item" />
 
           <!-- Divider -->
           <div class="vcm__divider">

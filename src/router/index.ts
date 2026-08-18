@@ -248,6 +248,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/kpis/TeamKpisView.vue'),
         meta: { title: 'Bakano Ads: KPIs del Equipo', requiresAuth: true, requiresInternal: true },
       },
+      // ── Sistema de Banderas ───────────────────────────
+      {
+        path: 'flags',
+        name: 'FlagsDashboard',
+        component: () => import('../views/flags/FlagsDashboardView.vue'),
+        meta: { title: 'Bakano Ads: Sistema de Banderas', requiresAuth: true, requiresInternal: true },
+      },
       {
         path: 'sales-executive',
         name: 'SalesExecutiveDashboard',

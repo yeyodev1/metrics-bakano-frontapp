@@ -27,13 +27,13 @@ const isResendingInvite = ref(false)
 async function fetchAllUsers(): Promise<void> {
   isLoading.value = true
   try {
-    // La pestaña se llama "Admins de cuenta" pero traía a todo el mundo:
-    // equipo de Bakano y colaboradores incluidos. Ahora pide solo a quien
-    // administra la cuenta de un cliente.
+    // Trae a todo el mundo y la vista los separa en secciones. Pedir solo
+    // admins dejaba a los colaboradores externos invisibles: no habia forma
+    // de encontrarlos para editarlos o sumarlos a otro entorno.
     const { users: data } = await workspaceService.listAllCollaborators(
       searchQuery.value.trim() || undefined,
       filterWorkspaceId.value || undefined,
-      true
+      false
     )
     users.value = data
   } catch {
@@ -94,6 +94,44 @@ const allUsersFiltered = computed(() => {
   }
   return result
 })
+
+// ── Secciones: internos / admins de cuenta / colaboradores externos ──
+// Mezclados en una sola tabla no se distinguia quien es equipo de Bakano
+// y quien es del cliente, que es lo que el PM necesita ver de un vistazo.
+const usuariosInternos = computed(() => allUsersFiltered.value.filter(u => u.isInternal))
+
+const adminsDeCuenta = computed(() =>
+  allUsersFiltered.value.filter(
+    u => !u.isInternal && (u.workspaces ?? []).some(w => w.role === 'admin')
+  )
+)
+
+const colaboradoresExternos = computed(() =>
+  allUsersFiltered.value.filter(
+    u => !u.isInternal && !(u.workspaces ?? []).some(w => w.role === 'admin')
+  )
+)
+
+const secciones = computed(() => [
+  {
+    id: 'internos',
+    titulo: 'Equipo Bakano (internos)',
+    icono: 'fa-solid fa-building',
+    usuarios: usuariosInternos.value,
+  },
+  {
+    id: 'admins',
+    titulo: 'Admins de cuenta',
+    icono: 'fa-solid fa-user-tie',
+    usuarios: adminsDeCuenta.value,
+  },
+  {
+    id: 'externos',
+    titulo: 'Colaboradores externos',
+    icono: 'fa-solid fa-user-group',
+    usuarios: colaboradoresExternos.value,
+  },
+])
 
 const hasActiveFilters = computed(() => !!(filterWorkspaceId.value || filterInternalRole.value))
 
@@ -191,12 +229,28 @@ onMounted(() => {
       </button>
     </div>
 
-    <AccountAdminsTable
-      v-else
-      :users="allUsersFiltered"
-      @edit-user="openEditGlobalUser"
-      @resend-invite="openResendInvite"
-    />
+    <template v-else>
+      <section
+        v-for="seccion in secciones"
+        :key="seccion.id"
+        class="superadmin-dashboard__user-section"
+      >
+        <div class="superadmin-dashboard__user-section-header">
+          <i :class="seccion.icono" />
+          <h4>{{ seccion.titulo }}</h4>
+          <span class="superadmin-dashboard__user-section-count">{{ seccion.usuarios.length }}</span>
+        </div>
+        <p v-if="seccion.usuarios.length === 0" class="superadmin-dashboard__user-section-empty">
+          Sin usuarios en esta sección.
+        </p>
+        <AccountAdminsTable
+          v-else
+          :users="seccion.usuarios"
+          @edit-user="openEditGlobalUser"
+          @resend-invite="openResendInvite"
+        />
+      </section>
+    </template>
 
     <!-- Local Resend Invite Modal -->
     <ResendInviteModal
@@ -217,6 +271,49 @@ onMounted(() => {
   border: 1px solid rgba($primary-dark, 0.05);
   padding: 1.5rem;
   margin-bottom: 2rem;
+}
+
+.superadmin-dashboard__user-section {
+  margin-top: 1.5rem;
+
+  &:first-of-type {
+    margin-top: 1rem;
+  }
+}
+
+.superadmin-dashboard__user-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.6rem;
+
+  i {
+    color: $primary;
+    font-size: 0.85rem;
+  }
+
+  h4 {
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $primary-dark;
+  }
+}
+
+.superadmin-dashboard__user-section-count {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: rgba($primary, 0.1);
+  color: $primary;
+}
+
+.superadmin-dashboard__user-section-empty {
+  font-size: 0.82rem;
+  color: $text-secondary;
+  padding: 0.5rem 0 0.25rem;
 }
 
 .superadmin-dashboard__section-header {

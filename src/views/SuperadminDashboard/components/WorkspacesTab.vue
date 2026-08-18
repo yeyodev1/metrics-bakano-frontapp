@@ -9,6 +9,7 @@ import { useUserFormModal } from '@/composables/useUserFormModal'
 import type { Workspace, WorkspaceUser } from '@/types'
 import WorkspaceList from './WorkspaceList.vue'
 import WorkspaceUsersList from './WorkspaceUsersList.vue'
+import AddExistingUserModal from './AddExistingUserModal.vue'
 
 const confirm = useConfirm()
 const toast = useToast()
@@ -24,6 +25,10 @@ const searchQuery = ref('')
 const page = ref(1)
 const hasMore = ref(false)
 const isLoadingMore = ref(false)
+// Filtro activo de los chips (activos/inactivos/sin_perfil/sin_meta) y el
+// total del filtro, para el "Mostrando X de Y" del pie.
+const filtro = ref<'' | 'activos' | 'inactivos' | 'sin_perfil' | 'sin_meta'>('')
+const total = ref(0)
 
 const selectedWorkspace = ref<Workspace | null>(null)
 const users = ref<WorkspaceUser[]>([])
@@ -72,7 +77,8 @@ async function fetchWorkspaces(isLoadMore = false): Promise<void> {
     const response = await workspaceService.listWorkspaces({
       search: searchQuery.value.trim() || undefined,
       page: page.value,
-      limit: 10
+      limit: 10,
+      filter: filtro.value || undefined
     })
 
     if (isLoadMore) {
@@ -82,6 +88,7 @@ async function fetchWorkspaces(isLoadMore = false): Promise<void> {
     }
 
     hasMore.value = response.metadata?.hasMore ?? false
+    total.value = response.metadata?.total ?? response.workspaces.length
   } catch (err) {
     toast.error('Error al cargar entornos')
   } finally {
@@ -179,6 +186,13 @@ async function openCreateUser(): Promise<void> {
   }
 }
 
+// Agregar a alguien que ya existe en otro entorno, sin re-tipear sus datos.
+const showAddExisting = ref(false)
+
+function onExistingUserAdded(user: WorkspaceUser): void {
+  users.value.unshift(user)
+}
+
 async function openEditUser(user: WorkspaceUser): Promise<void> {
   if (!selectedWorkspace.value) return
   const updatedUser = await userModal.open({
@@ -229,6 +243,11 @@ watch(searchQuery, () => {
   }, 400)
 })
 
+// Cambiar de chip recarga desde la página 1 con el criterio del servidor.
+watch(filtro, () => {
+  fetchWorkspaces()
+})
+
 defineExpose({ onCreated, selectedWorkspace })
 
 onMounted(fetchWorkspaces)
@@ -236,8 +255,8 @@ onMounted(fetchWorkspaces)
 
 <template>
   <div class="superadmin-dashboard__body">
-    <!-- Los conteos que el listado paginado no puede dar por si solo. -->
-    <WorkspacesSummaryBar ref="summaryRef" />
+    <!-- Los conteos que el listado paginado no puede dar por si solo; ahora tambien filtran. -->
+    <WorkspacesSummaryBar v-if="!selectedWorkspace" ref="summaryRef" v-model:filtro="filtro" />
 
     <DeactivateWorkspaceModal
       :show="!!wsADesactivar"
@@ -255,6 +274,7 @@ onMounted(fetchWorkspaces)
       :is-loading-workspaces="isLoadingWorkspaces"
       :has-more="hasMore"
       :is-loading-more="isLoadingMore"
+      :total="total"
       :selected-workspace="selectedWorkspace"
       :toggling-workspace-id="togglingWorkspaceId"
       :deleting-workspace-id="deletingWorkspaceId"
@@ -273,8 +293,17 @@ onMounted(fetchWorkspaces)
       :is-loading-users="isLoadingUsers"
       @back="selectWorkspace(null)"
       @open-create-user="openCreateUser"
+      @open-add-existing="showAddExisting = true"
       @open-edit-user="openEditUser"
       @confirm-delete-user="confirmDeleteUser"
+    />
+
+    <AddExistingUserModal
+      :show="showAddExisting"
+      :workspace="selectedWorkspace"
+      :current-user-ids="users.map(u => u._id)"
+      @close="showAddExisting = false"
+      @added="onExistingUserAdded"
     />
   </div>
 </template>

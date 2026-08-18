@@ -125,6 +125,9 @@ export interface VideoItem {
   clienteAprobacion: ClienteAprobacion
   motivoRechazo?: string
   linkVideo?: string
+  /** Archivo maestro en Drive (entrega al cliente). */
+  driveFileId?: string
+  driveLink?: string
   fechaPublicacion?: string
   copyPublicacion?: string
   order: number
@@ -150,6 +153,9 @@ export interface VideoPlanning {
   clienteAprobado: boolean
   clienteAprobadoAt?: string
   clienteAprobadoPor?: string
+  /** Carpeta del mes en Drive con los archivos maestros. */
+  driveMonthFolderId?: string
+  driveMonthFolderLink?: string
   createdAt: string
   updatedAt: string
 }

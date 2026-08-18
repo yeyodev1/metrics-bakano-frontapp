@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Workspace, WorkspaceUser } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   selectedWorkspace: Workspace | null
   users: WorkspaceUser[]
   isLoadingUsers: boolean
@@ -11,11 +12,23 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'back'): void
   (e: 'openCreateUser'): void
+  (e: 'openAddExisting'): void
   (e: 'openEditUser', user: WorkspaceUser): void
   (e: 'confirmDeleteUser', user: WorkspaceUser): void
 }>()
 
 const router = useRouter()
+
+// Separar equipo Bakano de la gente del cliente: mezclados no se distingue
+// quien es de quien, y eso es justo lo que se necesita ver de un vistazo.
+const secciones = computed(() => {
+  const internos = props.users.filter((u) => u.isInternal)
+  const externos = props.users.filter((u) => !u.isInternal)
+  return [
+    { id: 'externos', titulo: 'Usuarios del cliente', icono: 'fa-solid fa-user-group', usuarios: externos },
+    { id: 'internos', titulo: 'Equipo Bakano (internos)', icono: 'fa-solid fa-building', usuarios: internos },
+  ].filter((s) => s.usuarios.length > 0)
+})
 </script>
 
 <template>
@@ -38,6 +51,14 @@ const router = useRouter()
         >
           <i class="fa-solid fa-right-to-bracket" />
           Ingresar al entorno
+        </button>
+        <button
+          class="superadmin-dashboard__btn-outline"
+          type="button"
+          @click="emit('openAddExisting')"
+        >
+          <i class="fa-solid fa-user-check" />
+          Agregar existente
         </button>
         <button
           class="superadmin-dashboard__btn-primary"
@@ -65,9 +86,20 @@ const router = useRouter()
       </button>
     </div>
 
-    <div v-else class="superadmin-dashboard__user-grid">
+    <template v-else>
       <div
-        v-for="user in users"
+        v-for="seccion in secciones"
+        :key="seccion.id"
+        class="superadmin-dashboard__user-group"
+      >
+        <div class="superadmin-dashboard__user-group-header">
+          <i :class="seccion.icono" />
+          <h4>{{ seccion.titulo }}</h4>
+          <span class="superadmin-dashboard__user-group-count">{{ seccion.usuarios.length }}</span>
+        </div>
+        <div class="superadmin-dashboard__user-grid">
+      <div
+        v-for="user in seccion.usuarios"
         :key="user._id"
         class="superadmin-dashboard__user-card"
       >
@@ -78,8 +110,11 @@ const router = useRouter()
           <div class="superadmin-dashboard__user-info">
             <div class="superadmin-dashboard__user-name-row">
               <span class="superadmin-dashboard__user-name">{{ user.name || 'Sin nombre' }}</span>
-              <span class="superadmin-dashboard__role-badge" :class="`superadmin-dashboard__role-badge--${user.role}`">
-                {{ user.role }}
+              <span
+                class="superadmin-dashboard__role-badge"
+                :class="user.isInternal ? 'superadmin-dashboard__role-badge--interno' : `superadmin-dashboard__role-badge--${user.role}`"
+              >
+                {{ user.isInternal ? 'interno' : user.role }}
               </span>
             </div>
             <span class="superadmin-dashboard__user-email">{{ user.email }}</span>
@@ -95,7 +130,9 @@ const router = useRouter()
           </button>
         </div>
       </div>
-    </div>
+        </div>
+      </div>
+    </template>
   </section>
 </template>
 
@@ -107,6 +144,43 @@ const router = useRouter()
   box-shadow: 0 4px 20px rgba($primary-dark, 0.05);
   border: 1px solid rgba($primary-dark, 0.05);
   min-height: 400px;
+}
+
+.superadmin-dashboard__user-group {
+  padding: 0 1.5rem 1rem;
+
+  &:first-of-type {
+    padding-top: 1.25rem;
+  }
+}
+
+.superadmin-dashboard__user-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+
+  i {
+    color: $primary;
+    font-size: 0.85rem;
+  }
+
+  h4 {
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $primary-dark;
+  }
+}
+
+.superadmin-dashboard__user-group-count {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: rgba($primary, 0.1);
+  color: $primary;
 }
 
 .superadmin-dashboard__users-header {
@@ -187,7 +261,8 @@ const router = useRouter()
 }
 
 .superadmin-dashboard__user-grid {
-  padding: 1.5rem;
+  // El padding lateral lo pone ahora el grupo (seccion internos/externos).
+  padding: 0;
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.25rem;
@@ -291,6 +366,11 @@ const router = useRouter()
   &--colaborador {
     background: rgba($BAKANO-GREEN, 0.1);
     color: $BAKANO-GREEN;
+  }
+
+  &--interno {
+    background: rgba($secondary, 0.12);
+    color: $secondary-dark;
   }
 }
 
