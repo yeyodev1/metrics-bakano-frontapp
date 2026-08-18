@@ -9,6 +9,7 @@ import { useUserFormModal } from '@/composables/useUserFormModal'
 import type { Workspace, WorkspaceUser } from '@/types'
 import WorkspaceList from './WorkspaceList.vue'
 import WorkspaceUsersList from './WorkspaceUsersList.vue'
+import AddExistingUserModal from './AddExistingUserModal.vue'
 
 const confirm = useConfirm()
 const toast = useToast()
@@ -179,6 +180,13 @@ async function openCreateUser(): Promise<void> {
   }
 }
 
+// Agregar a alguien que ya existe en otro entorno, sin re-tipear sus datos.
+const showAddExisting = ref(false)
+
+function onExistingUserAdded(user: WorkspaceUser): void {
+  users.value.unshift(user)
+}
+
 async function openEditUser(user: WorkspaceUser): Promise<void> {
   if (!selectedWorkspace.value) return
   const updatedUser = await userModal.open({
@@ -273,8 +281,17 @@ onMounted(fetchWorkspaces)
       :is-loading-users="isLoadingUsers"
       @back="selectWorkspace(null)"
       @open-create-user="openCreateUser"
+      @open-add-existing="showAddExisting = true"
       @open-edit-user="openEditUser"
       @confirm-delete-user="confirmDeleteUser"
+    />
+
+    <AddExistingUserModal
+      :show="showAddExisting"
+      :workspace="selectedWorkspace"
+      :current-user-ids="users.map(u => u._id)"
+      @close="showAddExisting = false"
+      @added="onExistingUserAdded"
     />
   </div>
 </template>
