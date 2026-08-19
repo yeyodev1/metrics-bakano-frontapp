@@ -245,12 +245,14 @@ export interface EditorQueueItem {
   motivoRechazo?: string
   estadoProduccion: string
   driveLink?: string
+  driveMonthFolderLink?: string
 }
 
 export interface EditorQueue {
   reEditar: EditorQueueItem[]
   porEditar: EditorQueueItem[]
   porSubirMaster: EditorQueueItem[]
+  listos: EditorQueueItem[]
   listosCount: number
   stats: { pct: number | null; aprobados: number; rechazados: number; total: number }
 }

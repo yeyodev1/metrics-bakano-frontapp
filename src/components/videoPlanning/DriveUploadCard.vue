@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { VideoItem } from '@/types/videoPlanning'
-import { driveService } from '@/services/drive.service'
+import { useDriveUploads } from '@/composables/useDriveUploads'
 
 /**
- * Archivo maestro en Google Drive. Autocontenido: pide la sesion, sube por
- * chunks directo a googleapis.com y confirma — el backend persiste
- * driveFileId/driveLink, asi que el modal padre no guarda nada de Drive.
+ * Archivo maestro en Google Drive. La subida vive en la cola global
+ * (useDriveUploads): esta tarjeta solo encola y pinta el estado de SU item,
+ * asi que lanzar varias subidas a la vez no bloquea nada — corren de a dos
+ * y el resto espera turno en el panel flotante.
  */
 
 const props = defineProps<{ item: VideoItem }>()
@@ -15,27 +16,29 @@ const emit = defineEmits<{
   (e: 'uploaded', payload: { driveLink: string; driveMonthFolderLink?: string }): void
 }>()
 
+const { encolar, subidaDe, reintentar } = useDriveUploads()
+
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const dragOver = ref(false)
-const uploading = ref(false)
-const progress = ref(0)
 const error = ref<string | null>(null)
-const driveLink = ref<string | null>(props.item.driveLink || null)
-const uploadedName = ref<string | null>(null)
 
-watch(
-  () => props.item._id,
-  () => {
-    driveLink.value = props.item.driveLink || null
-    uploadedName.value = null
-    error.value = null
-    progress.value = 0
-  },
+const subida = computed(() => subidaDe(props.item._id))
+const uploading = computed(
+  () => subida.value?.estado === 'subiendo' || subida.value?.estado === 'pendiente',
+)
+const progress = computed(() => subida.value?.pct ?? 0)
+const enCola = computed(() => subida.value?.estado === 'pendiente')
+const falloCola = computed(() => (subida.value?.estado === 'error' ? subida.value : null))
+const driveLink = computed(
+  () => (subida.value?.estado === 'listo' && subida.value.driveLink) || props.item.driveLink || null,
+)
+const uploadedName = computed(() =>
+  subida.value?.estado === 'listo' ? subida.value.fileName : null,
 )
 
 const hasFile = computed(() => !!driveLink.value)
 
-async function handleFiles(files: FileList | null) {
+function handleFiles(files: FileList | null) {
   if (!files || files.length === 0) return
   const file = files[0]
 
@@ -44,36 +47,27 @@ async function handleFiles(files: FileList | null) {
     return
   }
 
-  uploading.value = true
   error.value = null
-  progress.value = 0
-
-  try {
-    const session = await driveService.requestSession(props.item._id, file)
-    const fileId = await driveService.uploadFile(session.uploadUrl, file, (pct) => {
-      progress.value = pct
-    })
-    const result = await driveService.confirm(props.item._id, fileId)
-    driveLink.value = result.driveLink
-    uploadedName.value = file.name
-    emit('uploaded', {
-      driveLink: result.driveLink,
-      driveMonthFolderLink: result.driveMonthFolderLink,
-    })
-  } catch (err: any) {
-    error.value =
-      err?.message && !err?.status
-        ? err.message
-        : err?.data?.message || err?.message || 'Error al subir a Drive. Intenta de nuevo.'
-  } finally {
-    uploading.value = false
-  }
+  encolar(props.item, file)
 }
 
 function onDrop(e: DragEvent) {
   dragOver.value = false
   handleFiles(e.dataTransfer?.files || null)
 }
+
+// Avisar al padre cuando SU subida termina (la cola es asincrona).
+watch(
+  () => subida.value?.estado,
+  (estado) => {
+    if (estado === 'listo' && subida.value?.driveLink) {
+      emit('uploaded', {
+        driveLink: subida.value.driveLink,
+        driveMonthFolderLink: subida.value.driveMonthFolderLink,
+      })
+    }
+  },
+)
 </script>
 
 <template>
@@ -99,7 +93,15 @@ function onDrop(e: DragEvent) {
       <div class="duc__bar">
         <div class="duc__fill" :style="{ width: progress + '%' }" />
       </div>
-      <span>Subiendo a Drive... {{ progress }}%</span>
+      <span v-if="enCola">En cola — sube cuando termine otra (máx. 2 a la vez)</span>
+      <span v-else>Subiendo a Drive... {{ progress }}%</span>
+    </div>
+
+    <div v-else-if="falloCola" class="duc__error" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem">
+      <span><i class="fa-solid fa-triangle-exclamation" /> {{ falloCola.error }}</span>
+      <button class="duc__replace" type="button" @click="reintentar(falloCola.id)">
+        <i class="fa-solid fa-rotate" /> Reintentar
+      </button>
     </div>
 
     <div
