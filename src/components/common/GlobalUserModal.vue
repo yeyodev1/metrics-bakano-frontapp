@@ -176,6 +176,17 @@ async function handleSubmit() {
     return
   }
 
+  // A los clientes les llegan avisos por WhatsApp: sin numero no hay canal.
+  // A los internos de Bakano no se les exige.
+  if (
+    modalOptions.value.mode !== 'edit' &&
+    !userForm.value.isInternal &&
+    !userForm.value.phoneNumber?.trim()
+  ) {
+    userError.value = 'El número de teléfono es obligatorio para usuarios cliente: es la vía de los avisos por WhatsApp.'
+    return
+  }
+
   isSaving.value = true
   userError.value = ''
 

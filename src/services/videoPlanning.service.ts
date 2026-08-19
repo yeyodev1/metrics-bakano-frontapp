@@ -15,6 +15,10 @@ import type {
   HistorialAvisos,
   ResultadoNotificacion,
   PlanificacionPendiente,
+  HistorialAvisosRevision,
+  ResultadoAvisoRevision,
+  RevisionPendiente,
+  VideoReviewPayload,
 } from '@/types/videoPlanning'
 
 class VideoPlanningService extends APIBase {
@@ -224,6 +228,45 @@ class VideoPlanningService extends APIBase {
       `video-planning/pending-approval?workspaceId=${workspaceId}`,
     )
     return res.data.pendiente
+  }
+
+  // ── Revisión de videos terminados ────────────────────────────────────────
+
+  /** Avisa al cliente que sus videos editados esperan revisión (WhatsApp + correo). */
+  async notificarRevision(planningId: string): Promise<ResultadoAvisoRevision> {
+    const res = await this.post<{ resultado: ResultadoAvisoRevision }>(
+      `video-planning/${planningId}/notify-review`,
+      {},
+    )
+    return res.data.resultado
+  }
+
+  /** El cliente entrega su veredicto sobre los videos terminados. */
+  async submitVideoReview(
+    planningId: string,
+    payload: VideoReviewPayload,
+  ): Promise<{ pendientes: number; cicloCerrado: boolean; message: string }> {
+    const res = await this.post<{ pendientes: number; cicloCerrado: boolean; message: string }>(
+      `video-planning/${planningId}/video-review`,
+      payload,
+    )
+    return res.data
+  }
+
+  /** Qué revisión de videos le toca a un entorno (aterrizaje del WhatsApp). */
+  async getRevisionPendiente(workspaceId: string): Promise<RevisionPendiente | null> {
+    const res = await this.get<{ pendiente: RevisionPendiente | null }>(
+      `video-planning/pending-review?workspaceId=${workspaceId}`,
+    )
+    return res.data.pendiente
+  }
+
+  /** Auditoría del circuito de revisión: cada aviso con canal, tipo y resultado. */
+  async getHistorialRevision(planningId: string): Promise<HistorialAvisosRevision> {
+    const res = await this.get<HistorialAvisosRevision>(
+      `video-planning/${planningId}/review-notifications`,
+    )
+    return res.data
   }
 
   /** Cola de trabajo del editor logueado, clasificada por accion pendiente. */

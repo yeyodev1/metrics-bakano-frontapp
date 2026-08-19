@@ -193,6 +193,26 @@ const routes: Array<RouteRecordRaw> = [
         path: 'workspaces/new-planning-from-whatsapp/:rest(.*)*',
         redirect: { name: 'NewPlanningFromWhatsapp' },
       },
+      {
+        // El cliente revisa sus VIDEOS TERMINADOS (no los guiones).
+        path: 'workspaces/:workspaceId/planning/:entryId/video-review',
+        name: 'VideoReviewClient',
+        component: () => import('../views/videoPlanning/ClientVideoReviewView.vue'),
+        meta: { title: 'Bakano Ads: Revisión de Videos', requiresAuth: true },
+      },
+      {
+        // URL fija de la plantilla de WhatsApp de revisión de videos: igual
+        // que la de aprobación, la pantalla resuelve cuál revisión abrir.
+        path: 'workspaces/review-videos-from-whatsapp',
+        name: 'ReviewVideosFromWhatsapp',
+        component: () => import('../views/videoPlanning/ReviewVideosFromWhatsappView.vue'),
+        meta: { title: 'Bakano Ads: Revisa tus videos', requiresAuth: true },
+      },
+      {
+        // Mismo blindaje contra sufijos pegados por WhatsApp.
+        path: 'workspaces/review-videos-from-whatsapp/:rest(.*)*',
+        redirect: { name: 'ReviewVideosFromWhatsapp' },
+      },
       // ── Billing & ROAS ───────────────────────────────────
       {
         path: 'workspaces/:workspaceId/billing',
