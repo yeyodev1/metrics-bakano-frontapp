@@ -37,6 +37,20 @@ const netAmount = computed(() => {
 
 const OPEN_STATUSES = ['pending', 'partial', 'overdue']
 
+// ── Consumo CRM (GoHighLevel): cargos ya cobrados, NO deuda ──
+const showAllCrm = ref(false)
+const CRM_PREVIEW_COUNT = 10
+
+const crm = computed(() => {
+  const data = billing.value?.crmConsumption
+  return data && data.items.length ? data : null
+})
+
+const crmVisibleItems = computed(() => {
+  if (!crm.value) return []
+  return showAllCrm.value ? crm.value.items : crm.value.items.slice(0, CRM_PREVIEW_COUNT)
+})
+
 const STATUS_META: Record<string, { label: string; icon: string; tone: string }> = {
   pending: { label: 'Pendiente', icon: 'fa-regular fa-clock', tone: 'warn' },
   partial: { label: 'Pago parcial', icon: 'fa-solid fa-circle-half-stroke', tone: 'warn' },
@@ -419,6 +433,57 @@ onMounted(async () => {
             </div>
           </li>
         </ul>
+      </section>
+
+      <!-- Consumo CRM (GoHighLevel) -->
+      <section v-if="crm" class="fb-section fb-crm">
+        <div class="fb-crm__head">
+          <h2><i class="fa-solid fa-plug-circle-bolt" aria-hidden="true" /> Consumo CRM (GoHighLevel)</h2>
+          <p class="fb-crm__sub">
+            Lo que tu cuenta consume del CRM que Bakano te provee. Estos cargos
+            <strong>ya fueron cobrados por Stripe</strong> — no son deuda pendiente.
+          </p>
+        </div>
+
+        <div class="fb-summary">
+          <article class="fb-summary__card">
+            <span class="fb-summary__label">Consumo de este mes</span>
+            <strong class="fb-summary__value">{{ money(crm.totals.currentMonth) }}</strong>
+          </article>
+          <article class="fb-summary__card">
+            <span class="fb-summary__label">Total acumulado</span>
+            <strong class="fb-summary__value">{{ money(crm.totals.total) }}</strong>
+          </article>
+        </div>
+
+        <div v-if="crm.totals.byMonth.length" class="fb-crm__months">
+          <article v-for="month in crm.totals.byMonth" :key="month.period" class="fb-crm__month">
+            <span class="fb-crm__month-label">{{ periodEs(month.period) }}</span>
+            <strong>{{ money(month.total) }}</strong>
+            <span class="fb-crm__month-count">{{ month.count }} cargo{{ month.count === 1 ? '' : 's' }}</span>
+          </article>
+        </div>
+
+        <ul class="fb-history">
+          <li v-for="item in crmVisibleItems" :key="item._id" class="fb-history__item">
+            <div class="fb-history__main">
+              <span class="fb-badge fb-badge--ok">
+                <i class="fa-solid fa-circle-check" aria-hidden="true" /> Pagado
+              </span>
+              <strong>{{ money(item.amount, item.currency) }}</strong>
+              <span>{{ item.description || 'Consumo CRM' }}</span>
+              <span class="fb-history__date">{{ dateEs(item.paidAt) }}</span>
+            </div>
+          </li>
+        </ul>
+        <button
+          v-if="crm.items.length > CRM_PREVIEW_COUNT"
+          type="button"
+          class="fb-link"
+          @click="showAllCrm = !showAllCrm"
+        >
+          {{ showAllCrm ? 'Ver menos' : `Ver los ${crm.items.length} cargos` }}
+        </button>
       </section>
     </template>
   </div>
@@ -810,6 +875,58 @@ onMounted(async () => {
     gap: 0.4rem;
     font-size: 0.8rem;
     color: #b45309;
+  }
+}
+
+.fb-crm {
+  &__head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    h2 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  }
+
+  &__sub {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6b7280;
+
+    strong {
+      color: #047857;
+    }
+  }
+
+  &__months {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  &__month {
+    flex: 1 1 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  &__month-label {
+    font-size: 0.78rem;
+    color: #6b7280;
+  }
+
+  &__month-count {
+    font-size: 0.75rem;
+    color: #9ca3af;
   }
 }
 

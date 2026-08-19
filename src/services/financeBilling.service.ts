@@ -42,6 +42,25 @@ export interface IFinanceSubmission {
   createdAt: string
 }
 
+/** Cargo de consumo del CRM (GoHighLevel): ya cobrado por Stripe, NO es deuda. */
+export interface ICrmConsumptionItem {
+  _id: string
+  amount: number
+  currency: string
+  paidAt: string
+  description?: string
+  stripeChargeId: string
+}
+
+export interface ICrmConsumption {
+  items: ICrmConsumptionItem[]
+  totals: {
+    total: number
+    currentMonth: number
+    byMonth: Array<{ period: string; total: number; count: number }>
+  }
+}
+
 export interface IFinanceBilling {
   client: { id: string; name: string }
   summary: {
@@ -53,6 +72,8 @@ export interface IFinanceBilling {
   invoices: IFinanceInvoice[]
   payments: IFinancePayment[]
   submissions: IFinanceSubmission[]
+  /** Opcional: backends anteriores no lo envían. */
+  crmConsumption?: ICrmConsumption | null
 }
 
 class FinanceBillingService extends APIBase {
