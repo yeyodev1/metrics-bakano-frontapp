@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { videoPlanningService } from '@/services/videoPlanning.service'
 import DriveUploadCard from '@/components/videoPlanning/DriveUploadCard.vue'
+import AvisoRevisionBanner from '@/components/videoPlanning/AvisoRevisionBanner.vue'
 import { EstadoEdicion } from '@/types/videoPlanning'
 import type { VideoItem, VideoPlanning } from '@/types/videoPlanning'
 
@@ -118,6 +119,15 @@ onMounted(load)
         />
       </div>
     </header>
+
+    <!-- Al marcar editados aparece el paso que falta: avisar al cliente -->
+    <AvisoRevisionBanner
+      v-if="planning && !loading"
+      :planning="planning"
+      :editadas="editadasCount"
+      :total="items.length"
+      @notified="load"
+    />
 
     <!-- ── Loading ─────────────────────────────────────── -->
     <div v-if="loading" class="evp__loading">

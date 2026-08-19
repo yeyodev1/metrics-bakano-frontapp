@@ -64,6 +64,11 @@ async function handleSubmit() {
     userError.value = 'La contraseña debe tener al menos 8 caracteres.'
     return
   }
+  // Sin telefono los avisos de WhatsApp no llegan: obligatorio desde el alta.
+  if (modalOptions.value.mode === 'create' && !userForm.value.phoneNumber?.trim()) {
+    userError.value = 'El número de teléfono es obligatorio: es la vía de los avisos por WhatsApp.'
+    return
+  }
 
   isSaving.value = true
   userError.value = ''
@@ -143,7 +148,13 @@ async function handleSubmit() {
           </div>
 
           <div class="global-modal__form-group">
-            <label>Número de teléfono</label>
+            <label>
+              Número de teléfono
+              <span v-if="modalOptions.mode === 'create'" style="color: #dc2626;">*</span>
+              <span style="font-size: 0.8em; font-weight: normal; color: #64748b; margin-left: 0.5rem;">
+                (Aquí llegan los avisos por WhatsApp)
+              </span>
+            </label>
             <VueTelInput
               v-model="userForm.phoneNumber"
               mode="international"

@@ -132,6 +132,10 @@ export interface VideoItem {
   edicionRevisada?: boolean
   edicionRevisadaNombre?: string
   edicionRevisadaEn?: string
+  /** Veredicto del cliente sobre el VIDEO terminado (no sobre el guion). */
+  videoClienteAprobacion?: ClienteAprobacion
+  videoClienteMotivo?: string
+  videoClienteRevisadoEn?: string
   fechaPublicacion?: string
   copyPublicacion?: string
   order: number
@@ -154,6 +158,9 @@ export interface VideoPlanning {
   items: VideoItem[]
   /** Contenido dio por terminada la planificación; habilita "Notificar al cliente". */
   listaParaCliente?: boolean
+  /** Ciclo de revisión de videos terminados: abierto = el cron insiste cada 4h. */
+  revisionVideosAbierta?: boolean
+  videosRevisadosEn?: string
   clienteAprobado: boolean
   clienteAprobadoAt?: string
   clienteAprobadoPor?: string
@@ -316,6 +323,48 @@ export interface ResultadoNotificacion {
   numeroEnvio: number
   whatsapp: { enviado: boolean; error?: string; contactos: { correo: string }[] }
   email: { enviado: boolean; error?: string; destinatarios: string[] }
+}
+
+// ── Revisión de videos terminados ───────────────────────────────────────────
+
+export type TipoAvisoRevision = 'esperando_revision' | 'recordatorio' | 'revisado'
+
+export interface AvisoRevision extends NotificacionRegistro {
+  tipoAviso: TipoAvisoRevision
+  numeroEnvio: number
+}
+
+export interface HistorialAvisosRevision {
+  revisionAbierta: boolean
+  videosRevisadosEn: string | null
+  avisos: AvisoRevision[]
+  resumen: {
+    whatsapp: number
+    email: number
+    ultimo: AvisoRevision | null
+  }
+}
+
+export interface ResultadoAvisoRevision {
+  tipoAviso: TipoAvisoRevision
+  numeroEnvio: number
+  videosListos: number
+  whatsapp: { enviado: boolean; error?: string; contactos: { correo: string }[] }
+  email: { enviado: boolean; error?: string; destinatarios: string[] }
+}
+
+/** Revisión de videos que un entorno tiene abierta, para aterrizar desde WhatsApp. */
+export interface RevisionPendiente {
+  planningId: string
+  planningEntryId: string
+  workspaceId: string
+  videosListos: number
+  pendientes: number
+  ultimoAviso: string | null
+}
+
+export interface VideoReviewPayload {
+  reviews: { itemId: string; estado: 'APROBADO' | 'RECHAZADO'; motivo?: string }[]
 }
 
 /** Planificación que un entorno tiene sin aprobar, para aterrizar desde WhatsApp. */
