@@ -225,7 +225,7 @@ const routes: Array<RouteRecordRaw> = [
         path: 'workspaces/:workspaceId/facturacion',
         name: 'FinanceBilling',
         component: () => import('../views/financeBilling/FinanceBillingView.vue'),
-        meta: { title: 'Bakano: Facturación y pagos', requiresAuth: true },
+        meta: { title: 'Bakano: Mi suscripción', requiresAuth: true },
       },
       // ── Brand Resources ──────────────────────────────────
       {
