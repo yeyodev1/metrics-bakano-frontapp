@@ -128,6 +128,10 @@ export interface VideoItem {
   /** Archivo maestro en Drive (entrega al cliente). */
   driveFileId?: string
   driveLink?: string
+  /** Revision interna del video editado (visto bueno del PM/CM). */
+  edicionRevisada?: boolean
+  edicionRevisadaNombre?: string
+  edicionRevisadaEn?: string
   fechaPublicacion?: string
   copyPublicacion?: string
   order: number
