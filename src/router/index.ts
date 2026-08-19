@@ -220,6 +220,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/billing/BillingRoasView.vue'),
         meta: { title: 'Bakano Ads: Facturación & ROAS', requiresAuth: true },
       },
+      // ── Facturación Bakano (portal de pagos del cliente) ─
+      {
+        path: 'workspaces/:workspaceId/facturacion',
+        name: 'FinanceBilling',
+        component: () => import('../views/financeBilling/FinanceBillingView.vue'),
+        meta: { title: 'Bakano: Facturación y pagos', requiresAuth: true },
+      },
       // ── Brand Resources ──────────────────────────────────
       {
         path: 'workspaces/:workspaceId/resources',
