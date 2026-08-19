@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useConfirm } from '@/composables/useConfirm'
+import DriveUploadTray from '@/components/common/DriveUploadTray.vue'
 import logoDark from '@/assets/logos/bakano-light.png'
 
 const router = useRouter()
@@ -70,6 +71,9 @@ async function logout() {
     <main class="el-shell__content">
       <RouterView />
     </main>
+
+    <!-- Subidas a Drive: sobrevive a la navegacion dentro del area editor -->
+    <DriveUploadTray />
   </div>
 </template>
 

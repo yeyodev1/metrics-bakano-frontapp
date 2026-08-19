@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { EditorQueue, EditorQueueItem } from '@/services/videoPlanning.service'
 
@@ -11,6 +11,7 @@ import type { EditorQueue, EditorQueueItem } from '@/services/videoPlanning.serv
 const props = defineProps<{ queue: EditorQueue | null; loading: boolean }>()
 
 const router = useRouter()
+const listosAbierto = ref(false)
 
 interface Seccion {
   id: string
@@ -133,10 +134,43 @@ function abrir(item: EditorQueueItem) {
         </div>
       </section>
 
-      <div class="ewq__listos">
-        <span class="ewq__dot ewq__dot--ok" />
-        <span class="ewq__listos-label">Listos este mes</span>
-        <span class="ewq__count ewq__count--ok">{{ queue?.listosCount ?? 0 }}</span>
+      <div class="ewq__section">
+        <button type="button" class="ewq__listos" @click="listosAbierto = !listosAbierto">
+          <span class="ewq__dot ewq__dot--ok" />
+          <span class="ewq__listos-label">Listos este mes</span>
+          <span class="ewq__count ewq__count--ok">{{ queue?.listosCount ?? 0 }}</span>
+          <i class="fa-solid" :class="listosAbierto ? 'fa-chevron-up' : 'fa-chevron-down'" />
+        </button>
+
+        <div v-if="listosAbierto" class="ewq__cards">
+          <article v-for="item in queue?.listos ?? []" :key="item.itemId" class="ewq__card">
+            <div class="ewq__card-top">
+              <div class="ewq__avatar">{{ iniciales(item.workspaceName) }}</div>
+              <div class="ewq__info">
+                <span class="ewq__tema">{{ item.workspaceName }} · #{{ String(item.numero).padStart(2, '0') }} {{ item.tema }}</span>
+                <span class="ewq__sub"><i class="fa-solid fa-circle-check" /> Editado y entregado</span>
+              </div>
+              <a
+                v-if="item.driveLink"
+                :href="item.driveLink"
+                target="_blank"
+                rel="noopener"
+                class="ewq__link"
+              >
+                <i class="fa-brands fa-google-drive" /> Ver en Drive
+              </a>
+              <a
+                v-if="item.driveMonthFolderLink"
+                :href="item.driveMonthFolderLink"
+                target="_blank"
+                rel="noopener"
+                class="ewq__link ewq__link--folder"
+              >
+                <i class="fa-regular fa-folder-open" /> Carpeta del mes
+              </a>
+            </div>
+          </article>
+        </div>
       </div>
     </template>
   </div>
@@ -313,6 +347,31 @@ function abrir(item: EditorQueueItem) {
   align-items: center;
   gap: 0.5rem;
   padding: 0.2rem 0.2rem 0.5rem;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+
+  > i { font-size: 0.6rem; color: $text-secondary; }
+}
+
+.ewq__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1ea362;
+  background: rgba(#1ea362, 0.08);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+
+  i { font-size: 0.68rem; }
+
+  &:hover { background: rgba(#1ea362, 0.15); color: #1ea362; }
+
+  &--folder { color: $text-secondary; background: rgba($primary-dark, 0.05); &:hover { color: $primary-dark; background: rgba($primary-dark, 0.09); } }
 }
 
 .ewq__listos-label {

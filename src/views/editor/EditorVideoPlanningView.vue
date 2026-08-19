@@ -95,6 +95,18 @@ onMounted(load)
             <i class="fa-solid fa-wand-magic-sparkles" />
             {{ editadasCount }} / {{ items.length }} editados
           </span>
+          <template v-if="planning?.driveMonthFolderLink">
+            <span class="evp__meta-sep">·</span>
+            <a
+              :href="planning.driveMonthFolderLink"
+              target="_blank"
+              rel="noopener"
+              class="evp__meta-item evp__drive-link"
+            >
+              <i class="fa-brands fa-google-drive" />
+              Carpeta del mes en Drive
+            </a>
+          </template>
         </div>
       </div>
 
@@ -351,6 +363,14 @@ onMounted(load)
     i { font-size: 0.65rem; }
     &--green  { color: #6ee7b7; }
     &--indigo { color: #a5b4fc; }
+  }
+
+  &__drive-link {
+    color: #6ee7b7;
+    text-decoration: none;
+    font-weight: 700;
+
+    &:hover { color: #a7f3d0; text-decoration: underline; }
   }
 
   &__progress-wrap {

@@ -12,6 +12,7 @@ import { getWorkspaceImage } from '@/utils/workspaceImage'
 import logoDark from '@/assets/logos/bakano-light.png'
 import SoundToggleButton from '@/components/common/SoundToggleButton.vue'
 import NetworkStatus from '@/components/common/NetworkStatus.vue'
+import DriveUploadTray from '@/components/common/DriveUploadTray.vue'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 
 
@@ -833,6 +834,9 @@ watch(() => route.params.workspaceId, async (newId) => {
         </div>
       </div>
     </Transition>
+
+    <!-- Subidas a Drive: sobrevive a la navegacion dentro de la app -->
+    <DriveUploadTray />
   </div>
 </template>
 
