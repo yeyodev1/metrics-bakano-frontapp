@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { videoPlanningService } from '@/services/videoPlanning.service'
+import DriveUploadCard from '@/components/videoPlanning/DriveUploadCard.vue'
 import { EstadoEdicion } from '@/types/videoPlanning'
 import type { VideoItem, VideoPlanning } from '@/types/videoPlanning'
 
@@ -231,6 +232,12 @@ onMounted(load)
               <i class="fa-solid fa-arrow-up-right-from-square" />
               Ver referencia
             </a>
+
+            <!-- Master a Drive: el archivo del cliente se sube aqui mismo,
+                 sin salir de la vista del editor. Solo aparece ya editado. -->
+            <div v-if="item.edicion === 'EDITADO'" class="evp__block">
+              <DriveUploadCard :item="item" />
+            </div>
 
             <!-- Bottom action -->
             <div class="evp__script-footer">

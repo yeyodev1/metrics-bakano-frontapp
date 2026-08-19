@@ -225,6 +225,34 @@ class VideoPlanningService extends APIBase {
     )
     return res.data.pendiente
   }
+
+  /** Cola de trabajo del editor logueado, clasificada por accion pendiente. */
+  async getEditorQueue(): Promise<EditorQueue> {
+    const res = await this.get<EditorQueue>('video-planning/editor-queue')
+    return res.data
+  }
+}
+
+export interface EditorQueueItem {
+  workspaceId: string
+  workspaceName: string
+  entryId: string
+  planningId: string
+  itemId: string
+  numero: number
+  tema: string
+  fechaPublicacion?: string
+  motivoRechazo?: string
+  estadoProduccion: string
+  driveLink?: string
+}
+
+export interface EditorQueue {
+  reEditar: EditorQueueItem[]
+  porEditar: EditorQueueItem[]
+  porSubirMaster: EditorQueueItem[]
+  listosCount: number
+  stats: { pct: number | null; aprobados: number; rechazados: number; total: number }
 }
 
 export const videoPlanningService = new VideoPlanningService()

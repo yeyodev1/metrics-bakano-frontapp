@@ -25,6 +25,15 @@ async function logout() {
 
 <template>
   <div class="el-shell">
+    <!-- Top bar solo movil: la sidebar fija de 260px aplastaba el contenido -->
+    <header class="el-shell__topbar">
+      <img :src="logoDark" alt="Bakano" width="88" />
+      <span class="el-shell__topbar-role"><i class="fa-solid fa-film" /> Editor</span>
+      <button class="el-shell__logout" @click="logout" title="Cerrar sesión">
+        <i class="fa-solid fa-arrow-right-from-bracket" />
+      </button>
+    </header>
+
     <aside class="el-shell__sidebar">
       <div class="el-shell__logo">
         <img :src="logoDark" alt="Bakano" width="110" />
@@ -65,20 +74,53 @@ async function logout() {
 </template>
 
 <style lang="scss" scoped>
+// Mobile-first: top bar arriba y contenido a lo ancho; la sidebar aparece
+// desde 768px.
 .el-shell {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   height: 100vh;
   overflow: hidden;
 
+  @media (min-width: 768px) { flex-direction: row; }
+
+  &__topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    background: $primary-dark;
+    padding: 0.7rem 1rem;
+
+    img { display: block; }
+
+    @media (min-width: 768px) { display: none; }
+  }
+
+  &__topbar-role {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #a5b4fc;
+
+    i { color: #818cf8; }
+  }
+
   &__sidebar {
+    display: none;
     width: 260px;
     flex-shrink: 0;
     background: $primary-dark;
-    display: flex;
     flex-direction: column;
     padding: 1.5rem 1rem;
     gap: 0;
+
+    @media (min-width: 768px) { display: flex; }
   }
 
   &__logo {
@@ -209,9 +251,11 @@ async function logout() {
 
   &__content {
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
+
+    @media (min-width: 768px) { overflow: hidden; }
   }
 }
 </style>
