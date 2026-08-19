@@ -121,11 +121,11 @@ watch(isVisible, (newVal) => {
   }
 })
 
-function handlePhoneInput(_: string, phoneObject: any) {
-  if (phoneObject && phoneObject.country && phoneObject.country.dialCode) {
-    userForm.value.phoneExtension = `+${phoneObject.country.dialCode}`
-  } else {
-    userForm.value.phoneExtension = ''
+// En vue-tel-input v9 `phoneObject.country` es el ISO ("EC"), no un objeto
+// con dialCode; el prefijo confiable viene del evento country-changed.
+function handleCountryChanged(country: any) {
+  if (country?.dialCode) {
+    userForm.value.phoneExtension = `+${country.dialCode}`
   }
 }
 
@@ -270,7 +270,7 @@ async function handleSubmit() {
               <VueTelInput
                 v-model="userForm.phoneNumber"
                 mode="international"
-                @on-input="handlePhoneInput"
+                @country-changed="handleCountryChanged"
               />
             </div>
 

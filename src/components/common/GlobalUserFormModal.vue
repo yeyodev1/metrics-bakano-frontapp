@@ -47,9 +47,12 @@ watch(isVisible, (newVal) => {
   }
 })
 
-function handlePhoneInput(_: string, phoneObject: any) {
-  if (phoneObject && phoneObject.country) {
-    userForm.value.phoneExtension = `+${phoneObject.country.dialCode}`
+// En vue-tel-input v9 `phoneObject.country` es el ISO ("EC"), no un objeto:
+// leer `.country.dialCode` mandaba "+undefined" y el backend rechazaba todo.
+// El prefijo confiable viene del evento country-changed.
+function handleCountryChanged(country: any) {
+  if (country?.dialCode) {
+    userForm.value.phoneExtension = `+${country.dialCode}`
   }
 }
 
@@ -169,7 +172,7 @@ async function handleSubmit() {
                 showDialCodeInList: true,
                 showDialCodeInSelection: true
               }"
-              @on-input="handlePhoneInput"
+              @country-changed="handleCountryChanged"
             />
           </div>
 
