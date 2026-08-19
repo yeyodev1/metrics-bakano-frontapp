@@ -630,6 +630,16 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Facturación & ROAS</span>
           </RouterLink>
 
+          <!-- 1b. Facturación y pagos a Bakano -->
+          <RouterLink
+            v-if="currentWorkspaceId && (idVista.role === 'superadmin' || !idVista.isInternal)"
+            class="app-layout__nav-item"
+            :to="{ name: 'FinanceBilling', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true" />
+            <span>Pagos a Bakano</span>
+          </RouterLink>
+
           <!-- 2. Sucursales (Puntos de venta) -->
           <RouterLink v-if="currentWorkspaceId" class="app-layout__nav-item" :to="{ name: 'WorkspaceBranches', params: { workspaceId: currentWorkspaceId } }">
             <i class="fa-solid fa-store" aria-hidden="true" />
