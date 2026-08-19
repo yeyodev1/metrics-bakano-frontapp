@@ -223,7 +223,7 @@ onMounted(async () => {
   <div class="finance-billing">
     <header class="fb-header">
       <div>
-        <h1><i class="fa-solid fa-file-invoice-dollar" aria-hidden="true" /> Facturación</h1>
+        <h1><i class="fa-solid fa-credit-card" aria-hidden="true" /> Mi suscripción</h1>
         <p v-if="billing" class="fb-header__sub">{{ billing.client.name }} · Bakano</p>
       </div>
     </header>
