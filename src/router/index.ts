@@ -255,6 +255,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/flags/FlagsDashboardView.vue'),
         meta: { title: 'Bakano Ads: Sistema de Banderas', requiresAuth: true, requiresInternal: true },
       },
+      // ── Revisión de videos editados ───────────────────
+      {
+        path: 'workspaces/review-videos-from-planning',
+        name: 'ReviewVideosFromPlanning',
+        component: () => import('../views/workspaces/reviewVideos/index.vue'),
+        meta: { title: 'Bakano Ads: Revisión de Videos', requiresAuth: true, requiresInternal: true },
+      },
       {
         path: 'sales-executive',
         name: 'SalesExecutiveDashboard',

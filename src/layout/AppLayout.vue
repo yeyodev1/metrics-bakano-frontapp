@@ -574,6 +574,16 @@ watch(() => route.params.workspaceId, async (newId) => {
             <i class="fa-solid fa-flag" aria-hidden="true" />
             <span>Banderas</span>
           </RouterLink>
+
+          <!-- Revision de videos editados — mismo publico que recibe el correo -->
+          <RouterLink
+            v-if="idVista.role === 'superadmin' || (idVista.isInternal && ['project_manager', 'content_manager'].includes(idVista.internalRole || ''))"
+            class="app-layout__nav-item"
+            :to="{ name: 'ReviewVideosFromPlanning' }"
+          >
+            <i class="fa-solid fa-clapperboard" aria-hidden="true" />
+            <span>Revisión de videos</span>
+          </RouterLink>
         </template>
 
         <!-- ========================================== -->

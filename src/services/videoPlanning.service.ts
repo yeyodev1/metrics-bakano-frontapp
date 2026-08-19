@@ -231,6 +231,26 @@ class VideoPlanningService extends APIBase {
     const res = await this.get<EditorQueue>('video-planning/editor-queue')
     return res.data
   }
+
+  /** Videos editados esperando el visto bueno interno. */
+  async getReviewQueue(): Promise<{ pendientes: ReviewQueueItem[] }> {
+    const res = await this.get<{ pendientes: ReviewQueueItem[] }>('video-planning/review-queue')
+    return res.data
+  }
+}
+
+export interface ReviewQueueItem {
+  workspaceId: string
+  workspaceName: string
+  entryId: string
+  planningId: string
+  itemId: string
+  numero: number
+  tema: string
+  fechaPublicacion?: string
+  linkVideo?: string
+  driveLink?: string
+  editorNombre?: string
 }
 
 export interface EditorQueueItem {
