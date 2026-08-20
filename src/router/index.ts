@@ -6,6 +6,7 @@ import {
   type RouteRecordRaw,
 } from 'vue-router'
 import { resolveHomeRoute, isWorkspaceIdValido } from './home'
+import { sesionFresca } from './session'
 import { applySeo } from './seo'
 
 const routes: Array<RouteRecordRaw> = [
@@ -404,10 +405,14 @@ function comoNoEncontrada(to: RouteLocationNormalized): RouteLocationRaw {
   }
 }
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const token = localStorage.getItem('access_token')
   const hasToken = !!token
   const requiresAuth = to.matched.some((r) => r.meta?.requiresAuth)
+
+  // Con sesión, los checks de rol de abajo y los `onMounted` de las vistas
+  // necesitan el usuario actual, no el de localStorage del día del login.
+  if (hasToken && requiresAuth) await sesionFresca()
 
   // `:workspaceId` acepta cualquier texto, así que /app/workspaces/loquesea/planning
   // hacía match con una ruta real: se montaba la vista y disparaba media docena de
