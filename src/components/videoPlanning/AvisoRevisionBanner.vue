@@ -13,6 +13,8 @@ const props = defineProps<{
   planning: VideoPlanning
   editadas: number
   total: number
+  /** Editados sin enlace ni archivo: el cliente los veria vacios. */
+  sinEnlace?: number
 }>()
 
 const emit = defineEmits<{ (e: 'notified'): void }>()
@@ -89,7 +91,12 @@ async function notificar() {
         <strong>
           {{ todosEditados ? '¡Todos los videos están editados!' : `${editadas} de ${total} videos editados` }}
         </strong>
-        <span>Notifica al cliente para que los revise (WhatsApp + correo).</span>
+        <span v-if="sinEnlace">
+          <i class="fa-solid fa-triangle-exclamation" />
+          {{ sinEnlace === 1 ? 'Hay 1 video editado sin enlace' : `Hay ${sinEnlace} videos editados sin enlace` }}:
+          el cliente no tendría qué ver. Pega el enlace o sube el archivo antes de avisar.
+        </span>
+        <span v-else>Notifica al cliente para que los revise (WhatsApp + correo).</span>
       </div>
       <button class="arb__btn" :disabled="enviando" @click="notificar">
         <i v-if="enviando" class="fa-solid fa-spinner fa-spin" />

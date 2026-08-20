@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { swr } from '@/composables/useSwrCache'
 import { videoPlanningService, type EditorQueue } from '@/services/videoPlanning.service'
 import EditorWorkQueue from './EditorWorkQueue.vue'
 import EditorCalendar from './EditorCalendar.vue'
@@ -12,7 +14,9 @@ import EditorCalendar from './EditorCalendar.vue'
  */
 const userStore = useUserStore()
 
-const tab = ref<'trabajo' | 'calendario'>('trabajo')
+// La pestana es la ruta: /editor = trabajo, /editor/calendario = calendario.
+const route = useRoute()
+const tab = computed<'trabajo' | 'calendario'>(() => (route.name === 'EditorCalendario' ? 'calendario' : 'trabajo'))
 const queue = ref<EditorQueue | null>(null)
 const loading = ref(true)
 
@@ -32,12 +36,16 @@ const pendientes = computed(() =>
   (queue.value?.porSubirMaster.length ?? 0),
 )
 
+/** Pinta la ultima cola vista al instante y la refresca por detras. */
 async function cargar() {
-  loading.value = true
+  const { cached, fresh } = swr('editor:queue', () => videoPlanningService.getEditorQueue(), {
+    onFresh: (q) => { queue.value = q },
+  })
+  if (cached) { queue.value = cached; loading.value = false }
   try {
-    queue.value = await videoPlanningService.getEditorQueue()
+    queue.value = await fresh
   } catch {
-    queue.value = null
+    if (!queue.value) queue.value = null
   } finally {
     loading.value = false
   }
@@ -82,23 +90,21 @@ onMounted(cargar)
 
     <!-- Tabs -->
     <div class="edd__tabs">
-      <button
-        type="button"
+      <RouterLink
+        :to="{ name: 'EditorDashboard' }"
         class="edd__tab"
         :class="{ 'is-active': tab === 'trabajo' }"
-        @click="tab = 'trabajo'"
       >
         <i class="fa-solid fa-list-check" /> Mi trabajo
         <span v-if="pendientes > 0" class="edd__tab-count">{{ pendientes }}</span>
-      </button>
-      <button
-        type="button"
+      </RouterLink>
+      <RouterLink
+        :to="{ name: 'EditorCalendario' }"
         class="edd__tab"
         :class="{ 'is-active': tab === 'calendario' }"
-        @click="tab = 'calendario'"
       >
         <i class="fa-regular fa-calendar" /> Calendario
-      </button>
+      </RouterLink>
     </div>
 
     <EditorWorkQueue v-if="tab === 'trabajo'" :queue="queue" :loading="loading" />
@@ -203,6 +209,7 @@ onMounted(cargar)
 }
 
 .edd__tab {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;

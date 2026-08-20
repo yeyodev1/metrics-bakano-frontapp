@@ -8,6 +8,15 @@ import type {
 } from '@/types'
 
 class PlanningService extends APIBase {
+  /**
+   * Planificaciones del mes de TODOS los entornos del usuario en una sola
+   * peticion. El calendario del editor hacia una por cliente.
+   */
+  async listMine(params: { startDate: string; endDate: string }): Promise<PlanningEntryListResponse> {
+    const res = await this.get<PlanningEntryListResponse>('planning/mine', undefined, { params })
+    return res.data
+  }
+
   async listEntries(
     workspaceId: string,
     params: { startDate?: string; endDate?: string } = {},

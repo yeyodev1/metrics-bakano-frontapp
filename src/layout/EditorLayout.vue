@@ -1,13 +1,28 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useConfirm } from '@/composables/useConfirm'
 import DriveUploadTray from '@/components/common/DriveUploadTray.vue'
 import logoDark from '@/assets/logos/bakano-light.png'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const confirm = useConfirm()
+
+/**
+ * Sidebar con rutas de verdad. Antes tenia un unico "Panel Editor" que ni
+ * era enlace: el editor no sabia donde estaba ni como volver.
+ */
+const NAV = [
+  { name: 'EditorDashboard', icon: 'fa-solid fa-list-check', label: 'Mi cola', hint: 'Qué editar y para cuándo' },
+  { name: 'EditorCalendario', icon: 'fa-regular fa-calendar', label: 'Calendario', hint: 'Producciones por mes' },
+] as const
+
+function activo(name: string) {
+  if (name === 'EditorDashboard') return route.name === 'EditorDashboard' || route.name === 'EditorVideoPlanning'
+  return route.name === name
+}
 
 async function logout() {
   const ok = await confirm.confirm({
@@ -29,7 +44,17 @@ async function logout() {
     <!-- Top bar solo movil: la sidebar fija de 260px aplastaba el contenido -->
     <header class="el-shell__topbar">
       <img :src="logoDark" alt="Bakano" width="88" />
-      <span class="el-shell__topbar-role"><i class="fa-solid fa-film" /> Editor</span>
+      <nav class="el-shell__topbar-nav">
+        <RouterLink
+          v-for="n in NAV"
+          :key="n.name"
+          :to="{ name: n.name }"
+          class="el-shell__topbar-link"
+          :class="{ 'el-shell__topbar-link--active': activo(n.name) }"
+        >
+          <i :class="n.icon" /> {{ n.label }}
+        </RouterLink>
+      </nav>
       <button class="el-shell__logout" @click="logout" title="Cerrar sesión">
         <i class="fa-solid fa-arrow-right-from-bracket" />
       </button>
@@ -46,9 +71,28 @@ async function logout() {
       </div>
 
       <nav class="el-shell__nav">
-        <div class="el-shell__nav-item el-shell__nav-item--active">
-          <i class="fa-solid fa-film" />
-          <span>Panel Editor</span>
+        <span class="el-shell__nav-title">Tu trabajo</span>
+        <RouterLink
+          v-for="n in NAV"
+          :key="n.name"
+          :to="{ name: n.name }"
+          class="el-shell__nav-item"
+          :class="{ 'el-shell__nav-item--active': activo(n.name) }"
+        >
+          <i :class="n.icon" />
+          <span class="el-shell__nav-text">
+            <span>{{ n.label }}</span>
+            <small>{{ n.hint }}</small>
+          </span>
+        </RouterLink>
+
+        <div class="el-shell__guide">
+          <span class="el-shell__nav-title">Cómo entregar un video</span>
+          <ol>
+            <li>Abre la producción desde <strong>Mi cola</strong>.</li>
+            <li>En el video, pega el <strong>enlace</strong> o sube el archivo.</li>
+            <li>Pulsa <strong>Notificar al cliente</strong> arriba.</li>
+          </ol>
         </div>
       </nav>
 
@@ -155,12 +199,74 @@ async function logout() {
 
   &__nav {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__nav-title {
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(white, 0.35);
+    padding: 0 1rem;
+    margin: 0.25rem 0 0.35rem;
+  }
+
+  &__nav-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+    small { font-size: 0.7rem; font-weight: 500; color: rgba(white, 0.38); }
+  }
+
+  &__guide {
+    margin-top: 1.25rem;
+    padding: 0.85rem 0 0;
+    border-top: 1px solid rgba(white, 0.08);
+
+    ol {
+      margin: 0;
+      padding: 0 1rem 0 2.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.76rem;
+      line-height: 1.35;
+      color: rgba(white, 0.55);
+      strong { color: rgba(white, 0.85); font-weight: 600; }
+    }
+  }
+
+  &__topbar-nav {
+    display: flex;
+    gap: 0.35rem;
+    flex: 1;
+    justify-content: center;
+  }
+
+  &__topbar-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: 9px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: rgba(white, 0.6);
+    text-decoration: none;
+
+    &--active { background: rgba(#6366f1, 0.25); color: #c7d2fe; }
   }
 
   &__nav-item {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    text-decoration: none;
+    &:hover { color: rgba(white, 0.85); background: rgba(white, 0.05); }
     padding: 0.75rem 1rem;
     border-radius: 12px;
     font-size: 0.875rem;

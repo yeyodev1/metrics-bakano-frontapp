@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DriveUploadCard from '@/components/videoPlanning/DriveUploadCard.vue'
+import EditorEntregaVideo from './EditorEntregaVideo.vue'
 import type { VideoItem } from '@/types/videoPlanning'
 
 /**
@@ -15,7 +15,11 @@ defineProps<{
   deadline: { texto: string; urgente: boolean; estimado: boolean } | null
 }>()
 
-const emit = defineEmits<{ (e: 'toggle'): void; (e: 'advance'): void }>()
+const emit = defineEmits<{
+  (e: 'toggle'): void
+  (e: 'advance'): void
+  (e: 'save-link', link: string): void
+}>()
 
 const TIPO_STYLE: Record<string, { bg: string; color: string }> = {
   TOFU: { bg: '#ede9fe', color: '#7c3aed' },
@@ -48,6 +52,12 @@ const EDICION_LABEL: Record<string, string> = {
           <i class="fa-solid fa-circle-xmark" /> {{ item.motivoRechazo }}
         </span>
         <span v-else-if="item.tipo" class="epi__tipo-sub">{{ item.tipo }}</span>
+        <span v-if="item.linkVideo || item.driveLink" class="epi__entregado">
+          <i class="fa-solid fa-link" /> Video entregado
+        </span>
+        <span v-else-if="item.edicion === 'EDITADO'" class="epi__sin-link">
+          <i class="fa-solid fa-triangle-exclamation" /> Editado sin enlace: el cliente no lo puede ver
+        </span>
       </div>
 
       <div class="epi__right">
@@ -143,9 +153,10 @@ const EDICION_LABEL: Record<string, string> = {
           Ver referencia
         </a>
 
-        <!-- El master del cliente se sube aqui mismo, ya editado el video. -->
-        <div v-if="item.edicion === 'EDITADO'" class="epi__block">
-          <DriveUploadCard :item="item" />
+        <!-- Entrega: enlace o subida a Drive. Siempre visible, no solo al
+             marcar editado — si no, el cliente recibia avisos sin video. -->
+        <div class="epi__block">
+          <EditorEntregaVideo :item="item" :saving="updating" @save-link="emit('save-link', $event)" />
         </div>
 
         <div class="epi__script-footer">
@@ -172,7 +183,7 @@ const EDICION_LABEL: Record<string, string> = {
 .epi-slide-enter-active,
 .epi-slide-leave-active {
   transition: max-height 0.28s ease, opacity 0.22s ease;
-  max-height: 600px;
+  max-height: 1200px;
   overflow: hidden;
 }
 .epi-slide-enter-from,
@@ -188,6 +199,18 @@ const EDICION_LABEL: Record<string, string> = {
   &--rejected { border-color: rgba(#ef4444, 0.35); }
   &--open { box-shadow: 0 4px 14px rgba($primary-dark, 0.07); }
 }
+
+.epi__entregado,
+.epi__sin-link {
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+.epi__entregado { color: #059669; }
+.epi__sin-link { color: #b45309; }
 
 .epi__row {
   display: flex;
