@@ -337,6 +337,14 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Ads: Panel Editor', requiresAuth: true, requiresInternal: true },
       },
       {
+        // Misma vista que el panel, con la pestana de calendario activa: asi el
+        // sidebar tiene rutas reales y el navegador recuerda donde estaba.
+        path: 'calendario',
+        name: 'EditorCalendario',
+        component: () => import('../views/editor/EditorDashboard.vue'),
+        meta: { title: 'Bakano Ads: Calendario del Editor', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'workspaces/:workspaceId/planning/:entryId/videos',
         name: 'EditorVideoPlanning',
         component: () => import('../views/editor/EditorVideoPlanningView.vue'),
@@ -420,7 +428,7 @@ router.beforeEach((to, _from, next) => {
     if (internalRole === 'editor') {
       // NotFound entra en la lista: un editor con una URL mala merece saber que
       // no existe, no aterrizar en su dashboard como si hubiera pedido eso.
-      const allowedForEditor = ['EditorDashboard', 'EditorVideoPlanning', 'AuthLogin', 'NotFound']
+      const allowedForEditor = ['EditorDashboard', 'EditorCalendario', 'EditorVideoPlanning', 'AuthLogin', 'NotFound']
       if (to.name && !allowedForEditor.includes(to.name as string)) {
         return next({ name: 'EditorDashboard', replace: true })
       }

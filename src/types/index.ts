@@ -294,6 +294,9 @@ export interface PlanningEntry {
   createdBy: string
   createdAt: string
   updatedAt: string
+  /** Solo en /planning/mine: nombre y logo del entorno ya resueltos. */
+  workspaceName?: string
+  workspacePhoto?: string | null
 }
 
 export interface PlanningEntryResponse {

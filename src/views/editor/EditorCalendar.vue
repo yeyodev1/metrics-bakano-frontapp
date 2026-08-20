@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
 import { planningService } from '@/services/planning.service'
+import { swr } from '@/composables/useSwrCache'
 import type { Workspace } from '@/types'
 import type { PlanningEntry } from '@/types'
 
@@ -21,7 +22,6 @@ const currentYear = ref(today.getFullYear())
 const currentMonth = ref(today.getMonth())
 
 // ── Computed ──────────────────────────────────────────────
-const selectedWs = computed(() => workspaces.value.find(w => w._id === selectedWsId.value) ?? null)
 
 const monthLabel = computed(() =>
   new Date(currentYear.value, currentMonth.value, 1)
@@ -99,41 +99,50 @@ function initials(name: string) {
 }
 
 // ── Data loading ──────────────────────────────────────────
+// Todo pasa por la caché SWR: al volver al calendario se pinta lo último
+// visto al instante y se refresca por detrás.
 async function loadWorkspaces() {
   loadingWs.value = true
   try {
-    const res = await workspaceService.listWorkspaces({ limit: 200 })
-    workspaces.value = res.workspaces.filter(w => w.isActive)
+    const { cached, fresh } = swr('editor:workspaces', () => workspaceService.listWorkspaces({ limit: 200 }), {
+      ttlMs: 5 * 60_000,
+      onFresh: (res) => { workspaces.value = res.workspaces.filter(w => w.isActive) },
+    })
+    if (cached) workspaces.value = cached.workspaces.filter(w => w.isActive)
+    else await fresh
   } finally {
     loadingWs.value = false
   }
 }
 
 async function loadEntries() {
+  const year = currentYear.value
+  const month = currentMonth.value
+  const startDate = new Date(year, month, 1).toISOString()
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
+  const clave = `editor:planning:${year}-${month}`
+
+  // Una sola petición para todos los entornos; antes era una por cliente
+  // (100+) y el calendario se quedaba en "Cargando planificaciones…".
+  const aplicar = (lista: PlanningEntry[]) => {
+    const filtradas = selectedWsId.value ? lista.filter(e => e.workspaceId === selectedWsId.value) : lista
+    entries.value = filtradas.map(e => ({
+      ...e,
+      workspaceName: e.workspaceName ?? workspaces.value.find(w => w._id === e.workspaceId)?.name ?? '',
+    }))
+  }
+
+  const { cached, fresh } = swr(clave, () => planningService.listMine({ startDate, endDate }), {
+    ttlMs: 2 * 60_000,
+    onFresh: (res) => aplicar(res.entries),
+  })
+  if (cached) { aplicar(cached.entries); return }
+
   loadingEntries.value = true
   entries.value = []
   try {
-    const year = currentYear.value
-    const month = currentMonth.value
-    const startDate = new Date(year, month, 1).toISOString()
-    const endDate = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
-
-    if (selectedWsId.value) {
-      const res = await planningService.listEntries(selectedWsId.value, { startDate, endDate })
-      entries.value = res.entries.map(e => ({ ...e, workspaceName: selectedWs.value?.name ?? '' }))
-    } else {
-      const allEntries: (PlanningEntry & { workspaceName?: string })[] = []
-      await Promise.all(
-        workspaces.value.map(async ws => {
-          try {
-            const res = await planningService.listEntries(ws._id, { startDate, endDate })
-            res.entries.forEach(e => allEntries.push({ ...e, workspaceName: ws.name }))
-          } catch { /* silent */ }
-        })
-      )
-      entries.value = allEntries
-    }
-  } finally {
+    aplicar((await fresh).entries)
+  } catch { /* silent */ } finally {
     loadingEntries.value = false
   }
 }
@@ -157,10 +166,10 @@ function openEntry(entry: PlanningEntry & { workspaceName?: string }) {
 }
 
 // ── Watchers ──────────────────────────────────────────────
-watch([selectedWsId, currentMonth, currentYear], () => { if (!loadingWs.value) loadEntries() })
-watch(loadingWs, (loading) => { if (!loading) loadEntries() })
+watch([selectedWsId, currentMonth, currentYear], loadEntries)
 
-onMounted(loadWorkspaces)
+// Las planificaciones ya no dependen de la lista de entornos: van en paralelo.
+onMounted(() => { loadWorkspaces(); loadEntries() })
 </script>
 
 <template>

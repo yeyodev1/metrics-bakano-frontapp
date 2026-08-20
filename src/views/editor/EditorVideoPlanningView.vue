@@ -5,6 +5,8 @@ import { videoPlanningService } from '@/services/videoPlanning.service'
 import AvisoRevisionBanner from '@/components/videoPlanning/AvisoRevisionBanner.vue'
 import EditorPlanningItemCard from './components/EditorPlanningItemCard.vue'
 import { EstadoEdicion } from '@/types/videoPlanning'
+import { swr, swrInvalidar } from '@/composables/useSwrCache'
+import { useDeadlines } from './useDeadlines'
 import type { VideoItem, VideoPlanning } from '@/types/videoPlanning'
 
 /**
@@ -27,13 +29,19 @@ const expandedId = ref<string | null>(null)
 const updatingId = ref<string | null>(null)
 const editadosAbierto = ref(false)
 
+function aplicar(loaded: VideoPlanning | null) {
+  if (loaded && loaded.workspaceId && loaded.workspaceId !== workspaceId) return
+  planning.value = loaded
+}
+
+/** Pinta la copia guardada al instante y refresca por detras. */
 async function load() {
+  const { cached, fresh } = swr(`editor:planning-videos:${entryId}`, () => videoPlanningService.getByEntry(entryId), {
+    onFresh: aplicar,
+  })
+  if (cached) { aplicar(cached); loading.value = false }
   try {
-    const loaded = await videoPlanningService.getByEntry(entryId)
-    if (loaded && loaded.workspaceId && loaded.workspaceId !== workspaceId) {
-      throw new Error('Workspace mismatch')
-    }
-    planning.value = loaded
+    aplicar(await fresh)
   } catch { /* silent */ } finally {
     loading.value = false
   }
@@ -51,6 +59,24 @@ async function advanceEdicion(item: VideoItem) {
   updatingId.value = item._id
   try {
     planning.value = await videoPlanningService.updateItem(planning.value._id, item._id, { edicion: next })
+    swrInvalidar('editor:')
+  } catch { /* silent */ } finally {
+    updatingId.value = null
+  }
+}
+
+/**
+ * El editor entrega el enlace del video terminado. Si todavia estaba "por
+ * editar", entregarlo ES terminar: se marca editado en el mismo PATCH.
+ */
+async function guardarLink(item: VideoItem, link: string) {
+  if (!planning.value || updatingId.value) return
+  updatingId.value = item._id
+  try {
+    const fields: { linkVideo: string; edicion?: EstadoEdicion } = { linkVideo: link }
+    if (item.edicion !== EstadoEdicion.EDITADO) fields.edicion = EstadoEdicion.EDITADO
+    planning.value = await videoPlanningService.updateItem(planning.value._id, item._id, fields)
+    swrInvalidar('editor:')
   } catch { /* silent */ } finally {
     updatingId.value = null
   }
@@ -65,6 +91,7 @@ const items = computed(() =>
 
 const grabadasCount = computed(() => items.value.filter(i => i.estadoProduccion === 'GRABADO').length)
 const editadosList = computed(() => items.value.filter(i => i.edicion === EstadoEdicion.EDITADO))
+const editadosSinEnlace = computed(() => editadosList.value.filter(i => !i.linkVideo && !i.driveLink).length)
 
 /** Editables ya: rechazados de edicion primero, luego grabados sin editar. */
 const paraEditar = computed(() => {
@@ -84,48 +111,7 @@ const sinGrabar = computed(() =>
   )
 )
 
-const DIA = 86_400_000
-
-/**
- * Fecha limite por video. Con fechaPublicacion manda esa fecha (el video se
- * edita ANTES de publicarse). Sin fecha se estima: los pendientes se
- * reparten parejo entre hoy y fin de mes, en su orden — mejor un "mas o
- * menos" visible que ninguna presion de tiempo.
- */
-const deadlines = computed(() => {
-  const map = new Map<string, { texto: string; urgente: boolean; estimado: boolean }>()
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
-  const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)
-  const diasRestantes = Math.max(1, Math.round((finMes.getTime() - hoy.getTime()) / DIA))
-
-  const sinFecha = paraEditar.value.filter(i => !i.fechaPublicacion)
-  const paso = diasRestantes / Math.max(1, sinFecha.length)
-
-  const etiqueta = (fecha: Date, estimado: boolean) => {
-    const dia = new Date(fecha)
-    dia.setHours(0, 0, 0, 0)
-    const diff = Math.round((dia.getTime() - hoy.getTime()) / DIA)
-    const corta = fecha.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' })
-    if (diff < 0) return { texto: `Venció hace ${-diff} d`, urgente: true, estimado }
-    if (diff === 0) return { texto: 'Listo HOY', urgente: true, estimado }
-    if (diff <= 2) return { texto: `Listo en ${diff} d`, urgente: true, estimado }
-    return { texto: `Listo para el ${corta}`, urgente: false, estimado }
-  }
-
-  for (const item of paraEditar.value) {
-    if (item.fechaPublicacion) {
-      // Un dia antes de publicar: el cliente necesita margen para revisarlo.
-      const limite = new Date(new Date(item.fechaPublicacion).getTime() - DIA)
-      map.set(item._id, etiqueta(limite, false))
-    }
-  }
-  sinFecha.forEach((item, i) => {
-    const limite = new Date(hoy.getTime() + Math.ceil((i + 1) * paso) * DIA)
-    map.set(item._id, etiqueta(limite, true))
-  })
-  return map
-})
+const deadlines = useDeadlines(paraEditar)
 </script>
 
 <template>
@@ -168,6 +154,7 @@ const deadlines = computed(() => {
       v-if="planning && !loading"
       :planning="planning"
       :editadas="editadosList.length"
+      :sin-enlace="editadosSinEnlace"
       :total="items.length"
       @notified="load"
     />
@@ -203,6 +190,7 @@ const deadlines = computed(() => {
             :deadline="deadlines.get(item._id) ?? null"
             @toggle="toggle(item._id)"
             @advance="advanceEdicion(item)"
+            @save-link="guardarLink(item, $event)"
           />
         </div>
       </section>
@@ -225,6 +213,7 @@ const deadlines = computed(() => {
             :deadline="null"
             @toggle="toggle(item._id)"
             @advance="advanceEdicion(item)"
+            @save-link="guardarLink(item, $event)"
           />
         </div>
       </section>
@@ -247,6 +236,7 @@ const deadlines = computed(() => {
             :deadline="null"
             @toggle="toggle(item._id)"
             @advance="advanceEdicion(item)"
+            @save-link="guardarLink(item, $event)"
           />
         </div>
       </section>
