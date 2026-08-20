@@ -30,6 +30,7 @@ const notLinked = ref(false)
 const loadError = ref('')
 const payingInvoiceId = ref<string | null>(null)
 const transferInvoice = ref<IFinanceInvoice | null>(null)
+const openingCardUpdate = ref(false)
 
 const SUBMISSION_META: Record<string, { label: string; icon: string; tone: string }> = {
   pending: { label: 'En verificación', icon: 'fa-regular fa-clock', tone: 'warn' },
@@ -72,6 +73,19 @@ async function payWithCard(invoice: IFinanceInvoice) {
   }
 }
 
+/** Portal de Stripe restringido: solo deja actualizar la tarjeta de la sub. */
+async function openCardUpdate() {
+  openingCardUpdate.value = true
+  try {
+    const { url } = await financeBillingService.createCardUpdateSession(workspaceId.value)
+    window.location.href = url
+  } catch (error) {
+    const err = error as { message?: string }
+    addToast({ type: 'error', message: err.message || 'No se pudo abrir el cambio de tarjeta.' })
+    openingCardUpdate.value = false
+  }
+}
+
 function backToCard() {
   const invoice = transferInvoice.value
   transferInvoice.value = null
@@ -96,6 +110,14 @@ onMounted(async () => {
   } else if (pago === 'cancelado') {
     addToast({ type: 'info', message: 'El pago fue cancelado. Puedes intentarlo cuando quieras.' })
     router.replace({ query: {} })
+  } else if (route.query.tarjeta === 'lista') {
+    addToast({
+      type: 'success',
+      title: 'Tarjeta al día',
+      message: 'Si actualizaste tu tarjeta, los próximos cobros usarán la nueva.',
+      duration: 7000,
+    })
+    router.replace({ query: {} })
   }
   await load()
 })
@@ -107,6 +129,16 @@ onMounted(async () => {
       <div>
         <h1><i class="fa-solid fa-credit-card" aria-hidden="true" /> Mi suscripción</h1>
         <p v-if="billing" class="fb__sub">{{ billing.client.name }} · Bakano</p>
+        <button
+          v-if="billing?.summary.canUpdateCard"
+          type="button"
+          class="fb__card-btn"
+          :disabled="openingCardUpdate"
+          @click="openCardUpdate"
+        >
+          <i class="fa-solid fa-credit-card" aria-hidden="true" />
+          {{ openingCardUpdate ? 'Abriendo portal seguro…' : 'Cambiar tarjeta' }}
+        </button>
       </div>
       <div v-if="billing" class="fb__kpis">
         <div class="fb__kpi" :class="{ 'fb__kpi--warn': billing.summary.pendingBalance > 0 }">
@@ -246,6 +278,15 @@ onMounted(async () => {
 
 .fb__sub { font-size: 0.82rem; color: $text-secondary; margin: 0.2rem 0 0; }
 
+.fb__card-btn {
+  margin-top: 0.55rem; display: inline-flex; align-items: center; gap: 0.45rem;
+  background: none; border: 1px solid rgba(#6366f1, 0.35); border-radius: 10px;
+  padding: 0.45rem 0.85rem; font-family: inherit; font-size: 0.76rem; font-weight: 700;
+  color: #6366f1; cursor: pointer;
+  &:hover:not(:disabled) { background: rgba(#6366f1, 0.06); }
+  &:disabled { opacity: 0.7; cursor: default; }
+}
+
 .fb__kpis { display: flex; gap: 0.7rem; flex-wrap: wrap; }
 
 .fb__kpi {
@@ -326,8 +367,7 @@ onMounted(async () => {
 .fb__note {
   display: flex; align-items: flex-start; gap: 0.4rem;
   font-size: 0.74rem; color: $text-secondary; margin: 0;
-  i { margin-top: 0.12rem; }
-  &--bad { color: #dc2626; }
+  i { margin-top: 0.12rem; } &--bad { color: #dc2626; }
 }
 
 .fb__skeleton { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1rem; @media (max-width: 900px) { grid-template-columns: 1fr; } }
