@@ -75,6 +75,8 @@ const paraEditar = computed(() => {
   return [...rechazados, ...grabados]
 })
 
+onMounted(load)
+
 /** Sin material todavia: no se pueden editar, solo dan contexto. */
 const sinGrabar = computed(() =>
   items.value.filter(
