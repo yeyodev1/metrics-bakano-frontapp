@@ -68,6 +68,8 @@ export interface IFinanceBilling {
     totalPaid: number
     openInvoices: number
     stripeEnabled: boolean
+    /** true si el cliente ya paga por Stripe y puede cambiar su tarjeta. */
+    canUpdateCard?: boolean
   }
   invoices: IFinanceInvoice[]
   payments: IFinancePayment[]
@@ -86,6 +88,14 @@ class FinanceBillingService extends APIBase {
     const res = await this.post<{ url: string; sessionId: string }>(
       `workspaces/${workspaceId}/finance-billing/checkout`,
       { invoiceId }
+    )
+    return res.data
+  }
+
+  async createCardUpdateSession(workspaceId: string) {
+    const res = await this.post<{ url: string }>(
+      `workspaces/${workspaceId}/finance-billing/card-update-session`,
+      {}
     )
     return res.data
   }
