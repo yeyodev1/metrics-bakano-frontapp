@@ -29,7 +29,10 @@ const {
   remindAll,
   remindAllDone,
   searchQuery,
+  busquedaAplicada,
+  coincidenciasPausadas,
   filterMode,
+  filteredCards,
   currentYear,
   currentMonth,
   changeMonth,
@@ -50,6 +53,13 @@ const {
  * que sirve el listado.
  */
 const abierta = ref<string | null>(null)
+
+/**
+ * Lo que se pinta. Antes la lista recorría `cards` (la página entera) y las
+ * pestañas Con pauta / Sin pauta solo cambiaban de color: contaban bien y no
+ * filtraban nada.
+ */
+const visibles = filteredCards
 
 function alternar(id: string) {
   abierta.value = abierta.value === id ? null : id
@@ -105,17 +115,19 @@ onMounted(() => load())
     />
 
     <!-- Esqueleto solo en la primera pintada, cuando aún no hay ni nombres -->
-    <TraffickerSkeleton v-if="isLoading && cards.length === 0" />
+    <TraffickerSkeleton v-if="isLoading && cards.length === 0 && !busquedaAplicada" />
 
-    <!-- Empty -->
-    <div v-else-if="cards.length === 0" class="trf__empty">
+    <!-- Sin ningún entorno asignado: no es un problema de búsqueda -->
+    <div v-else-if="cards.length === 0 && !busquedaAplicada" class="trf__empty">
       <i class="fa-solid fa-layer-group" />
       <h3>Sin entornos asignados</h3>
       <p>Contacta al superadmin para que te asigne entornos de clientes.</p>
     </div>
 
     <template v-else>
-      <!-- Search & Filters -->
+      <!-- El buscador vive fuera del vacío: cuando una búsqueda no devuelve
+           nada, desaparecer la caja dejaba a la persona encerrada, sin forma
+           de corregir el texto ni de limpiarlo. -->
       <TraffickerFilters
         v-model:search-query="searchQuery"
         v-model:filter-mode="filterMode"
@@ -124,13 +136,47 @@ onMounted(() => load())
         :cards-sin-pauta-length="cards.filter(c => c.spend === 0).length"
       />
 
+      <!-- Búsqueda sin resultados: se dice qué se buscó y, si el cliente existe
+           pero está pausado, se dice eso en vez de "no hay nada". -->
+      <!-- Mientras la búsqueda viaja, esqueleto: el hueco en blanco se leía
+           como "no hay nada" antes de que llegara la respuesta. -->
+      <TraffickerSkeleton v-if="isLoading && visibles.length === 0" />
+
+      <div v-else-if="visibles.length === 0" class="trf__empty trf__empty--busqueda">
+        <i class="fa-solid fa-magnifying-glass" />
+        <h3>Sin resultados para «{{ busquedaAplicada || searchQuery }}»</h3>
+
+        <p v-if="coincidenciasPausadas.length">
+          {{ coincidenciasPausadas.map(w => w.name).join(', ') }}
+          {{ coincidenciasPausadas.length === 1 ? 'coincide' : 'coinciden' }} con lo que buscas,
+          pero {{ coincidenciasPausadas.length === 1 ? 'está desactivado' : 'están desactivados' }}:
+          este panel solo lista clientes activos.
+        </p>
+        <p v-else-if="cards.length === 0 && filterMode === 'all'">
+          Ningún cliente activo tuyo tiene ese nombre.
+        </p>
+        <p v-else>
+          Hay {{ cards.length }} {{ cards.length === 1 ? 'cliente' : 'clientes' }} que coinciden,
+          pero ninguno entra en el filtro «{{ filterMode === 'con_pauta' ? 'Con pauta' : 'Sin pauta' }}».
+        </p>
+
+        <div class="trf__empty-acciones">
+          <button v-if="filterMode !== 'all'" type="button" @click="filterMode = 'all'">
+            Quitar el filtro
+          </button>
+          <button v-if="searchQuery" type="button" @click="searchQuery = ''">
+            Limpiar búsqueda
+          </button>
+        </div>
+      </div>
+
       <!-- Lista en acordeón: una fila por entorno, el detalle se abre debajo -->
       <!-- El cambio de página era un salto seco: la lista se reemplazaba y
            costaba notar que el contenido ya era otro. -->
-      <Transition name="pagina" mode="out-in">
+      <Transition v-else name="pagina" mode="out-in">
       <div :key="pagina" class="trf__lista">
         <TraffickerRow
-          v-for="card in cards"
+          v-for="card in visibles"
           :key="card.id"
           :card="card"
           :abierta="abierta === card.id"
@@ -144,7 +190,7 @@ onMounted(() => load())
       </div>
       </Transition>
 
-      <nav v-if="totalPaginas > 1" class="trf__paginacion" aria-label="Paginación">
+      <nav v-if="totalPaginas > 1 && visibles.length" class="trf__paginacion" aria-label="Paginación">
         <button type="button" :disabled="pagina === 1" @click="irAPagina(pagina - 1, searchQuery)">
           <i class="fa-solid fa-chevron-left" aria-hidden="true" /> Anterior
         </button>
@@ -158,6 +204,32 @@ onMounted(() => load())
 </template>
 
 <style lang="scss" scoped>
+.trf__empty--busqueda {
+  h3 { word-break: break-word; }
+
+  .trf__empty-acciones {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+
+    button {
+      border: 1px solid #e2dfe9;
+      border-radius: 10px;
+      padding: 0.55rem 1rem;
+      background: $white;
+      color: $primary;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+
+      &:hover { border-color: $primary; background: rgba($primary, 0.06); }
+    }
+  }
+}
+
 .trf {
   padding: 16px 14px 80px;
   width: 100%;
