@@ -214,6 +214,21 @@ const routes: Array<RouteRecordRaw> = [
         path: 'workspaces/review-videos-from-whatsapp/:rest(.*)*',
         redirect: { name: 'ReviewVideosFromWhatsapp' },
       },
+      // ── Pulso interno: meta mensual + facturación ────────
+      {
+        // Ruta interna: la meta, el ritmo y quién no registra son conversación
+        // del equipo de Bakano. Esconder el link no alcanza, la URL se cierra.
+        path: 'workspaces/:workspaceId/pulso',
+        name: 'WorkspacePulse',
+        component: () => import('../views/workspaces/InternalPulseView/index.vue'),
+        meta: { title: 'Bakano Ads: Meta del Mes', requiresAuth: true, requiresInternal: true },
+      },
+      {
+        path: 'pulso',
+        name: 'PulseOverview',
+        component: () => import('../views/pulse/PulseOverviewView.vue'),
+        meta: { title: 'Bakano Ads: Metas de Clientes', requiresAuth: true, requiresInternal: true },
+      },
       // ── Billing & ROAS ───────────────────────────────────
       {
         path: 'workspaces/:workspaceId/billing',

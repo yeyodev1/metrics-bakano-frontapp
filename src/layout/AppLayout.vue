@@ -14,6 +14,7 @@ import SoundToggleButton from '@/components/common/SoundToggleButton.vue'
 import NetworkStatus from '@/components/common/NetworkStatus.vue'
 import DriveUploadTray from '@/components/common/DriveUploadTray.vue'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
+import { internalPulseService } from '@/services/internalPulse.service'
 
 
 const router = useRouter()
@@ -111,7 +112,7 @@ watch(wsSearch, () => {
   }, 300)
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'PulseOverview', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
@@ -121,6 +122,43 @@ const currentWorkspaceId = computed(() => {
   if (isGlobalView.value) return null
   return route.params.workspaceId as string || userStore.workspaceId || workspaces.value[0]?._id
 })
+
+// ── Meta del mes ────────────────────────────────────────────────────────────
+// El menú avisa cuándo el cliente abierto no tiene meta y cuántos clientes
+// siguen sin ella. Sin esto, "falta la meta" solo se veía entrando a la
+// pantalla, que es justo a donde nadie entra si no sabe que falta algo.
+const metaEstado = ref<{ hasTarget: boolean; progressPct: number; paceStatus: string } | null>(null)
+const metasPendientes = ref(0)
+
+function periodoEcuador() {
+  const ec = new Date(Date.now() - 5 * 60 * 60 * 1000)
+  return { year: ec.getUTCFullYear(), month: ec.getUTCMonth() + 1 }
+}
+
+async function cargarEstadoMeta() {
+  const wsId = currentWorkspaceId.value
+  if (!wsId || (!idVista.value.isInternal && idVista.value.role !== 'superadmin')) {
+    metaEstado.value = null
+    return
+  }
+  try {
+    const { year, month } = periodoEcuador()
+    metaEstado.value = await internalPulseService.getStatus(wsId, year, month)
+  } catch {
+    // El menú no puede romperse por una etiqueta: si falla, no se muestra nada.
+    metaEstado.value = null
+  }
+}
+
+async function cargarMetasPendientes() {
+  if (!idVista.value.isInternal && idVista.value.role !== 'superadmin') return
+  try {
+    const { year, month } = periodoEcuador()
+    metasPendientes.value = (await internalPulseService.getMissingCount(year, month)).missing
+  } catch {
+    metasPendientes.value = 0
+  }
+}
 
 const activeWorkspace = computed(() => {
   return workspaces.value.find(w => w._id === currentWorkspaceId.value)
@@ -235,6 +273,18 @@ onMounted(async () => {
   }
   notificationStore.fetchUnreadCount()
   document.addEventListener('click', closeDropdownOnClickOutside)
+  cargarEstadoMeta()
+  cargarMetasPendientes()
+})
+
+// Al cambiar de cliente la etiqueta tiene que cambiar con él: si no, el menú
+// dice "sin meta" del cliente anterior.
+watch(currentWorkspaceId, cargarEstadoMeta)
+watch(() => route.name, (nombre) => {
+  // Volver del tablero de metas debe reflejar lo que se acabó de guardar.
+  if (nombre === 'WorkspacePulse' || nombre === 'PulseOverview') return
+  cargarEstadoMeta()
+  cargarMetasPendientes()
 })
 
 onUnmounted(() => {
@@ -536,6 +586,22 @@ watch(() => route.params.workspaceId, async (newId) => {
             <i class="fa-solid fa-users" aria-hidden="true" />
             <span>Vista de Clientes</span>
           </RouterLink>
+          <!-- Pulso de metas — todos los clientes en una sola lista, ordenados
+               por lo que duele: sin meta primero, luego atrasados. -->
+          <RouterLink
+            v-if="idVista.isInternal || idVista.role === 'superadmin'"
+            class="app-layout__nav-item"
+            :to="{ name: 'PulseOverview' }"
+          >
+            <i class="fa-solid fa-gauge-high" aria-hidden="true" />
+            <span>Metas de Clientes</span>
+            <span
+              v-if="metasPendientes > 0"
+              class="app-layout__nav-tag app-layout__nav-tag--danger"
+              :title="`${metasPendientes} clientes sin meta este mes`"
+            >{{ metasPendientes }} sin meta</span>
+          </RouterLink>
+
           <!-- Trafficker panel — trafficker + project_manager + superadmin -->
           <RouterLink
             v-if="(idVista.isInternal && ['trafficker', 'project_manager'].includes(idVista.internalRole || '')) || idVista.role === 'superadmin'"
@@ -628,6 +694,29 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-chart-column" aria-hidden="true" />
             <span>Facturación & ROAS</span>
+          </RouterLink>
+
+          <!-- 1b. Pulso interno — meta mensual del cliente contra su facturación
+               real, ritmo del mes y quién del equipo no está registrando. Es
+               material del equipo de Bakano: el cliente ve su facturación, no
+               la meta que le pusimos ni las alertas internas. -->
+          <RouterLink
+            v-if="currentWorkspaceId && (idVista.isInternal || idVista.role === 'superadmin')"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspacePulse', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-bullseye" aria-hidden="true" />
+            <span>Meta del Mes</span>
+            <span
+              v-if="metaEstado && !metaEstado.hasTarget"
+              class="app-layout__nav-tag app-layout__nav-tag--danger"
+            >SIN META</span>
+            <span
+              v-else-if="metaEstado"
+              class="app-layout__nav-tag"
+              :class="`app-layout__nav-tag--${metaEstado.paceStatus}`"
+            >{{ Math.round(metaEstado.progressPct) }}%</span>
+            <span v-else class="app-layout__nav-tag app-layout__nav-tag--purple">INTERNO</span>
           </RouterLink>
 
           <!-- 2. Sucursales (Puntos de venta) -->
@@ -863,6 +952,27 @@ watch(() => route.params.workspaceId, async (newId) => {
 </template>
 
 <style lang="scss" scoped>
+.app-layout__nav-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  border-radius: 6px;
+  padding: 0.12rem 0.4rem;
+  background: #eef0f5;
+  color: $text-secondary;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  &--purple { background: rgba($secondary, 0.14); color: $secondary-dark; }
+  &--danger { background: rgba($primary, 0.14); color: $primary; }
+  &--atrasado { background: $alert-warning-bg; color: #b45309; }
+  &--en_linea { background: $alert-info-bg; color: #1d4ed8; }
+  &--adelante,
+  &--cumplida { background: $alert-success-bg; color: #15803d; }
+}
+
 .app-layout {
   display: flex;
   flex-direction: column;
