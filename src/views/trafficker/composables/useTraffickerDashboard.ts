@@ -87,6 +87,9 @@ export function useTraffickerDashboard() {
   // Filtering
   const filterMode = ref<FilterMode>('all')
   const searchQuery = ref('')
+  /** Ultima busqueda que llego al servidor: la que describen los vacios. */
+  const busquedaAplicada = ref('')
+  const coincidenciasPausadas = ref<{ _id: string; name: string }[]>([])
   const filteredCards = computed(() => {
     const src = cards.value
     if (filterMode.value === 'con_pauta') return src.filter(c => c.spend > 0)
@@ -263,6 +266,10 @@ export function useTraffickerDashboard() {
       search: search || undefined,
     })
     totalEntornos.value = res.metadata?.total ?? res.workspaces.length
+    // El backend avisa si lo buscado existe pero esta pausado. Es la diferencia
+    // entre "no existe" y "existe y esta desactivado", que es justo lo que la
+    // persona necesita saber cuando no encuentra a su cliente.
+    coincidenciasPausadas.value = res.metadata?.inactiveMatches ?? []
     return res.workspaces
   }
 
@@ -422,7 +429,14 @@ export function useTraffickerDashboard() {
   let _searchTimer: ReturnType<typeof setTimeout> | null = null
   watch(searchQuery, (q) => {
     if (_searchTimer) clearTimeout(_searchTimer)
-    _searchTimer = setTimeout(() => load(q.trim() || undefined), 300)
+    _searchTimer = setTimeout(() => {
+      // Buscar siempre arranca en la primera pagina: buscando desde la pagina 3
+      // el servidor devolvia el tercer bloque de un unico resultado, o sea nada.
+      pagina.value = 1
+      const limpia = q.trim()
+      busquedaAplicada.value = limpia
+      load(limpia || undefined)
+    }, 300)
   })
 
   function changeMonth(year: number, month: number) {
@@ -453,6 +467,8 @@ export function useTraffickerDashboard() {
     
     // Search & Filters
     searchQuery,
+    busquedaAplicada,
+    coincidenciasPausadas,
     filterMode,
     
     // Time

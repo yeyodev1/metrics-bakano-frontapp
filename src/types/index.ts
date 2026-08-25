@@ -170,6 +170,8 @@ export interface WorkspaceListResponse {
     page: number
     limit: number
     hasMore: boolean
+    /** Entornos desactivados que coinciden con la búsqueda, cuando no hay activos. */
+    inactiveMatches?: { _id: string; name: string }[]
   }
 }
 
