@@ -2,11 +2,14 @@
 import { ref, computed, watch, toRef } from 'vue'
 import { useUnsavedCloseGuard } from '@/composables/useUnsavedCloseGuard'
 import type { BrandProfile, SegmentoMercado, CustomerJourneyCase } from '@/types'
+import BrandStrategyDocument from './BrandStrategyDocument.vue'
 
 const props = defineProps<{
   show: boolean
   profile: BrandProfile
   isSaving: boolean
+  /** Nombre del workspace; encabeza el documento del último paso. */
+  marca?: string
 }>()
 
 const emit = defineEmits<{
@@ -312,113 +315,17 @@ function finish() {
                 </button>
               </div>
 
-              <!-- STEP 6: Confirmación -->
+              <!-- STEP 6: el resumen se lee como documento, no como formulario -->
               <div v-else key="6" class="bsw-panel">
-                <div class="bsw-hint">
-                  <i class="fa-solid fa-circle-info" />
-                  <span
-                    >Esto es lo que se va a guardar en el perfil de marca. Revisa cada bloque y usa
-                    <strong>Editar</strong> si algo no está bien; nada se guarda hasta que confirmes.</span
-                  >
-                </div>
-
-                <div class="bsw-summary">
-                  <!-- Propuesta -->
-                  <section class="bsw-sum-block">
-                    <header class="bsw-sum-block__head">
-                      <h4><i class="fa-solid fa-gem" /> Propuesta de Valor</h4>
-                      <button type="button" class="bsw-edit-btn" @click="goToStep(1)">
-                        <i class="fa-solid fa-pen" /> Editar
-                      </button>
-                    </header>
-                    <p class="bsw-sum-text">{{ propuestaValor.trim() }}</p>
-                  </section>
-
-                  <!-- Segmentos -->
-                  <section class="bsw-sum-block">
-                    <header class="bsw-sum-block__head">
-                      <h4>
-                        <i class="fa-solid fa-users" /> Segmentos
-                        <span class="bsw-sum-count">{{ segmentosLimpios.length }}</span>
-                      </h4>
-                      <button type="button" class="bsw-edit-btn" @click="goToStep(2)">
-                        <i class="fa-solid fa-pen" /> Editar
-                      </button>
-                    </header>
-                    <ul v-if="segmentosLimpios.length" class="bsw-sum-list">
-                      <li v-for="(seg, idx) in segmentosLimpios" :key="idx">
-                        <strong v-if="seg.nombre.trim()">{{ seg.nombre.trim() }}:</strong>
-                        {{ seg.descripcion.trim() }}
-                      </li>
-                    </ul>
-                    <p v-else class="bsw-sum-empty">Sin segmentos — no se guardará nada aquí.</p>
-                  </section>
-
-                  <!-- Canales -->
-                  <section class="bsw-sum-block">
-                    <header class="bsw-sum-block__head">
-                      <h4>
-                        <i class="fa-solid fa-tower-broadcast" /> Canales
-                        <span class="bsw-sum-count">{{ canalesLimpios.length }}</span>
-                      </h4>
-                      <button type="button" class="bsw-edit-btn" @click="goToStep(3)">
-                        <i class="fa-solid fa-pen" /> Editar
-                      </button>
-                    </header>
-                    <ul v-if="canalesLimpios.length" class="bsw-sum-list">
-                      <li v-for="(canal, idx) in canalesLimpios" :key="idx">{{ canal.trim() }}</li>
-                    </ul>
-                    <p v-else class="bsw-sum-empty">Sin canales — no se guardará nada aquí.</p>
-                  </section>
-
-                  <!-- Actividades -->
-                  <section class="bsw-sum-block">
-                    <header class="bsw-sum-block__head">
-                      <h4>
-                        <i class="fa-solid fa-list-check" /> Actividades clave
-                        <span class="bsw-sum-count">{{ actividadesLimpias.length }}</span>
-                      </h4>
-                      <button type="button" class="bsw-edit-btn" @click="goToStep(4)">
-                        <i class="fa-solid fa-pen" /> Editar
-                      </button>
-                    </header>
-                    <ul v-if="actividadesLimpias.length" class="bsw-sum-list">
-                      <li v-for="(act, idx) in actividadesLimpias" :key="idx">{{ act.trim() }}</li>
-                    </ul>
-                    <p v-else class="bsw-sum-empty">Sin actividades — no se guardará nada aquí.</p>
-                  </section>
-
-                  <!-- Customer Journey -->
-                  <section class="bsw-sum-block">
-                    <header class="bsw-sum-block__head">
-                      <h4>
-                        <i class="fa-solid fa-route" /> Customer Journey
-                        <span class="bsw-sum-count">{{ casosLimpios.length }}</span>
-                      </h4>
-                      <button type="button" class="bsw-edit-btn" @click="goToStep(5)">
-                        <i class="fa-solid fa-pen" /> Editar
-                      </button>
-                    </header>
-                    <div v-if="casosLimpios.length" class="bsw-sum-cases">
-                      <article v-for="(caso, idx) in casosLimpios" :key="idx" class="bsw-sum-case">
-                        <span class="bsw-case-badge">
-                          Caso #{{ caso.casoNumero
-                          }}{{ caso.nombreCaso.trim() ? ` · ${caso.nombreCaso.trim()}` : '' }}
-                        </span>
-                        <p v-if="caso.potencialCliente.trim()">
-                          <strong>¿Quién es?</strong> {{ caso.potencialCliente.trim() }}
-                        </p>
-                        <p v-if="caso.efectoAnuncio.trim()">
-                          <strong>Al ver el anuncio:</strong> {{ caso.efectoAnuncio.trim() }}
-                        </p>
-                        <p v-if="caso.accionEsperada.trim()">
-                          <strong>Acción esperada:</strong> {{ caso.accionEsperada.trim() }}
-                        </p>
-                      </article>
-                    </div>
-                    <p v-else class="bsw-sum-empty">Sin casos — no se guardará nada aquí.</p>
-                  </section>
-                </div>
+                <BrandStrategyDocument
+                  :marca="marca"
+                  :propuesta-valor="propuestaValor"
+                  :segmentos="segmentosLimpios"
+                  :canales="canalesLimpios"
+                  :actividades="actividadesLimpias"
+                  :casos="casosLimpios"
+                  @editar="goToStep"
+                />
               </div>
             </Transition>
           </div>
@@ -720,124 +627,6 @@ function finish() {
   flex-shrink: 0;
   transition: all 0.15s;
   &:hover { color: #ef4444; background: rgba(#ef4444, 0.08); }
-}
-
-// ── Paso de confirmación ─────────────────────────────────────────────────────
-.bsw-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.bsw-sum-block {
-  padding: 0.95rem 1.1rem;
-  border: 1px solid rgba($primary-dark, 0.1);
-  border-radius: 12px;
-  background: rgba($primary-dark, 0.015);
-}
-
-.bsw-sum-block__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.55rem;
-
-  h4 {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    margin: 0;
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: $primary-dark;
-
-    i { color: #a855f7; }
-  }
-}
-
-.bsw-sum-count {
-  background: rgba(#a855f7, 0.12);
-  color: #a855f7;
-  font-size: 0.7rem;
-  font-weight: 800;
-  padding: 0.1rem 0.5rem;
-  border-radius: 20px;
-}
-
-.bsw-edit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid rgba(#a855f7, 0.3);
-  border-radius: 8px;
-  background: transparent;
-  color: #a855f7;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-
-  &:hover { background: rgba(#a855f7, 0.08); }
-}
-
-.bsw-sum-text {
-  margin: 0;
-  font-size: 0.83rem;
-  line-height: 1.6;
-  color: $text-secondary;
-  white-space: pre-wrap;
-}
-
-.bsw-sum-list {
-  margin: 0;
-  padding-left: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-
-  li {
-    font-size: 0.83rem;
-    line-height: 1.5;
-    color: $text-secondary;
-
-    strong { color: $primary-dark; }
-  }
-}
-
-.bsw-sum-cases {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-}
-
-.bsw-sum-case {
-  padding: 0.7rem 0.85rem;
-  border-radius: 10px;
-  background: $white;
-  border: 1px solid rgba($primary-dark, 0.08);
-
-  .bsw-case-badge { display: inline-block; margin-bottom: 0.45rem; }
-
-  p {
-    margin: 0 0 0.3rem;
-    font-size: 0.8rem;
-    line-height: 1.5;
-    color: $text-secondary;
-
-    &:last-child { margin-bottom: 0; }
-
-    strong { color: $primary-dark; }
-  }
-}
-
-.bsw-sum-empty {
-  margin: 0;
-  font-size: 0.8rem;
-  font-style: italic;
-  color: $text-secondary;
-  opacity: 0.75;
 }
 
 .bsw-btn-add {
