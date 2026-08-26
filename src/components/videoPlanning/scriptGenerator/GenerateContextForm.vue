@@ -25,6 +25,8 @@
       />
     </div>
 
+    <ScriptRefsUploader v-model="refs" :item-id="itemId" />
+
     <p v-if="error" class="gcf__error">
       <i class="fa-solid fa-triangle-exclamation" /> {{ error }}
     </p>
@@ -74,6 +76,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import ScriptRefsUploader from './ScriptRefsUploader.vue'
+import type { ScriptRef } from '@/types/videoPlanning'
 
 export interface ContextoMes {
   productoMes: string
@@ -90,11 +94,14 @@ const props = defineProps<{
   error: string | null
   /** Variants need an existing item to save onto, so create mode hides it. */
   canGenerateVariants?: boolean
+  /** Las referencias se cuelgan del item; sin él no hay dónde guardarlas. */
+  itemId?: string
 }>()
 
 defineEmits<{ (e: 'generate'): void; (e: 'generate-variants'): void }>()
 
 const model = defineModel<ContextoMes>({ required: true })
+const refs = defineModel<ScriptRef[]>('refs', { required: true })
 
 const llmStateClass = computed(() => {
   if (props.llmChecking) return 'is-checking'
