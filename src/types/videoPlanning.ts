@@ -68,6 +68,22 @@ export enum TipoReel {
   CREACION_VALOR = 'Creación de valor',
 }
 
+/**
+ * Referencia adjunta al pedir el guión: la foto del plato, el flyer, el PDF de
+ * la carta. Se ve en la app y también la lee la IA al escribir.
+ */
+export interface ScriptRef {
+  _id: string
+  nombre: string
+  url: string
+  publicId: string
+  tipo: 'image' | 'pdf'
+  /** Sin URI de Gemini la referencia se ve, pero no alimenta al guión. */
+  geminiFileUri?: string
+  geminiFileMimeType?: string
+  subidoEn?: string
+}
+
 export interface GuionIA {
   conceptoVisual: string
   gancho: string
@@ -75,11 +91,11 @@ export interface GuionIA {
   /** Hook 2 aparte; solo si el guión se generó con doble hook separado. */
   hook2?: string
   cuerpo: string
-  /** Cierre por defecto. Los guiones viejos solo tienen este. */
+  /** Único cierre del guión, escrito para el objetivo con el que se generó. */
   cta: string
-  /** Cierre suave para el feed: comentar, guardar, seguir. */
+  /** @deprecated Guiones generados cuando había dos finales. Solo lectura. */
   ctaFeed?: string
-  /** Cierre duro para pauta: una sola acción comercial. */
+  /** @deprecated Guiones generados cuando había dos finales. Solo lectura. */
   ctaAds?: string
   broll: string
   generadoEn?: string
@@ -116,6 +132,7 @@ export interface VideoItem {
   tipoGuion?: TipoGuion
   scriptMeta?: ScriptMeta
   guionIA?: GuionIA
+  scriptRefs?: ScriptRef[]
   casoUsoRef?: number
   estadoIdea: EstadoIdea
   estadoProduccion: EstadoProduccion
