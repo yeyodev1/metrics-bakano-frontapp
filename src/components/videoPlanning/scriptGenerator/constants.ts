@@ -1,8 +1,5 @@
 import type { TipoGuion, ObjetivoGuion, GuionIA } from '@/types/videoPlanning'
 
-/** Cuál de los dos finales del guión se está usando. */
-export type FinalKey = 'feed' | 'ads'
-
 export interface TipoGuionInfo {
   label: string
   color: string
