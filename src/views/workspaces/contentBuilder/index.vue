@@ -101,6 +101,7 @@
     <BrandStrategyWizardModal
       :show="showWizard"
       :profile="builder.profile.value"
+      :marca="builder.workspace.value?.name"
       :is-saving="builder.isSavingProfile.value"
       @close="showWizard = false"
       @finish="handleWizardFinish"
