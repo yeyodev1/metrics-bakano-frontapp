@@ -13,12 +13,21 @@ const data = ref<PulseOverview | null>(null)
 const cargando = ref(true)
 const errorCarga = ref('')
 const filtro = ref<'todos' | 'sin_meta' | 'atrasado'>('todos')
+const busqueda = ref('')
+
+/** Sin tildes y en minúscula: "ñato" tiene que encontrar a "Parrilla del Ñato". */
+function normalizar(texto: string): string {
+  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+}
 
 const filas = computed(() => {
-  const rows = data.value?.rows ?? []
-  if (filtro.value === 'sin_meta') return rows.filter((r) => !r.hasTarget)
-  if (filtro.value === 'atrasado') return rows.filter((r) => r.paceStatus === 'atrasado')
-  return rows
+  let rows = data.value?.rows ?? []
+  if (filtro.value === 'sin_meta') rows = rows.filter((r) => !r.hasTarget)
+  else if (filtro.value === 'atrasado') rows = rows.filter((r) => r.paceStatus === 'atrasado')
+
+  const q = normalizar(busqueda.value)
+  if (!q) return rows
+  return rows.filter((r) => normalizar(r.name).includes(q))
 })
 
 const avanceGlobal = computed(() => {
@@ -85,11 +94,31 @@ onMounted(cargar)
         </article>
       </div>
 
+      <!-- Con 99 clientes en la lista, llegar al que se busca a puro scroll no es viable. -->
+      <div class="ov__buscador">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
+        <input
+          v-model="busqueda"
+          type="search"
+          placeholder="Buscar cliente por nombre…"
+          aria-label="Buscar cliente"
+        />
+        <button v-if="busqueda" type="button" class="ov__buscador-limpiar" aria-label="Limpiar" @click="busqueda = ''">
+          <i class="fa-solid fa-xmark" aria-hidden="true" />
+        </button>
+      </div>
+
       <div class="ov__filters">
         <button type="button" :class="{ 'is-on': filtro === 'todos' }" @click="filtro = 'todos'">Todos</button>
         <button type="button" :class="{ 'is-on': filtro === 'sin_meta' }" @click="filtro = 'sin_meta'">Sin meta</button>
         <button type="button" :class="{ 'is-on': filtro === 'atrasado' }" @click="filtro = 'atrasado'">Atrasados</button>
+        <span class="ov__cuenta">{{ filas.length }} de {{ data.rows.length }}</span>
       </div>
+
+      <p v-if="!filas.length" class="ov__vacio">
+        Ningún cliente coincide con lo que buscas.
+        <button v-if="busqueda" type="button" @click="busqueda = ''">Limpiar búsqueda</button>
+      </p>
 
       <ul class="ov__list">
         <li v-for="r in filas" :key="r.workspaceId">
@@ -188,7 +217,68 @@ onMounted(cargar)
 .ov__total-value { margin: 0.2rem 0 0.1rem; color: $primary-dark; font-size: 1.5rem; font-weight: 800; }
 .ov__total-foot { margin: 0; color: $text-secondary; font-size: 0.75rem; }
 
-.ov__filters { display: flex; gap: 0.45rem; margin: 1.25rem 0 0.75rem; }
+.ov__buscador {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 1.25rem;
+  border: 1px solid #e2dfe9;
+  border-radius: 12px;
+  padding: 0.6rem 0.85rem;
+  background: $white;
+
+  &:focus-within { border-color: $primary; }
+
+  > i { color: $text-secondary; font-size: 0.85rem; }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    color: $primary-dark;
+    font: inherit;
+    font-size: 0.9rem;
+
+    &:focus { outline: none; }
+    &::-webkit-search-cancel-button { display: none; }
+  }
+}
+
+.ov__buscador-limpiar {
+  border: 0;
+  background: none;
+  color: $text-secondary;
+  cursor: pointer;
+  padding: 0 0.15rem;
+
+  &:hover { color: $alert-error; }
+}
+
+.ov__filters { display: flex; align-items: center; gap: 0.45rem; margin: 0.75rem 0; }
+
+.ov__cuenta { margin-left: auto; color: $text-secondary; font-size: 0.75rem; font-weight: 700; }
+
+.ov__vacio {
+  margin: 0;
+  border: 1px dashed #e2dfe9;
+  border-radius: 14px;
+  padding: 1.75rem 1rem;
+  color: $text-secondary;
+  font-size: 0.86rem;
+  text-align: center;
+
+  button {
+    margin-left: 0.4rem;
+    border: 0;
+    background: none;
+    color: $primary;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
 
 .ov__filters button {
   border: 1px solid #e2dfe9;

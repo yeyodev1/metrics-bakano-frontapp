@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRef, watch } from 'vue'
+import SearchableSelect from '@/components/common/SearchableSelect.vue'
 import type { WorkspacePulse } from '@/services/internalPulse.service'
 import { money, nombreMes } from '../utils/format'
+import { opcionesMes } from '../utils/meses'
+import { usePulseMes } from '../usePulseMes'
 
-const props = defineProps<{ pulse: WorkspacePulse; guardando: boolean }>()
+const props = defineProps<{ pulse: WorkspacePulse; workspaceId: string; guardando: boolean }>()
 const emit = defineEmits<{
   (e: 'cerrar'): void
-  (e: 'guardar', payload: { targetAmount: number; stretchAmount?: number; notes?: string }): void
+  (e: 'guardar', payload: {
+    year: number
+    month: number
+    targetAmount: number
+    stretchAmount?: number
+    notes?: string
+  }): void
 }>()
 
 const monto = ref<number | null>(props.pulse.target?.targetAmount ?? null)
@@ -14,33 +23,42 @@ const stretch = ref<number | null>(props.pulse.target?.stretchAmount ?? null)
 const notas = ref(props.pulse.target?.notes ?? '')
 const error = ref('')
 
-watch(
-  () => props.pulse.target,
-  (t) => {
-    monto.value = t?.targetAmount ?? null
-    stretch.value = t?.stretchAmount ?? null
-    notas.value = t?.notes ?? ''
-  },
+const MESES = opcionesMes()
+const { pulseMes, mesElegido, cargando: cargandoMes, errorCarga } = usePulseMes(
+  props.workspaceId,
+  toRef(props, 'pulse'),
 )
 
-const periodo = computed(() => `${nombreMes(props.pulse.period.month)} ${props.pulse.period.year}`)
+// Cada mes trae su propia meta: al cambiar, el formulario muestra la de ese mes.
+watch(pulseMes, (p) => {
+  monto.value = p.target?.targetAmount ?? null
+  stretch.value = p.target?.stretchAmount ?? null
+  notas.value = p.target?.notes ?? ''
+})
+
+watch(errorCarga, (msg) => { if (msg) error.value = msg })
+
+const periodo = computed(() => `${nombreMes(pulseMes.value.period.month)} ${pulseMes.value.period.year}`)
 
 /** Lo que tendría que entrar por día si la meta se acepta tal cual. */
 const porDia = computed(() =>
-  monto.value && props.pulse.period.daysInMonth
-    ? monto.value / props.pulse.period.daysInMonth
+  monto.value && pulseMes.value.period.daysInMonth
+    ? monto.value / pulseMes.value.period.daysInMonth
     : 0,
 )
 
 const faltaDesdeHoy = computed(() => {
   if (!monto.value) return 0
-  const restantes = props.pulse.period.remainingDays || 1
-  return Math.max(monto.value - props.pulse.totals.billed, 0) / restantes
+  const restantes = pulseMes.value.period.remainingDays || 1
+  return Math.max(monto.value - pulseMes.value.totals.billed, 0) / restantes
 })
+
+/** Un mes que aún no empezó no tiene días corridos: solo aplica el por día. */
+const mesEnCurso = computed(() => pulseMes.value.period.elapsedDays > 0)
 
 const sugerencias = computed(() => {
   const opciones: { label: string; valor: number; nota: string }[] = []
-  const anterior = props.pulse.suggestedTarget
+  const anterior = pulseMes.value.suggestedTarget
   if (anterior) {
     opciones.push({ label: 'Repetir última meta', valor: anterior.targetAmount, nota: anterior.fromLabel })
     opciones.push({
@@ -49,10 +67,10 @@ const sugerencias = computed(() => {
       nota: 'crecimiento moderado',
     })
   }
-  if (props.pulse.progress.projection > 0) {
+  if (pulseMes.value.progress.projection > 0) {
     opciones.push({
       label: 'Proyección de este mes',
-      valor: Math.round(props.pulse.progress.projection),
+      valor: Math.round(pulseMes.value.progress.projection),
       nota: 'al ritmo actual',
     })
   }
@@ -74,6 +92,8 @@ function guardar() {
     return
   }
   emit('guardar', {
+    year: pulseMes.value.period.year,
+    month: pulseMes.value.period.month,
     targetAmount: monto.value,
     stretchAmount: stretch.value ?? undefined,
     notes: notas.value.trim() || undefined,
@@ -88,7 +108,7 @@ function guardar() {
         <div>
           <p class="modal__eyebrow">{{ pulse.workspace.name }} · {{ periodo }}</p>
           <h2 id="tituloMeta" class="modal__title">
-            {{ pulse.target ? 'Ajustar meta mensual' : 'Definir meta mensual' }}
+            {{ pulseMes.target ? 'Ajustar meta mensual' : 'Definir meta mensual' }}
           </h2>
         </div>
         <button type="button" class="modal__close" aria-label="Cerrar" @click="emit('cerrar')">
@@ -97,6 +117,21 @@ function guardar() {
       </header>
 
       <div class="modal__body">
+        <p class="modal__label">Mes de la meta</p>
+        <SearchableSelect
+          v-model="mesElegido"
+          :opciones="MESES.map((m) => ({ valor: m.valor, etiqueta: m.etiqueta }))"
+          :disabled="cargandoMes || guardando"
+          placeholder="Elige el mes"
+        />
+        <p v-if="cargandoMes" class="modal__cargando">
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true" /> Cargando {{ periodo }}…
+        </p>
+        <p v-else-if="pulseMes.target" class="modal__ya-tiene">
+          <i class="fa-solid fa-circle-info" aria-hidden="true" />
+          {{ periodo }} ya tiene meta de {{ money(pulseMes.target.targetAmount, true) }}. Guardar la reemplaza.
+        </p>
+
         <label class="modal__label" for="metaMonto">Meta de facturación del mes</label>
         <div class="modal__input-wrap">
           <span>$</span>
@@ -124,13 +159,14 @@ function guardar() {
             <p class="modal__calc-label">Por día del mes</p>
             <p class="modal__calc-value">{{ money(porDia, true) }}</p>
           </div>
-          <div>
+          <!-- Un mes que todavía no arranca no tiene días corridos ni facturación. -->
+          <div v-if="mesEnCurso">
             <p class="modal__calc-label">Por día restante</p>
             <p class="modal__calc-value">{{ money(faltaDesdeHoy, true) }}</p>
           </div>
-          <div>
+          <div v-if="mesEnCurso">
             <p class="modal__calc-label">Ya facturado</p>
-            <p class="modal__calc-value">{{ money(pulse.totals.billed, true) }}</p>
+            <p class="modal__calc-value">{{ money(pulseMes.totals.billed, true) }}</p>
           </div>
         </div>
 
@@ -163,8 +199,8 @@ function guardar() {
 
       <footer class="modal__foot">
         <button type="button" class="modal__ghost" @click="emit('cerrar')">Cancelar</button>
-        <button type="button" class="modal__save" :disabled="guardando" @click="guardar">
-          {{ guardando ? 'Guardando…' : 'Guardar meta' }}
+        <button type="button" class="modal__save" :disabled="guardando || cargandoMes" @click="guardar">
+          {{ guardando ? 'Guardando…' : `Guardar meta de ${periodo}` }}
         </button>
       </footer>
     </div>
@@ -306,6 +342,24 @@ function guardar() {
 }
 
 .modal__error { margin: 0.7rem 0 0; color: $alert-error; font-size: 0.8rem; font-weight: 700; }
+
+.modal__cargando,
+.modal__ya-tiene {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: $text-secondary;
+}
+
+.modal__ya-tiene {
+  padding: 0.5rem 0.65rem;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+}
 
 .modal__foot {
   display: flex;

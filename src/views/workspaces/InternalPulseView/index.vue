@@ -73,16 +73,18 @@ function cambiarPeriodo(valor: string) {
   month.value = m
 }
 
-async function guardarMeta(payload: { targetAmount: number; stretchAmount?: number; notes?: string }) {
+async function guardarMeta(payload: {
+  year: number
+  month: number
+  targetAmount: number
+  stretchAmount?: number
+  notes?: string
+}) {
   guardando.value = true
   try {
-    await internalPulseService.setTarget(workspaceId, {
-      year: year.value,
-      month: month.value,
-      ...payload,
-    })
+    await internalPulseService.setTarget(workspaceId, payload)
     modalAbierto.value = false
-    toast.success(`Meta de ${periodoLabel.value} guardada.`, 'Listo')
+    toast.success(`Meta de ${nombreMes(payload.month)} ${payload.year} guardada.`, 'Listo')
     await cargar()
   } catch (error: any) {
     toast.error(error?.message || 'No se pudo guardar la meta.', 'Error')
@@ -173,6 +175,7 @@ onMounted(cargar)
       <TargetModal
         v-if="modalAbierto"
         :pulse="pulse"
+        :workspace-id="workspaceId"
         :guardando="guardando"
         @cerrar="modalAbierto = false"
         @guardar="guardarMeta"
