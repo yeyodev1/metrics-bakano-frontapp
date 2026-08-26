@@ -6,6 +6,7 @@ import type {
   UpdatePlanningEntryPayload,
   GlobalPlanningWeekResponse,
 } from '@/types'
+import type { ScriptRef } from '@/types/videoPlanning'
 
 class PlanningService extends APIBase {
   /**
@@ -68,6 +69,28 @@ class PlanningService extends APIBase {
       fd,
     )
     return res.data
+  }
+
+  /**
+   * Adjunta una imagen o PDF como referencia del guión de ese video. `leePorIA`
+   * viene en false si Gemini rechazó el archivo: se ve en la app, pero no
+   * alimenta al guión.
+   */
+  async uploadScriptRef(
+    itemId: string,
+    file: File,
+  ): Promise<{ ref: ScriptRef; leePorIA: boolean }> {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await this.post<{ ref: ScriptRef; leePorIA: boolean }>(
+      `video-planning/items/${itemId}/script-refs`,
+      fd,
+    )
+    return res.data
+  }
+
+  async deleteScriptRef(itemId: string, refId: string): Promise<void> {
+    await this.delete(`video-planning/items/${itemId}/script-refs/${refId}`)
   }
 }
 

@@ -74,6 +74,8 @@
           :has-existing-script="hasExistingScript"
           :error="error"
           :can-generate-variants="!!item?._id"
+          v-model:refs="scriptRefs"
+          :item-id="item?._id"
           @generate="onGenerate"
           @generate-variants="onGenerateVariants"
         />
@@ -92,8 +94,7 @@
           v-if="hasExistingScript && localGuionIA"
           :guion-i-a="localGuionIA"
           :is-field-visible="isFieldVisible"
-          :final-usado="finalUsado"
-          @use-final="onUseFinal"
+          :objetivo="selectedObjetivo"
         />
       </template>
     </div>
@@ -104,7 +105,7 @@
 import { ref, computed, toRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { BrandProfile } from '@/types'
-import type { VideoItem, GuionIA, TipoGuion, ObjetivoGuion } from '@/types/videoPlanning'
+import type { VideoItem, GuionIA, TipoGuion, ObjetivoGuion, ScriptRef } from '@/types/videoPlanning'
 import ScriptDistributionWidget from './ScriptDistributionWidget.vue'
 import TipoGuionSelector from './scriptGenerator/TipoGuionSelector.vue'
 import ObjetivoSelector from './scriptGenerator/ObjetivoSelector.vue'
@@ -113,7 +114,7 @@ import BrandProfileBar from './scriptGenerator/BrandProfileBar.vue'
 import GenerateContextForm from './scriptGenerator/GenerateContextForm.vue'
 import GeneratedScript from './scriptGenerator/GeneratedScript.vue'
 import ScriptVariants from './scriptGenerator/ScriptVariants.vue'
-import { TIPO_GUION_INFO, inferTipoGuion, type FinalKey } from './scriptGenerator/constants'
+import { TIPO_GUION_INFO, inferTipoGuion } from './scriptGenerator/constants'
 import { useScriptGeneration } from './scriptGenerator/useScriptGeneration'
 
 const props = defineProps<{
@@ -202,24 +203,24 @@ const {
 })
 
 /**
- * Cuál de los dos finales quedó pegado en el textarea del guión. Arranca en el
- * que corresponde al objetivo elegido, que es el que el backend deja en `cta`.
+ * Referencias adjuntas al video. Se guardan al subirlas, no al guardar el
+ * formulario, así que la copia local solo tiene que seguir al item abierto.
  */
-const finalUsado = ref<FinalKey>(selectedObjetivo.value === 'anuncio' ? 'ads' : 'feed')
+const scriptRefs = ref<ScriptRef[]>(props.item?.scriptRefs ?? [])
+
+watch(() => props.item, (item) => { scriptRefs.value = item?.scriptRefs ?? [] })
+
+// El backend ya las guardó, pero el item en memoria no se entera: sin esto, al
+// cerrar y reabrir el video las referencias recién subidas desaparecían de la
+// vista hasta recargar la página.
+watch(scriptRefs, (refs) => {
+  if (props.item) props.item.scriptRefs = refs
+})
 
 async function onGenerate() {
   const guionIA = await generate()
   if (!guionIA) return
-  finalUsado.value = selectedObjetivo.value === 'anuncio' ? 'ads' : 'feed'
   emit('script-generated', guionIA)
-}
-
-/** Cambiar de final reescribe el guión sin volver a llamar a la IA. */
-function onUseFinal(key: FinalKey, texto: string) {
-  if (!localGuionIA.value) return
-  finalUsado.value = key
-  localGuionIA.value = { ...localGuionIA.value, cta: texto }
-  emit('script-generated', localGuionIA.value)
 }
 
 async function onGenerateVariants() {

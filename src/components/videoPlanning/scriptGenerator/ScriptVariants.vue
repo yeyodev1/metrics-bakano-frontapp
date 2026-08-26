@@ -124,11 +124,10 @@ const current = computed(() => drafts.value[active.value] ?? null)
 
 /**
  * Los campos dependen de cómo se generó: el Hook 2 solo se edita aparte si se
- * pidió doble hook, y los dos finales reemplazan al CTA único cuando existen.
+ * pidió doble hook.
  */
 const FIELDS = computed<VariantField[]>(() => {
   const d = current.value
-  const tieneFinales = !!(d?.ctaFeed || d?.ctaAds)
 
   return [
     { key: 'gancho', label: 'Hook 1', hint: '0-3 seg · el que detiene el scroll', rows: 2 },
@@ -142,12 +141,7 @@ const FIELDS = computed<VariantField[]>(() => {
       hint: d?.hook2 ? 'arranca después del Hook 2' : 'abre con el Hook 2',
       rows: 5,
     },
-    ...(tieneFinales
-      ? [
-          { key: 'ctaFeed', label: 'Final · Feed', hint: 'comentar, guardar o seguir', rows: 2 },
-          { key: 'ctaAds', label: 'Final · Anuncio', hint: 'una sola acción comercial', rows: 2 },
-        ]
-      : [{ key: 'cta', label: 'CTA', hint: 'una sola acción', rows: 2 }]),
+    { key: 'cta', label: 'Cierre', hint: 'una sola acción', rows: 2 },
     { key: 'broll', label: 'B-roll', rows: 2 },
     { key: 'conceptoVisual', label: 'Concepto visual', rows: 2 },
   ]
