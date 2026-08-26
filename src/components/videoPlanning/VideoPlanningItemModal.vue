@@ -3,9 +3,9 @@ import { ref, watch, computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useUnsavedCloseGuard } from '@/composables/useUnsavedCloseGuard'
+import { useGuionEditable } from '@/composables/useGuionEditable'
 import type { BrandProfile } from '@/types'
-import type { BrandProfile as BrandProfileType } from '@/types'
-import type { VideoItem, CreateVideoItemPayload, GuionIA, TipoGuion, ObjetivoGuion } from '@/types/videoPlanning'
+import type { VideoItem, CreateVideoItemPayload, TipoGuion, ObjetivoGuion } from '@/types/videoPlanning'
 import { EstadoIdea, EstadoProduccion, EstadoEdicion, EstadoPublicacion, ClienteAprobacion, TipoReel } from '@/types/videoPlanning'
 import ScriptGeneratorPanel from './ScriptGeneratorPanel.vue'
 import ScriptDistributionWidget from './ScriptDistributionWidget.vue'
@@ -14,6 +14,7 @@ import ItemRejectionAlert from './itemModal/ItemRejectionAlert.vue'
 import ItemClientView from './itemModal/ItemClientView.vue'
 import ItemBasicFields from './itemModal/ItemBasicFields.vue'
 import ItemPublishFields from './itemModal/ItemPublishFields.vue'
+import ItemGuionField from './itemModal/ItemGuionField.vue'
 
 const userStore = useUserStore()
 const isReadOnly = computed(() => !userStore.isInternal)
@@ -32,7 +33,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'save', payload: CreateVideoItemPayload): void
-  (e: 'brand-profile-updated', profile: BrandProfileType): void
+  (e: 'brand-profile-updated', profile: BrandProfile): void
 }>()
 
 /**
@@ -74,14 +75,6 @@ async function goToBuilder(target: 'brand-profile' | 'journey' = 'journey') {
 
 const goDefineJourney = () => goToBuilder('journey')
 
-/**
- * El guión que queda en el textarea. El Hook 2 solo aparece si se generó
- * aparte; si no, ya viene dentro del cuerpo y meterlo otra vez lo duplicaría.
- */
-function composeGuion(g: GuionIA): string {
-  return [g.gancho, g.hook2, g.cuerpo, g.cta].filter((p) => p && p.trim()).join('\n\n')
-}
-
 function setObjetivo(objetivo: ObjetivoGuion) {
   form.value.scriptMeta = {
     ...(form.value.scriptMeta ?? {}),
@@ -109,6 +102,17 @@ const form = ref<CreateVideoItemPayload>({
   fechaPublicacion: '',
 })
 
+const {
+  pendiente: guionPendiente,
+  sync: syncGuion,
+  recibirGenerado: onScriptGenerated,
+  aplicarPendiente: aplicarGuionPendiente,
+  descartarPendiente: descartarGuionPendiente,
+} = useGuionEditable(computed({
+  get: () => form.value.guion ?? '',
+  set: (v) => { form.value.guion = v },
+}))
+
 // Helpers for status colors
 const isRejected = computed(() => {
   return props.item?.estadoIdea === EstadoIdea.RECHAZADO || 
@@ -116,11 +120,7 @@ const isRejected = computed(() => {
          props.item?.clienteAprobacion === ClienteAprobacion.RECHAZADO;
 });
 
-const ideaRejection = computed(() => props.item?.motivoRechazo || props.item?.comentario || '');
-
-
-
-
+const ideaRejection = computed(() => props.item?.motivoRechazo || props.item?.comentario || '')
 
 watch(() => props.show, (isShown) => {
   if (!isShown) return
@@ -146,6 +146,7 @@ watch(() => props.show, (isShown) => {
         ? props.item.fechaPublicacion.split('T')[0]
         : '',
     }
+    syncGuion(props.item.guionIA)
   } else {
     form.value = {
       tema: '', descripcion: '', tipo: '', tipoGuion: undefined, casoUsoRef: undefined, linkEjemplo: '',
@@ -157,6 +158,7 @@ watch(() => props.show, (isShown) => {
       edicion: EstadoEdicion.POR_EDITAR,
       estadoPublicacion: EstadoPublicacion.POR_PUBLICAR,
     }
+    syncGuion(null)
   }
 }, { immediate: true })
 
@@ -247,19 +249,18 @@ const { isDirty, requestClose } = useUnsavedCloseGuard({
                 :has-brand-profile="hasBrandProfile ?? false"
                 :brand-profile="brandProfile ?? null"
                 :all-items="allItems"
-                @script-generated="(g: GuionIA) => { form.guion = composeGuion(g) }"
-                @brand-profile-updated="(p: BrandProfileType) => emit('brand-profile-updated', p)"
+                @script-generated="onScriptGenerated"
+                @brand-profile-updated="(p: BrandProfile) => emit('brand-profile-updated', p)"
                 @update:tipoGuion="(t: TipoGuion) => { form.tipoGuion = t; form.tipo = GUION_TO_TIPO_REEL[t] }"
                 @update:objetivo="setObjetivo"
               />
 
-              <div class="vp-item-modal__field">
-                <label>
-                  Guión
-                  <span v-if="form.guion" class="vp-item-modal__field-hint">auto-completado por IA — editable · **negritas** con dobles asteriscos</span>
-                </label>
-                <textarea v-model="form.guion" placeholder="Se completará automáticamente al generar con IA, o escribe aquí manualmente..." rows="5" />
-              </div>
+              <ItemGuionField
+                v-model="form.guion"
+                :pendiente="guionPendiente"
+                @aplicar="aplicarGuionPendiente"
+                @descartar="descartarGuionPendiente"
+              />
 
               <div class="vp-item-modal__field">
                 <label>Comentario</label>
