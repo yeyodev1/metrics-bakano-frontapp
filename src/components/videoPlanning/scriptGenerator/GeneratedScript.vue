@@ -57,8 +57,12 @@
       </Transition>
 
       <Transition name="gsc-field">
-        <div v-if="isFieldVisible(4)">
-          <ScriptFinales :guion-i-a="guionIA" :usado="finalUsado" @use="onUseFinal" />
+        <div v-if="isFieldVisible(4)" class="gsc__field">
+          <div class="gsc__field-header">
+            <i class="fa-solid fa-flag-checkered" /><span>Cierre</span>
+            <span class="gsc__chip">{{ cierreChip }}</span>
+          </div>
+          <div class="gsc__field-content">{{ cierre }}</div>
         </div>
       </Transition>
 
@@ -76,21 +80,26 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import ScriptFinales from './ScriptFinales.vue'
-import type { FinalKey } from './constants'
-import type { GuionIA } from '@/types/videoPlanning'
+import type { GuionIA, ObjetivoGuion } from '@/types/videoPlanning'
 
 const props = defineProps<{
   guionIA: GuionIA
   isFieldVisible: (index: number) => boolean
-  finalUsado?: FinalKey | null
+  /** Solo rotula el cierre; el texto ya viene escrito para este objetivo. */
+  objetivo?: ObjetivoGuion
 }>()
 
-const emit = defineEmits<{ (e: 'use-final', key: FinalKey, texto: string): void }>()
+const cierreChip = computed(() =>
+  props.objetivo === 'anuncio' ? 'Una sola acción comercial' : 'Comentar, guardar o seguir'
+)
 
-function onUseFinal(key: FinalKey, texto: string) {
-  emit('use-final', key, texto)
-}
+// Los guiones anteriores a que hubiera un solo final guardaron el cierre en los
+// campos por canal; sin este fallback se verían con el cierre vacío.
+const cierre = computed(() => {
+  const g = props.guionIA
+  const heredado = props.objetivo === 'anuncio' ? g.ctaAds : g.ctaFeed
+  return (g.cta || heredado || '').trim()
+})
 
 const generatedAtLabel = computed(() => {
   if (!props.guionIA.generadoEn) return ''
