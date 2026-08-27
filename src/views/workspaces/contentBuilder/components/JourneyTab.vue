@@ -4,7 +4,7 @@
       <div class="jt__cta-icon"><i class="fa-solid fa-compass-drafting" /></div>
       <div class="jt__cta-text">
         <h2>{{ hasStrategy ? 'Editar Estrategia de Marca' : 'Definir Estrategia de Marca' }}</h2>
-        <p>Flujo guiado: Propuesta de Valor → Segmentos → Canales → Actividades Clave → Casos de Customer Journey.</p>
+        <p>Un solo documento: propuesta de valor, segmentos, canales, actividades clave y casos de Customer Journey.</p>
       </div>
       <button class="jt__btn jt__btn--primary" @click="$emit('open-wizard')">
         <i class="fa-solid fa-wand-magic-sparkles" />
@@ -46,7 +46,7 @@
         </div>
       </section>
 
-      <!-- The most frequent action lives here, not buried in the 5-step wizard -->
+      <!-- The most frequent action lives here, not buried inside the strategy document -->
       <section class="jt__section">
         <header class="jt__head">
           <i class="fa-solid fa-route" />
