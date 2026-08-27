@@ -22,6 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select'): void
+  (e: 'rename'): void
   (e: 'toggleActive', ev: Event): void
   (e: 'remove', ev: Event): void
   (e: 'enter'): void
@@ -128,6 +129,9 @@ function accionMenu(fn: () => void) {
           <div class="wsc__menu">
             <button type="button" class="wsc__menu-item" @click="accionMenu(() => emit('select'))">
               <i class="fa-solid fa-users" /> Gestionar usuarios
+            </button>
+            <button type="button" class="wsc__menu-item" @click="accionMenu(() => emit('rename'))">
+              <i class="fa-solid fa-pen-to-square" /> Renombrar
             </button>
             <button
               v-if="ws.isActive"

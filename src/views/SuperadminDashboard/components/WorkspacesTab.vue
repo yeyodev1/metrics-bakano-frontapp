@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import WorkspacesSummaryBar from './WorkspacesSummaryBar.vue'
 import DeactivateWorkspaceModal from './DeactivateWorkspaceModal.vue'
+import RenameWorkspaceModal from './RenameWorkspaceModal.vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -61,6 +62,34 @@ async function confirmarDesactivacion(datos: { motivo: string; nota?: string }) 
     toast.error('No se pudo desactivar el entorno.')
   } finally {
     desactivando.value = false
+  }
+}
+
+// Renombrar: el nombre viaja a los avisos del cliente, asi que se cambia en
+// un modal aparte y no editando la tarjeta al vuelo.
+const wsARenombrar = ref<Workspace | null>(null)
+const renombrando = ref(false)
+const renameModal = ref<InstanceType<typeof RenameWorkspaceModal> | null>(null)
+
+async function confirmarRenombre(nombre: string) {
+  const ws = wsARenombrar.value
+  if (!ws) return
+
+  renombrando.value = true
+  try {
+    const { workspace } = await workspaceService.updateWorkspace(ws._id, nombre)
+    ws.name = workspace?.name ?? nombre
+    if (selectedWorkspace.value?._id === ws._id) selectedWorkspace.value.name = ws.name
+    wsARenombrar.value = null
+    toast.success(`Entorno renombrado a "${ws.name}".`)
+  } catch (err: any) {
+    const status = err?.response?.status
+    const msg = status === 409
+      ? 'Ya existe otro entorno con ese nombre.'
+      : 'No se pudo cambiar el nombre.'
+    renameModal.value?.mostrarError(msg)
+  } finally {
+    renombrando.value = false
   }
 }
 
@@ -266,6 +295,15 @@ onMounted(fetchWorkspaces)
       @confirmar="confirmarDesactivacion"
     />
 
+    <RenameWorkspaceModal
+      ref="renameModal"
+      :show="!!wsARenombrar"
+      :nombre="wsARenombrar?.name || ''"
+      :guardando="renombrando"
+      @close="wsARenombrar = null"
+      @confirmar="confirmarRenombre"
+    />
+
     <!-- View: Workspaces Grid -->
     <WorkspaceList
       v-if="!selectedWorkspace"
@@ -280,6 +318,7 @@ onMounted(fetchWorkspaces)
       :deleting-workspace-id="deletingWorkspaceId"
       @open-create-workspace="emit('openCreateWorkspace')"
       @select-workspace="selectWorkspace"
+      @rename-workspace="(ws: Workspace) => (wsARenombrar = ws)"
       @handle-toggle-workspace-active="handleToggleWorkspaceActive"
       @handle-delete-workspace="handleDeleteWorkspace"
       @fetch-workspaces="fetchWorkspaces"
