@@ -98,7 +98,7 @@
       @delete="handleCaseDelete"
     />
 
-    <BrandStrategyWizardModal
+    <BrandStrategyModal
       :show="showWizard"
       :profile="builder.profile.value"
       :marca="builder.workspace.value?.name"
@@ -115,7 +115,7 @@ import { useRoute } from 'vue-router'
 import { getWorkspaceImage } from '@/utils/workspaceImage'
 import VideoReelLinkModal from '@/components/videoPlanning/VideoReelLinkModal.vue'
 import VideoPlanningItemModal from '@/components/videoPlanning/VideoPlanningItemModal.vue'
-import BrandStrategyWizardModal from '@/components/brandProfile/BrandStrategyWizardModal.vue'
+import BrandStrategyModal from '@/components/brandProfile/BrandStrategyModal.vue'
 import JourneyCaseModal from '@/components/brandProfile/JourneyCaseModal.vue'
 import ScriptPerformanceSection from '@/components/scriptPerformance/ScriptPerformanceSection.vue'
 import BuilderHero from './components/BuilderHero.vue'

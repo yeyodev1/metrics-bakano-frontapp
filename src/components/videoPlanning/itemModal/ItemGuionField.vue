@@ -3,54 +3,81 @@
     <label class="igf__label">
       Guión
       <span v-if="texto" class="igf__hint">
-        auto-completado por IA — editable · **negritas** con dobles asteriscos
+        editable por bloques · **negritas** con dobles asteriscos
       </span>
+      <button v-if="texto" type="button" class="igf__modo" @click="porBloques = !porBloques">
+        <i :class="porBloques ? 'fa-solid fa-align-left' : 'fa-solid fa-list'" />
+        {{ porBloques ? 'Editar como texto completo' : 'Editar por bloques' }}
+      </button>
     </label>
 
     <!--
-      Lo editado a mano no se pisa solo. La content manager reescribe partes del
-      guión; una regeneración silenciosa le borraba el trabajo sin avisar.
+      Lo editado a mano no se pisa solo, y ya no es todo o nada: la content
+      manager reemplaza únicamente el bloque que quiere del guión nuevo.
     -->
-    <div v-if="pendiente" class="igf__alert">
-      <p class="igf__alert-text">
-        <i class="fa-solid fa-triangle-exclamation" />
-        <span>
-          Hay un guión nuevo de la IA, pero el de abajo tiene cambios tuyos.
-          Reemplazarlo los borra.
-        </span>
-      </p>
-      <div class="igf__alert-actions">
-        <button type="button" class="igf__btn" @click="emit('descartar')">
-          Conservar el mío
-        </button>
-        <button type="button" class="igf__btn igf__btn--replace" @click="emit('aplicar')">
-          <i class="fa-solid fa-arrow-turn-down" /> Reemplazar con el nuevo
-        </button>
-      </div>
+    <GuionPendiente
+      v-if="pendiente"
+      :bloques="bloquesPendientes"
+      :rotulos="rotulosPendientes"
+      :actuales="textosActuales"
+      @aplicar="emit('aplicar')"
+      @descartar="emit('descartar')"
+      @aplicar-bloque="reemplazar"
+    />
 
-      <details class="igf__preview">
-        <summary>Ver el guión nuevo antes de decidir</summary>
-        <pre>{{ pendiente }}</pre>
-      </details>
-    </div>
+    <GuionBloques
+      v-if="porBloques && bloques.length"
+      v-model="bloques"
+      :rotulos="rotulos"
+      @cambio="sincronizar"
+      @agregar="agregar"
+      @quitar="quitar"
+      @mover="mover"
+    />
 
     <textarea
+      v-else
       v-model="texto"
-      rows="5"
+      rows="8"
       placeholder="Se completará automáticamente al generar con IA, o escribe aquí manualmente..."
     />
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { ref, computed } from 'vue'
+import {
+  useGuionBloques,
+  partirGuion,
+  rotulosDe,
+} from '@/composables/useGuionBloques'
+import type { GuionIA } from '@/types/videoPlanning'
+import GuionBloques from './guion/GuionBloques.vue'
+import GuionPendiente from './guion/GuionPendiente.vue'
+
+const props = defineProps<{
   /** Guión recién generado esperando permiso para reemplazar al editado a mano. */
   pendiente: string | null
+  /** Da nombre a cada bloque (Hook, Cuerpo, Cierre) cuando el guión vino de la IA. */
+  guionIA?: GuionIA | null
 }>()
 
 const emit = defineEmits<{ (e: 'aplicar'): void; (e: 'descartar'): void }>()
 
 const texto = defineModel<string>({ required: true })
+
+/** Por bloques por defecto: es lo que se pidió para poder tocar una sola parte. */
+const porBloques = ref(true)
+
+const { bloques, sincronizar, agregar, quitar, mover, reemplazar } = useGuionBloques(texto)
+
+const textosActuales = computed(() => bloques.value.map((b) => b.texto))
+const rotulos = computed(() => rotulosDe(props.guionIA, bloques.value.length))
+
+const bloquesPendientes = computed(() => (props.pendiente ? partirGuion(props.pendiente) : []))
+const rotulosPendientes = computed(() =>
+  rotulosDe(props.guionIA, bloquesPendientes.value.length)
+)
 </script>
 
 <style lang="scss" scoped>
@@ -75,76 +102,17 @@ const texto = defineModel<string>({ required: true })
     color: $text-secondary;
   }
 
-  &__alert {
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-    padding: 0.75rem 0.85rem;
-    background: #fffbeb;
-    border: 1px solid #fcd34d;
-    border-radius: 10px;
-  }
-
-  &__alert-text {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    margin: 0;
-    font-size: 0.78rem;
-    line-height: 1.4;
-    color: #92400e;
-
-    i { margin-top: 0.15rem; }
-  }
-
-  &__alert-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  &__btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.4rem 0.75rem;
-    font-size: 0.75rem;
+  &__modo {
+    margin-left: auto;
+    padding: 0.2rem 0;
+    font-size: 0.7rem;
     font-weight: 700;
-    color: #92400e;
-    background: $white;
-    border: 1px solid #fcd34d;
-    border-radius: 8px;
+    color: $primary;
+    background: none;
+    border: none;
     cursor: pointer;
-    transition: all 0.18s;
 
-    &:hover { background: #fef3c7; }
-
-    &--replace {
-      color: $white;
-      background: #d97706;
-      border-color: #d97706;
-
-      &:hover { background: #b45309; }
-    }
-  }
-
-  &__preview {
-    font-size: 0.72rem;
-    color: #92400e;
-
-    summary { cursor: pointer; font-weight: 600; }
-
-    pre {
-      max-height: 180px;
-      margin: 0.45rem 0 0;
-      padding: 0.6rem;
-      overflow: auto;
-      font-family: inherit;
-      white-space: pre-wrap;
-      background: $white;
-      border: 1px solid #fde68a;
-      border-radius: 8px;
-    }
+    &:hover { text-decoration: underline; }
   }
 
   textarea {
@@ -152,6 +120,7 @@ const texto = defineModel<string>({ required: true })
     padding: 0.7rem 0.85rem;
     font-family: inherit;
     font-size: 0.85rem;
+    line-height: 1.55;
     color: $primary-dark;
     background: $white;
     border: 1px solid rgba($primary-dark, 0.12);
