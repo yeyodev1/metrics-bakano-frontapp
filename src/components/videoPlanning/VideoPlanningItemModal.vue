@@ -258,6 +258,7 @@ const { isDirty, requestClose } = useUnsavedCloseGuard({
               <ItemGuionField
                 v-model="form.guion"
                 :pendiente="guionPendiente"
+                :guionIA="item?.guionIA"
                 @aplicar="aplicarGuionPendiente"
                 @descartar="descartarGuionPendiente"
               />
