@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
+import { apiBaseUrl } from '@/config/api'
 import type { Workspace } from '@/types'
 
 const route = useRoute()
@@ -23,7 +24,7 @@ onMounted(async () => {
 
 const contractPdfUrl = computed(() => {
   if (workspace.value?.contractData) {
-    return `${import.meta.env.VITE_API_BASE_URL}/api/onboarding/${workspaceId.value}/contract.pdf`
+    return `${apiBaseUrl()}/onboarding/${workspaceId.value}/contract.pdf`
   }
   return null
 })
