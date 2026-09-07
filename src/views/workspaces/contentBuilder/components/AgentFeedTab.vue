@@ -20,6 +20,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useToast } from '@/composables/useToast'
+import { apiBaseUrl } from '@/config/api'
 import type { BrandProfile } from '@/types'
 
 const props = defineProps<{
@@ -43,14 +44,12 @@ const copied = ref(false)
  * (metrics.bakano.ec), which serves no /api — the copied link was always dead
  * in production, and only appeared to work in local dev where both share a host.
  *
- * Same normalisation as APIBase: the env var is written with and without /api.
+ * `VITE_API_BASE_URL` no lo arreglaba: en producción esa variable no existe
+ * (metrics.bakano.ec se resuelve por tabla de dominios, no por variable), así
+ * que el enlace copiado seguía saliendo del dominio del front. `apiBaseUrl()`
+ * es la misma resolución que usa APIBase y ya trae el `/api`.
  */
-const feedUrl = computed(() => {
-  const raw = (import.meta.env.VITE_API_BASE_URL as string) || window.location.origin
-  const trimmed = raw.replace(/\/+$/, '')
-  const base = trimmed.endsWith('/api') || /\/api\//.test(trimmed) ? trimmed : `${trimmed}/api`
-  return `${base}/agent-feed/workspaces/${props.workspaceId}`
-})
+const feedUrl = computed(() => `${apiBaseUrl()}/agent-feed/workspaces/${props.workspaceId}`)
 
 const preview = computed(() =>
   JSON.stringify(

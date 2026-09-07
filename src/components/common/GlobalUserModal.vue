@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useGlobalUserModal } from '@/composables/useGlobalUserModal'
 import { workspaceService } from '@/services/workspace.service'
+import { contieneTexto } from '@/utils/texto'
 import { useToast } from '@/composables/useToast'
 // @ts-ignore
 import { VueTelInput } from 'vue-tel-input'
@@ -78,7 +79,9 @@ async function handleResendInvite() {
 async function fetchWorkspaces() {
   isLoadingWorkspaces.value = true
   try {
-    const response = await workspaceService.listWorkspaces({ limit: 100, minimal: true })
+    // Sin tope: el modo minimal solo trae id y nombre, y un entorno fuera del
+    // corte de 100 no se podía asignar nunca.
+    const response = await workspaceService.listWorkspaces({ limit: 1000, minimal: true })
     allWorkspaces.value = response.workspaces
   } catch (err) {
     toast.error('Error al cargar entornos')
@@ -129,12 +132,12 @@ function handleCountryChanged(country: any) {
   }
 }
 
-const filteredWorkspaces = computed(() => { // Added computed filteredWorkspaces
-  if (!workspaceSearch.value.trim()) return allWorkspaces.value
-  const query = workspaceSearch.value.toLowerCase()
-  return allWorkspaces.value.filter(ws => 
-    ws.name.toLowerCase().includes(query) || 
-    ws.metaAds?.pageName?.toLowerCase().includes(query)
+const filteredWorkspaces = computed(() => {
+  const query = workspaceSearch.value.trim()
+  if (!query) return allWorkspaces.value
+  return allWorkspaces.value.filter(ws =>
+    contieneTexto(ws.name, query) ||
+    contieneTexto(ws.metaAds?.pageName, query)
   )
 })
 

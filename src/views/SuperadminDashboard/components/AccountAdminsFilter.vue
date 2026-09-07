@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Workspace } from '@/types'
+import { contieneTexto } from '@/utils/texto'
 
 // vClickOutside directive for workspace selection dropdown
 const vClickOutside = {
@@ -45,9 +46,9 @@ const localFilterInternalRole = computed({
 })
 
 const filteredWorkspaces = computed(() => {
-  if (!workspaceSearchText.value.trim()) return props.workspaces
-  const query = workspaceSearchText.value.toLowerCase()
-  return props.workspaces.filter(ws => ws.name.toLowerCase().includes(query))
+  const query = workspaceSearchText.value.trim()
+  if (!query) return props.workspaces
+  return props.workspaces.filter(ws => contieneTexto(ws.name, query))
 })
 
 const currentFilterWorkspaceName = computed(() => {

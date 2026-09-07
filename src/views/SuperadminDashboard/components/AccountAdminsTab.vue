@@ -45,7 +45,7 @@ async function fetchAllUsers(): Promise<void> {
 
 async function fetchWorkspacesList(): Promise<void> {
   try {
-    const response = await workspaceService.listWorkspaces({ limit: 100, minimal: true })
+    const response = await workspaceService.listWorkspaces({ limit: 1000, minimal: true })
     workspaces.value = response.workspaces
   } catch {
     // Fail silently
