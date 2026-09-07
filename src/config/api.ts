@@ -113,3 +113,22 @@ export function resolveApiOrigin(host = window.location.hostname): ApiOrigen {
     aviso: `Host desconocido (${host}) y sin VITE_API_BASE_URL. Se usa localhost:8100.`,
   }
 }
+
+/**
+ * La misma URL base que usa `APIBase`, para las pocas URLs que no pasan por
+ * axios: un `<a href>` de descarga, un `<iframe>`, un enlace que se copia y se
+ * pega fuera de la app.
+ *
+ * Existe porque esos sitios leían `VITE_API_BASE_URL` a mano, y en producción
+ * esa variable no está definida (los dominios conocidos se resuelven en la
+ * tabla de arriba, no por variable). El resultado era una URL que empezaba por
+ * la cadena "undefined", que el navegador trata como ruta relativa: en vez de
+ * bajar el PDF, la SPA navegaba a /app/workspaces/.../undefined/api/... y
+ * mostraba su propio 404.
+ *
+ * Ya incluye el `/api` final: encima se cuelga `onboarding/...`, no
+ * `/api/onboarding/...`.
+ */
+export function apiBaseUrl(): string {
+  return resolveApiOrigin().baseUrl
+}
