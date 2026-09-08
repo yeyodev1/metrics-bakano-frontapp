@@ -168,11 +168,27 @@ export interface VideoItem {
   fbScheduleError?: string
 }
 
+/**
+ * Fecha de producción y plazo de correcciones (48 h antes por defecto). Lo
+ * calcula el backend a partir del Planning; el cliente lo ve en pantalla.
+ */
+export interface InfoProduccion {
+  entryId: string
+  fecha: string
+  titulo: string
+  cumplida: boolean
+  correccionesHasta: string
+  horasCorreccion: number
+  ventanaCerrada: boolean
+}
+
 export interface VideoPlanning {
   _id: string
   planningEntryId: string
   workspaceId: string
   items: VideoItem[]
+  /** Solo en getByEntry. */
+  produccion?: InfoProduccion | null
   /** Contenido dio por terminada la planificación; habilita "Notificar al cliente". */
   listaParaCliente?: boolean
   /** Ciclo de revisión de videos terminados: abierto = el cron insiste cada 4h. */

@@ -10,6 +10,9 @@ const props = defineProps<{
   rejections: Record<string, string>
   locked: boolean
   isSaving: boolean
+  /** Plazo de correcciones vencido: se puede aprobar, no rechazar. */
+  rejectDisabled?: boolean
+  rejectDisabledHint?: string
 }>()
 
 const emit = defineEmits<{
@@ -102,12 +105,17 @@ const dashOffset = computed(() => circumference * (1 - holdProgress.value / 100)
               />
               Aprobar
             </label>
-            <label class="cap__radio cap__radio--reject">
+            <label
+              class="cap__radio cap__radio--reject"
+              :class="{ 'is-disabled': rejectDisabled }"
+              :title="rejectDisabled ? rejectDisabledHint : undefined"
+            >
               <input
                 type="radio"
                 :name="`approval-${item._id}`"
                 :value="ClienteAprobacion.RECHAZADO"
                 :checked="approvals[item._id] === ClienteAprobacion.RECHAZADO"
+                :disabled="rejectDisabled"
                 @click="emit('update-approval', item._id, ClienteAprobacion.RECHAZADO)"
               />
               Rechazar
@@ -128,6 +136,11 @@ const dashOffset = computed(() => circumference * (1 - holdProgress.value / 100)
         </div>
       </div>
     </div>
+
+    <p v-if="rejectDisabled" class="cap__deadline-note">
+      <i class="fa-solid fa-lock" />
+      {{ rejectDisabledHint || 'El plazo para pedir correcciones venció.' }} Solo puedes aprobar.
+    </p>
 
     <div class="cap__confirm-row">
       <label class="cap__checkbox">
@@ -249,6 +262,15 @@ const dashOffset = computed(() => circumference * (1 - holdProgress.value / 100)
 
     &--approve { color: #166534; &:has(input:checked) { background: #dcfce7; border-color: #86efac; } }
     &--reject  { color: #991b1b; &:has(input:checked) { background: #fee2e2; border-color: #fca5a5; } }
+    &.is-disabled { opacity: 0.45; cursor: not-allowed; background: #f3f4f6; }
+  }
+
+  &__deadline-note {
+    margin: 0.75rem 0 0;
+    display: flex; align-items: flex-start; gap: 0.45rem;
+    font-size: 0.76rem; line-height: 1.45; color: #6b7280;
+    background: #f3f4f6; border-radius: 10px; padding: 0.55rem 0.75rem;
+    i { flex-shrink: 0; margin-top: 0.15rem; }
   }
 
   &__confirm-row {}

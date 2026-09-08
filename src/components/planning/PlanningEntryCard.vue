@@ -94,6 +94,14 @@ function getMetaPictureUrl(pageId: string): string {
           <i class="fa-solid fa-film" />
           {{ videoCount }}
         </span>
+        <span v-if="entry.cumplida" class="planning-entry-card__video-badge is-done" title="Producción cumplida: ya se grabó">
+          <i class="fa-solid fa-circle-check" />
+          <template v-if="!compact">Cumplida</template>
+        </span>
+        <span v-if="entry.source === 'crm'" class="planning-entry-card__video-badge is-crm" title="Agendada desde el CRM: la fecha se sincroniza desde allá">
+          <i class="fa-solid fa-link" />
+          <template v-if="!compact">CRM</template>
+        </span>
       </div>
     </div>
 
@@ -202,6 +210,9 @@ function getMetaPictureUrl(pageId: string): string {
     font-size: 0.6rem;
     font-weight: 800;
     white-space: nowrap;
+
+    &.is-done { background: #dcfce7; color: #15803d; }
+    &.is-crm  { background: #ede9fe; color: #6d28d9; }
   }
 
   &__ws-header {

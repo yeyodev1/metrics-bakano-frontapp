@@ -5,6 +5,7 @@ import type {
   CreatePlanningEntryPayload,
   UpdatePlanningEntryPayload,
   GlobalPlanningWeekResponse,
+  MonthlyProductionStatusResponse,
 } from '@/types'
 import type { ScriptRef } from '@/types/videoPlanning'
 
@@ -47,6 +48,12 @@ class PlanningService extends APIBase {
   async deleteEntry(entryId: string): Promise<void> {
     await this.delete(`planning/${entryId}`)
   }
+  /** Producción del mes cumplida o pendiente, por entorno. */
+  async monthlyStatus(params: { year: number; month: number }): Promise<MonthlyProductionStatusResponse> {
+    const res = await this.get<MonthlyProductionStatusResponse>('planning/monthly-status', undefined, { params })
+    return res.data
+  }
+
   async listMyWeek(
     params: { startDate: string; endDate: string },
   ): Promise<GlobalPlanningWeekResponse> {

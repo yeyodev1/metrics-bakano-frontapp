@@ -46,18 +46,48 @@ const typeIcon: Record<NotificationType, string> = {
   new_client_assigned:  'fa-solid fa-user-plus',
   video_status_changed: 'fa-solid fa-circle-play',
   video_planning_resent: 'fa-solid fa-calendar-pen',
+  brand_profile_missing: 'fa-solid fa-id-card',
+  billing_reminder: 'fa-solid fa-file-invoice-dollar',
+  monthly_target_missing: 'fa-solid fa-bullseye',
+  monthly_target_pace: 'fa-solid fa-gauge-high',
+  guion_rechazado: 'fa-solid fa-triangle-exclamation',
+  produccion_cumplida: 'fa-solid fa-clapperboard',
+  produccion_agendada: 'fa-solid fa-calendar-plus',
+  produccion_reprogramada: 'fa-solid fa-calendar-day',
+  produccion_cancelada: 'fa-solid fa-calendar-xmark',
+  produccion_sin_entorno: 'fa-solid fa-link-slash',
 }
 
 const typeColor: Record<NotificationType, string> = {
   new_client_assigned:  'notif--primary',
   video_status_changed: 'notif--info',
   video_planning_resent: 'notif--warning',
+  brand_profile_missing: 'notif--warning',
+  billing_reminder: 'notif--warning',
+  monthly_target_missing: 'notif--warning',
+  monthly_target_pace: 'notif--info',
+  guion_rechazado: 'notif--danger',
+  produccion_cumplida: 'notif--success',
+  produccion_agendada: 'notif--success',
+  produccion_reprogramada: 'notif--warning',
+  produccion_cancelada: 'notif--danger',
+  produccion_sin_entorno: 'notif--danger',
 }
 
 const typeLabel: Record<NotificationType, string> = {
   new_client_assigned:  'Cliente asignado',
   video_status_changed: 'Video publicado',
   video_planning_resent: 'Planificación',
+  brand_profile_missing: 'Perfil de marca',
+  billing_reminder: 'Facturación',
+  monthly_target_missing: 'Meta del mes',
+  monthly_target_pace: 'Ritmo de meta',
+  guion_rechazado: 'Guiones rechazados · Urgente',
+  produccion_cumplida: 'Producción cumplida',
+  produccion_agendada: 'Producción agendada',
+  produccion_reprogramada: 'Producción reprogramada',
+  produccion_cancelada: 'Producción cancelada',
+  produccion_sin_entorno: 'Producción sin entorno',
 }
 
 // ── Redirect logic ────────────────────────────────────────────
@@ -68,7 +98,15 @@ function getRedirectRoute(n: AppNotification): { name: string; params: Record<st
       return { name: 'BillingRoas', params: { workspaceId: n.workspaceId } }
     case 'video_status_changed':
     case 'video_planning_resent':
+    case 'produccion_cumplida':
+    case 'produccion_agendada':
+    case 'produccion_reprogramada':
+    case 'produccion_cancelada':
       return { name: 'AppPlanning', params: { workspaceId: n.workspaceId } }
+    case 'guion_rechazado':
+      return n.referenceId
+        ? { name: 'VideoPlanning', params: { workspaceId: n.workspaceId, entryId: n.referenceId } }
+        : { name: 'AppPlanning', params: { workspaceId: n.workspaceId } }
     default:
       return null
   }
@@ -483,6 +521,8 @@ async function goToPage(p: number) {
     &.notif--primary { background: #ede9fe; color: #7c3aed; }
     &.notif--info    { background: #dbeafe; color: #2563eb; }
     &.notif--warning { background: #fef3c7; color: #d97706; }
+    &.notif--danger  { background: #fee2e2; color: #dc2626; }
+    &.notif--success { background: #dcfce7; color: #16a34a; }
   }
 
   &__body {
@@ -508,6 +548,8 @@ async function goToPage(p: number) {
     &.notif--primary { background: #ede9fe; color: #7c3aed; }
     &.notif--info    { background: #dbeafe; color: #2563eb; }
     &.notif--warning { background: #fef3c7; color: #d97706; }
+    &.notif--danger  { background: #fee2e2; color: #dc2626; }
+    &.notif--success { background: #dcfce7; color: #16a34a; }
   }
 
   &__time {

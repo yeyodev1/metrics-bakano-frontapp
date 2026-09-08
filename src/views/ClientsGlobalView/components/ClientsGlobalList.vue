@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import type { Workspace, WorkspaceUser } from '@/types'
+import type { Workspace, WorkspaceUser, MonthlyProductionStatus } from '@/types'
 import ClientsGlobalWorkspaceCard from './ClientsGlobalWorkspaceCard.vue'
 
 const props = defineProps({
   workspaces: {
     type: Array as () => Workspace[],
     required: true,
+  },
+  productionStatus: {
+    type: Object as PropType<Record<string, MonthlyProductionStatus>>,
+    default: () => ({}),
   },
   loading: {
     type: Boolean,
@@ -54,6 +58,7 @@ const emit = defineEmits<{
         v-for="ws in workspaces"
         :key="ws._id"
         :workspace="ws"
+        :production="productionStatus[ws._id] ?? null"
         @select-workspace="emit('toggle-workspace', ws)"
       />
 

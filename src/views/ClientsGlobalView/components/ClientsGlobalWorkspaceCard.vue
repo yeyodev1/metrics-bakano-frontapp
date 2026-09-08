@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useUserStore } from '@/stores/user'
-import type { Workspace } from '@/types'
+import type { PropType } from 'vue'
+import type { Workspace, MonthlyProductionStatus } from '@/types'
 import { getWorkspaceImage } from '@/utils/workspaceImage'
 
 const userStore = useUserStore()
@@ -17,7 +18,27 @@ const props = defineProps({
     type: Object as () => Workspace,
     required: true,
   },
+  /** Producción del mes en curso; null = sin producción agendada. */
+  production: {
+    type: Object as PropType<MonthlyProductionStatus | null>,
+    default: null,
+  },
 })
+
+const productionChip = computed(() => {
+  const p = props.production
+  if (p?.cumplida) {
+    return { cls: 'is-done', icon: 'fa-solid fa-circle-check', text: `Producción cumplida${p.fechaCumplida ? ` · ${fechaCorta(p.fechaCumplida)}` : ''}` }
+  }
+  if (p?.producciones) {
+    return { cls: 'is-pending', icon: 'fa-solid fa-clapperboard', text: `Producción pendiente${p.proximaFecha ? ` · ${fechaCorta(p.proximaFecha)}` : ''}` }
+  }
+  return { cls: 'is-none', icon: 'fa-regular fa-calendar', text: 'Sin producción este mes' }
+})
+
+function fechaCorta(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-EC', { timeZone: 'America/Guayaquil', day: 'numeric', month: 'short' })
+}
 
 const emit = defineEmits<{
   (e: 'select-workspace', workspace: Workspace): void
@@ -62,6 +83,10 @@ function daysUntil(dateStr: string): number {
             · {{ workspace.metaAds.pageName }}
           </span>
         </div>
+        <span class="clients-global__card-production" :class="productionChip.cls" :title="productionChip.text">
+          <i :class="productionChip.icon" />
+          {{ productionChip.text }}
+        </span>
       </div>
     </div>
 
@@ -159,6 +184,23 @@ function daysUntil(dateStr: string): number {
       background: rgba(#ef4444, 0.1);
       color: #ef4444;
     }
+  }
+
+  &__card-production {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    align-self: flex-start;
+    margin-top: 0.2rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+
+    &.is-done    { background: #dcfce7; color: #15803d; }
+    &.is-pending { background: #fef3c7; color: #b45309; }
+    &.is-none    { background: rgba($primary-dark, 0.05); color: $text-secondary; }
   }
 
   &__card-meta-text {
