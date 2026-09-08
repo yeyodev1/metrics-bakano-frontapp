@@ -48,6 +48,19 @@ class PlanningService extends APIBase {
   async deleteEntry(entryId: string): Promise<void> {
     await this.delete(`planning/${entryId}`)
   }
+  /**
+   * Trae en vivo las citas de producción del CRM del rango visible. Devuelve
+   * cuántas cambiaron para que el calendario recargue solo si hace falta.
+   */
+  async syncCrm(params: { startDate: string; endDate: string }): Promise<{ cambios: number; omitido?: string; error?: string }> {
+    const res = await this.post<{ cambios: number; omitido?: string; error?: string }>(
+      'planning/crm-sync',
+      undefined,
+      { params, timeout: 30000 },
+    )
+    return res.data
+  }
+
   /** Producción del mes cumplida o pendiente, por entorno. */
   async monthlyStatus(params: { year: number; month: number }): Promise<MonthlyProductionStatusResponse> {
     const res = await this.get<MonthlyProductionStatusResponse>('planning/monthly-status', undefined, { params })
