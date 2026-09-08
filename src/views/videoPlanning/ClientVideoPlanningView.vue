@@ -34,6 +34,40 @@ const reviewed = computed(() =>
   items.value.filter(i => approvals[i._id] && approvals[i._id] !== ClienteAprobacion.PENDIENTE).length
 )
 
+// ── Plazo de correcciones ─────────────────────────────────────
+// El cliente solo puede pedir cambios a los guiones hasta 48 h antes de la
+// producción. Pasado el plazo puede aprobar, pero no rechazar.
+const produccion = computed(() => planning.value?.produccion ?? null)
+const ventanaCerrada = computed(() => produccion.value?.ventanaCerrada === true)
+const avisoPlazo = ref<string | null>(null)
+
+function fechaHora(iso: string): string {
+  return new Date(iso).toLocaleString('es-EC', {
+    timeZone: 'America/Guayaquil',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+const fechaProduccionTexto = computed(() => (produccion.value ? fechaHora(produccion.value.fecha) : ''))
+const limiteTexto = computed(() => (produccion.value ? fechaHora(produccion.value.correccionesHasta) : ''))
+const horasRestantes = computed(() => {
+  if (!produccion.value) return null
+  return Math.max(0, (new Date(produccion.value.correccionesHasta).getTime() - Date.now()) / 3_600_000)
+})
+const plazoUrgente = computed(() => horasRestantes.value !== null && horasRestantes.value <= 24 && !ventanaCerrada.value)
+const tiempoRestanteTexto = computed(() => {
+  const h = horasRestantes.value
+  if (h === null) return ''
+  if (h < 1) return 'menos de 1 hora'
+  if (h < 24) return `${Math.floor(h)} hora${Math.floor(h) === 1 ? '' : 's'}`
+  const d = Math.floor(h / 24)
+  return `${d} día${d === 1 ? '' : 's'}`
+})
+
 async function loadPlanning() {
   loading.value = true
   try {
@@ -62,6 +96,10 @@ function openScript(item: VideoItem) {
 }
 
 function updateApproval(itemId: string, value: ClienteAprobacion) {
+  if (value === ClienteAprobacion.RECHAZADO && ventanaCerrada.value) {
+    avisoPlazo.value = `El plazo para pedir correcciones venció el ${limiteTexto.value}. Puedes aprobar los guiones o coordinar cualquier ajuste directamente con tu equipo de Bakano.`
+    return
+  }
   // Toggle: clicking the already-selected option resets to PENDIENTE
   if (approvals[itemId] === value) {
     approvals[itemId] = ClienteAprobacion.PENDIENTE
@@ -89,8 +127,14 @@ async function submitApproval() {
         motivoRechazo: rejections[itemId] || undefined,
       })),
     })
-  } catch {
-    error.value = 'Error al enviar la aprobación'
+  } catch (err: any) {
+    const data = err?.response?.data
+    if (data?.code === 'CORRECTION_WINDOW_CLOSED') {
+      avisoPlazo.value = data.message
+      if (planning.value && data.produccion) planning.value = { ...planning.value, produccion: data.produccion }
+      return
+    }
+    error.value = data?.message || 'Error al enviar la aprobación'
   } finally {
     saving.value = false
   }
@@ -179,6 +223,42 @@ onMounted(loadPlanning)
     <!-- ── Content: two-column on desktop ─────────────────────── -->
     <div v-else class="cv__body">
 
+      <!-- Plazo de correcciones: hasta 48 h antes de la producción -->
+      <div
+        v-if="produccion && !locked"
+        class="cv__deadline"
+        :class="{ 'cv__deadline--closed': ventanaCerrada, 'cv__deadline--urgent': plazoUrgente }"
+      >
+        <div class="cv__deadline-icon">
+          <i :class="ventanaCerrada ? 'fa-solid fa-lock' : 'fa-solid fa-hourglass-half'" />
+        </div>
+        <div class="cv__deadline-text">
+          <template v-if="!ventanaCerrada">
+            <strong>Puedes pedir correcciones a los guiones hasta el {{ limiteTexto }}</strong>
+            <span>
+              Es decir, {{ produccion.horasCorreccion }} horas antes de tu producción del {{ fechaProduccionTexto }}.
+              Te quedan {{ tiempoRestanteTexto }}. Después de esa fecha solo podrás aprobarlos.
+            </span>
+          </template>
+          <template v-else>
+            <strong>El plazo para pedir correcciones venció el {{ limiteTexto }}</strong>
+            <span>
+              Tu producción es el {{ fechaProduccionTexto }}. Los cambios a los guiones se reciben hasta
+              {{ produccion.horasCorreccion }} horas antes: puedes aprobar los guiones o coordinar cualquier
+              ajuste directamente con tu equipo de Bakano.
+            </span>
+          </template>
+        </div>
+      </div>
+
+      <div v-if="avisoPlazo" class="cv__deadline-alert" role="alert">
+        <i class="fa-solid fa-circle-exclamation" />
+        <span>{{ avisoPlazo }}</span>
+        <button class="cv__deadline-alert-close" aria-label="Cerrar" @click="avisoPlazo = null">
+          <i class="fa-solid fa-xmark" />
+        </button>
+      </div>
+
       <!-- Left: video list -->
       <div class="cv__list">
         <div
@@ -245,15 +325,20 @@ onMounted(loadPlanning)
                   <i class="fa-solid fa-circle-check" />
                   Aprobar
                 </label>
-                <label class="cv-item__radio cv-item__radio--reject">
+                <label
+                  class="cv-item__radio cv-item__radio--reject"
+                  :class="{ 'is-disabled': ventanaCerrada }"
+                  :title="ventanaCerrada ? `Plazo de correcciones vencido el ${limiteTexto}` : undefined"
+                >
                   <input
                     type="radio"
                     :name="`approval-${item._id}`"
                     :value="ClienteAprobacion.RECHAZADO"
                     :checked="approvals[item._id] === ClienteAprobacion.RECHAZADO"
+                    :disabled="ventanaCerrada"
                     @click="updateApproval(item._id, ClienteAprobacion.RECHAZADO)"
                   />
-                  <i class="fa-solid fa-circle-xmark" />
+                  <i :class="ventanaCerrada ? 'fa-solid fa-lock' : 'fa-solid fa-circle-xmark'" />
                   Rechazar
                 </label>
               </div>
@@ -294,6 +379,8 @@ onMounted(loadPlanning)
           :rejections="rejections"
           :locked="locked"
           :isSaving="saving"
+          :rejectDisabled="ventanaCerrada"
+          :rejectDisabledHint="ventanaCerrada ? `Plazo de correcciones vencido el ${limiteTexto}` : ''"
           @update-approval="updateApproval"
           @update-rejection="updateRejection"
           @submit="submitApproval"
@@ -453,6 +540,60 @@ onMounted(loadPlanning)
     }
   }
 
+  // ── Plazo de correcciones ─────────────────────────────────────
+  &__deadline {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    padding: 0.95rem 1.15rem;
+    border-radius: 14px;
+    background: #fffbeb;
+    border: 1.5px solid #fcd34d;
+    color: #78350f;
+
+    &--urgent {
+      background: #fff1f2;
+      border-color: #fda4af;
+      color: #9f1239;
+      .cv__deadline-icon { background: rgba(#e11d48, 0.12); color: #e11d48; }
+    }
+
+    &--closed {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+      color: #374151;
+      .cv__deadline-icon { background: rgba(#374151, 0.1); color: #374151; }
+    }
+  }
+
+  &__deadline-icon {
+    width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+    background: rgba(#d97706, 0.14); color: #d97706;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  }
+
+  &__deadline-text {
+    display: flex; flex-direction: column; gap: 0.2rem;
+    strong { font-size: 0.92rem; font-weight: 800; line-height: 1.35; }
+    span { font-size: 0.82rem; line-height: 1.5; opacity: 0.9; }
+  }
+
+  &__deadline-alert {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 0.6rem;
+    background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;
+    border-radius: 12px; padding: 0.8rem 1rem; font-size: 0.85rem; font-weight: 600;
+    > i:first-child { flex-shrink: 0; }
+    span { flex: 1; }
+  }
+
+  &__deadline-alert-close {
+    border: none; background: transparent; color: inherit; cursor: pointer;
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+    &:hover { background: rgba(#991b1b, 0.1); }
+  }
+
   &__list {
     display: flex;
     flex-direction: column;
@@ -577,6 +718,12 @@ onMounted(loadPlanning)
     &--reject {
       color: #991b1b;
       &:has(input:checked) { background: #fee2e2; border-color: #fca5a5; }
+    }
+
+    &.is-disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      background: #f3f4f6;
     }
   }
 
