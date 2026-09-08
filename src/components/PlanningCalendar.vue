@@ -398,6 +398,51 @@ function refreshCurrentView() {
   else if (viewMode.value === 'global-week') fetchGlobalWeek()
   else if (viewMode.value === 'week') fetchWeekEntries()
   else fetchEntries()
+  syncCrmForCurrentView()
+}
+
+// ── CRM en vivo ─────────────────────────────────────────────
+// Al abrir una semana o un mes se le pide al CRM lo que haya agendado en ese
+// rango y, si hubo algo nuevo, se vuelve a pintar. Así las producciones del
+// cliente salen al momento, sin esperar al cron.
+const esInterno = computed(() => userStore.isInternal || userStore.role === 'superadmin')
+const isCrmSyncing = ref(false)
+let crmSyncSeq = 0
+
+function currentRange(): { start: Date; end: Date } {
+  if (viewMode.value.includes('month')) {
+    return {
+      start: new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1),
+      end: new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59, 999),
+    }
+  }
+  const start = new Date(currentWeekStart.value)
+  const end = new Date(currentWeekStart.value)
+  end.setDate(end.getDate() + 6)
+  end.setHours(23, 59, 59, 999)
+  return { start, end }
+}
+
+async function syncCrmForCurrentView() {
+  if (!esInterno.value) return
+  const seq = ++crmSyncSeq
+  const { start, end } = currentRange()
+  isCrmSyncing.value = true
+  try {
+    const res = await planningService.syncCrm({ startDate: start.toISOString(), endDate: end.toISOString() })
+    if (seq !== crmSyncSeq) return
+    if (res.cambios > 0) {
+      if (viewMode.value === 'global-month') await fetchGlobalMonth()
+      else if (viewMode.value === 'global-week') await fetchGlobalWeek()
+      else if (viewMode.value === 'week') await fetchWeekEntries()
+      else await fetchEntries()
+      toast.success(`${res.cambios} producción${res.cambios === 1 ? '' : 'es'} del CRM actualizada${res.cambios === 1 ? '' : 's'}`)
+    }
+  } catch {
+    // No crítico: el cron y el webhook siguen sincronizando.
+  } finally {
+    if (seq === crmSyncSeq) isCrmSyncing.value = false
+  }
 }
 
 // ── Watchers & Lifecycle ────────────────────────────────────
@@ -453,6 +498,13 @@ function getThisMonday(d: Date) {
     />
 
     <PlanningTypeFilters v-model="calendarFilter" />
+
+    <Transition name="fade">
+      <div v-if="isCrmSyncing" class="planning-calendar__crm-sync">
+        <i class="fa-solid fa-rotate fa-spin" />
+        <span>Buscando producciones agendadas en el CRM…</span>
+      </div>
+    </Transition>
 
     <Transition name="view-fade" mode="out-in">
       <div v-if="isLoading || isWeekLoading" class="planning-calendar__loading">
@@ -549,6 +601,19 @@ function getThisMonday(d: Date) {
 </template>
 
 <style lang="scss" scoped>
+.planning-calendar__crm-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.25rem 0 0.75rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: #f5f3ff;
+  color: #6d28d9;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
 .planning-calendar {
   padding: 0;
   min-height: 100%;
