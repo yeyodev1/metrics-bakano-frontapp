@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
-import type { Workspace, WorkspaceUser } from '@/types'
+import { planningService } from '@/services/planning.service'
+import type { Workspace, WorkspaceUser, MonthlyProductionStatus } from '@/types'
 import { useUserStore } from '@/stores/user'
 
 import ClientsGlobalHeader from './components/ClientsGlobalHeader.vue'
@@ -25,6 +26,18 @@ const loadingWorkspaces = ref(false)
 const loadingMore = ref(false)
 const loadingUsers = ref(false)
 const error = ref<string | null>(null)
+
+// Producción del mes por cliente (cumplida / pendiente / sin agendar).
+const productionStatus = ref<Record<string, MonthlyProductionStatus>>({})
+async function fetchProductionStatus() {
+  try {
+    const hoy = new Date()
+    const res = await planningService.monthlyStatus({ year: hoy.getFullYear(), month: hoy.getMonth() + 1 })
+    productionStatus.value = res.status
+  } catch {
+    productionStatus.value = {}
+  }
+}
 
 
 // ── Search & Pagination ───────────────────────────────────────
@@ -113,6 +126,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   fetchWorkspaces()
+  fetchProductionStatus()
   document.addEventListener('keydown', handleKeydown)
 })
 
@@ -132,6 +146,7 @@ onUnmounted(() => {
 
       <ClientsGlobalList
         :workspaces="workspaces"
+        :productionStatus="productionStatus"
         :loading="loadingWorkspaces"
         :error="error"
         :hasMore="hasMore"

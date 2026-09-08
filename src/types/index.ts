@@ -281,11 +281,26 @@ export interface UserListResponse {
 
 
 // ── Planning types ──────────────────────────────────────────
+export type PlanningSource = 'manual' | 'crm'
+
+/** Rastro de la cita del CRM de la que nació la producción. */
+export interface PlanningCrm {
+  appointmentId: string
+  calendarId?: string
+  calendarName?: string
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
+  status?: string
+  syncedAt?: string
+}
+
 export interface PlanningEntry {
   _id: string
   workspaceId: string
   title: string
   date: string
+  endsAt?: string
   notes?: string
   assignedTo?: {
     _id: string
@@ -293,12 +308,36 @@ export interface PlanningEntry {
     email: string
     internalRole?: string
   }[]
-  createdBy: string
+  /** Vacío cuando la producción entró desde el CRM. */
+  createdBy?: string
   createdAt: string
   updatedAt: string
+  /** 'crm' = agendada desde el link del CRM; la fecha se sincroniza desde allá. */
+  source?: PlanningSource
+  crm?: PlanningCrm
+  /** El productor ya grabó: la producción del mes está cumplida. */
+  cumplida?: boolean
+  cumplidaEn?: string
+  cumplidaPorNombre?: string
   /** Solo en /planning/mine: nombre y logo del entorno ya resueltos. */
   workspaceName?: string
   workspacePhoto?: string | null
+}
+
+/** Estado de la producción del mes por entorno (GET /planning/monthly-status). */
+export interface MonthlyProductionStatus {
+  cumplida: boolean
+  cumplidaEn: string | null
+  producciones: number
+  proximaFecha: string | null
+  fechaCumplida: string | null
+}
+
+export interface MonthlyProductionStatusResponse {
+  message: string
+  year: number
+  month: number
+  status: Record<string, MonthlyProductionStatus>
 }
 
 export interface PlanningEntryResponse {
@@ -401,7 +440,16 @@ export type NotificationType =
   | 'new_client_assigned'
   | 'video_status_changed'
   | 'video_planning_resent'
+  | 'brand_profile_missing'
   | 'billing_reminder'
+  | 'monthly_target_missing'
+  | 'monthly_target_pace'
+  | 'guion_rechazado'
+  | 'produccion_cumplida'
+  | 'produccion_agendada'
+  | 'produccion_reprogramada'
+  | 'produccion_cancelada'
+  | 'produccion_sin_entorno'
 
 export interface AppNotification {
   _id: string

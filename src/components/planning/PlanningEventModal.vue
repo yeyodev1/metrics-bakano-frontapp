@@ -229,6 +229,26 @@ function goToVideoPlanning() {
           </div>
         </div>
 
+        <!-- Producción cumplida -->
+        <div v-if="entry?.cumplida" class="planning-modal__hint planning-modal__hint--done">
+          <i class="fa-solid fa-circle-check" />
+          <span>
+            <strong>Producción cumplida.</strong>
+            {{ entry.cumplidaPorNombre ? `${entry.cumplidaPorNombre} marcó` : 'Se marcó' }} el guion como grabado
+            <template v-if="entry.cumplidaEn">el {{ new Date(entry.cumplidaEn).toLocaleDateString('es-EC', { timeZone: 'America/Guayaquil', day: 'numeric', month: 'short' }) }}</template>.
+          </span>
+        </div>
+
+        <!-- Agendada desde el CRM -->
+        <div v-if="entry?.source === 'crm'" class="planning-modal__hint planning-modal__hint--crm">
+          <i class="fa-solid fa-link" />
+          <span>
+            <strong>Agendada desde el CRM</strong>
+            <template v-if="entry.crm?.contactName"> por {{ entry.crm.contactName }}</template>.
+            La fecha y la hora se sincronizan desde el CRM: si hay que moverla o cancelarla, hazlo allá.
+          </span>
+        </div>
+
         <!-- Hint -->
         <div class="planning-modal__hint">
           <i class="fa-solid fa-circle-info" />
@@ -556,6 +576,17 @@ function goToVideoPlanning() {
     i { font-size: 0.8rem; color: $text-secondary; opacity: 0.5; }
     span { font-size: 0.75rem; color: $text-secondary; }
     @media (max-width: 480px) { padding: 0.5rem 1.25rem; }
+
+    &--done {
+      background: #f0fdf4; border-bottom-color: #bbf7d0;
+      i { color: #16a34a; opacity: 1; }
+      span { color: #166534; }
+    }
+    &--crm {
+      background: #f5f3ff; border-bottom-color: #ddd6fe;
+      i { color: #6d28d9; opacity: 1; }
+      span { color: #4c1d95; }
+    }
   }
 
   &__form {

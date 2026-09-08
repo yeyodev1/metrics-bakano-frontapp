@@ -95,6 +95,15 @@ function getMetaPictureUrl(pageId: string): string {
 
     <span class="planning-global-card__title">{{ entry.title }}</span>
 
+    <div v-if="entry.source === 'crm' || entry.cumplida" class="planning-global-card__badges">
+      <span v-if="entry.cumplida" class="planning-global-card__badge is-done" title="Producción cumplida: ya se grabó">
+        <i class="fa-solid fa-circle-check" /> Cumplida
+      </span>
+      <span v-if="entry.source === 'crm'" class="planning-global-card__badge" title="Agendada desde el CRM: la fecha se sincroniza desde allá">
+        <i class="fa-solid fa-link" /> CRM
+      </span>
+    </div>
+
     <div v-if="entry.assignedTo && entry.assignedTo.length" class="planning-global-card__avatars">
       <span
         v-for="(person, i) in entry.assignedTo.slice(0, 3)"
@@ -195,6 +204,32 @@ function getMetaPictureUrl(pageId: string): string {
     font-weight: 700;
     line-height: 1.3;
     margin-bottom: 0.15rem;
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.12rem 0.4rem;
+    border-radius: 6px;
+    background: rgba($white, 0.22);
+    border: 1px solid rgba($white, 0.35);
+    color: $white;
+
+    &.is-done {
+      background: #16a34a;
+      border-color: #16a34a;
+    }
   }
 
   &__avatars {
