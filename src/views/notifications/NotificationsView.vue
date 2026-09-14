@@ -56,6 +56,7 @@ const typeIcon: Record<NotificationType, string> = {
   produccion_reprogramada: 'fa-solid fa-calendar-day',
   produccion_cancelada: 'fa-solid fa-calendar-xmark',
   produccion_sin_entorno: 'fa-solid fa-link-slash',
+  solicitud_cliente: 'fa-brands fa-telegram',
 }
 
 const typeColor: Record<NotificationType, string> = {
@@ -72,6 +73,7 @@ const typeColor: Record<NotificationType, string> = {
   produccion_reprogramada: 'notif--warning',
   produccion_cancelada: 'notif--danger',
   produccion_sin_entorno: 'notif--danger',
+  solicitud_cliente: 'notif--primary',
 }
 
 const typeLabel: Record<NotificationType, string> = {
@@ -88,6 +90,7 @@ const typeLabel: Record<NotificationType, string> = {
   produccion_reprogramada: 'Producción reprogramada',
   produccion_cancelada: 'Producción cancelada',
   produccion_sin_entorno: 'Producción sin entorno',
+  solicitud_cliente: 'Cliente por Telegram',
 }
 
 // ── Redirect logic ────────────────────────────────────────────
