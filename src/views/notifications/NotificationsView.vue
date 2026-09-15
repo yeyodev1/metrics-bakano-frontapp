@@ -58,6 +58,7 @@ const typeIcon: Record<NotificationType, string> = {
   produccion_sin_entorno: 'fa-solid fa-link-slash',
   solicitud_cliente: 'fa-brands fa-telegram',
   reunion_agendada: 'fa-solid fa-calendar-check',
+  cliente_en_riesgo: 'fa-solid fa-triangle-exclamation',
 }
 
 const typeColor: Record<NotificationType, string> = {
@@ -76,6 +77,7 @@ const typeColor: Record<NotificationType, string> = {
   produccion_sin_entorno: 'notif--danger',
   solicitud_cliente: 'notif--primary',
   reunion_agendada: 'notif--success',
+  cliente_en_riesgo: 'notif--danger',
 }
 
 const typeLabel: Record<NotificationType, string> = {
@@ -94,6 +96,7 @@ const typeLabel: Record<NotificationType, string> = {
   produccion_sin_entorno: 'Producción sin entorno',
   solicitud_cliente: 'Cliente por Telegram',
   reunion_agendada: 'Reunión agendada por Telegram',
+  cliente_en_riesgo: 'Cliente en riesgo · Telegram',
 }
 
 // ── Redirect logic ────────────────────────────────────────────

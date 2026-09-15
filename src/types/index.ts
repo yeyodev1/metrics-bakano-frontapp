@@ -452,6 +452,7 @@ export type NotificationType =
   | 'produccion_sin_entorno'
   | 'solicitud_cliente'
   | 'reunion_agendada'
+  | 'cliente_en_riesgo'
 
 export interface AppNotification {
   _id: string
