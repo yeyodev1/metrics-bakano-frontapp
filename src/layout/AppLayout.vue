@@ -112,7 +112,7 @@ watch(wsSearch, () => {
   }, 300)
 })
 
-const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'PulseOverview', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
+const GLOBAL_ROUTE_NAMES = ['AdminWorkspaces', 'InternalPlanning', 'ClientsGlobal', 'PulseOverview', 'OnboardingProgreso', 'TeamKpis', 'TraffickerDashboard', 'TraffickerWorkspace', 'SalesExecutiveDashboard', 'SuperadminMetaIntegrations']
 
 
 const isGlobalView = computed(() => GLOBAL_ROUTE_NAMES.includes(route.name as string))
@@ -585,6 +585,15 @@ watch(() => route.params.workspaceId, async (newId) => {
           >
             <i class="fa-solid fa-users" aria-hidden="true" />
             <span>Vista de Clientes</span>
+          </RouterLink>
+          <!-- Onboarding — en qué paso va cada cliente y por qué está trabado. -->
+          <RouterLink
+            v-if="idVista.isInternal || idVista.role === 'superadmin'"
+            class="app-layout__nav-item"
+            :to="{ name: 'OnboardingProgreso' }"
+          >
+            <i class="fa-solid fa-rocket" aria-hidden="true" />
+            <span>Onboarding</span>
           </RouterLink>
           <!-- Pulso de metas — todos los clientes en una sola lista, ordenados
                por lo que duele: sin meta primero, luego atrasados. -->
