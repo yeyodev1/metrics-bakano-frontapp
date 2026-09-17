@@ -229,6 +229,12 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/pulse/PulseOverviewView.vue'),
         meta: { title: 'Bakano Ads: Metas de Clientes', requiresAuth: true, requiresInternal: true },
       },
+      {
+        path: 'onboarding-progreso',
+        name: 'OnboardingProgreso',
+        component: () => import('../views/onboarding/OnboardingProgresoView.vue'),
+        meta: { title: 'Bakano Metrics: Onboarding de Clientes', requiresAuth: true, requiresInternal: true },
+      },
       // ── Billing & ROAS ───────────────────────────────────
       {
         path: 'workspaces/:workspaceId/billing',
