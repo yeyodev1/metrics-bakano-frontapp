@@ -293,7 +293,7 @@
             </div>
             <label class="bp__brand-resource-btn" :class="{ 'is-loading': resourceUploading === 'logo' }">
               <i :class="resourceUploading === 'logo' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" hidden @change="handleBrandResourceFile($event, 'logo')" :disabled="!!resourceUploading">
+              <input type="file" accept="image/png" hidden @change="handleBrandResourceFile($event, 'logo')" :disabled="!!resourceUploading">
             </label>
             <div v-if="brandLogos.length" class="bp__brand-resource-card__files">
               <div v-for="r in brandLogos" :key="r._id" class="bp__brand-resource-file">
@@ -312,7 +312,7 @@
             </div>
             <label class="bp__brand-resource-btn" :class="{ 'is-loading': resourceUploading === 'linea_grafica' }">
               <i :class="resourceUploading === 'linea_grafica' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif,application/pdf" hidden @change="handleBrandResourceFile($event, 'linea_grafica')" :disabled="!!resourceUploading">
+              <input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" hidden @change="handleBrandResourceFile($event, 'linea_grafica')" :disabled="!!resourceUploading">
             </label>
             <div v-if="brandLineas.length" class="bp__brand-resource-card__files">
               <div v-for="r in brandLineas" :key="r._id" class="bp__brand-resource-file">
