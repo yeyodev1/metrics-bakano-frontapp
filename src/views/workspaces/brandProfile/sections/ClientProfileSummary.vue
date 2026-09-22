@@ -152,7 +152,7 @@
               <label class="bp__summary-resource-card__btn" :class="{ 'is-loading': resourceUploading === 'logo' }">
                 <i :class="resourceUploading === 'logo' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
                 {{ brandLogos.length ? 'Cambiar' : 'Subir logo' }}
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" hidden @change="handleBrandResourceFile($event, 'logo')" :disabled="!!resourceUploading">
+                <input type="file" accept="image/png" hidden @change="handleBrandResourceFile($event, 'logo')" :disabled="!!resourceUploading">
               </label>
               <div v-if="brandLogos.length" class="bp__summary-resource-card__files">
                 <div v-for="r in brandLogos" :key="r._id" class="bp__summary-resource-card__file">
@@ -173,7 +173,7 @@
               <label class="bp__summary-resource-card__btn" :class="{ 'is-loading': resourceUploading === 'linea_grafica' }">
                 <i :class="resourceUploading === 'linea_grafica' ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-cloud-arrow-up'"></i>
                 {{ brandLineas.length ? 'Cambiar' : 'Subir línea gráfica' }}
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif,application/pdf" hidden @change="handleBrandResourceFile($event, 'linea_grafica')" :disabled="!!resourceUploading">
+                <input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" hidden @change="handleBrandResourceFile($event, 'linea_grafica')" :disabled="!!resourceUploading">
               </label>
               <div v-if="brandLineas.length" class="bp__summary-resource-card__files">
                 <div v-for="r in brandLineas" :key="r._id" class="bp__summary-resource-card__file">

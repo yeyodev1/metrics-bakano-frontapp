@@ -9,16 +9,16 @@ import type { Resource } from '@/types'
  */
 export type ResourceCategory = 'logo' | 'linea_grafica' | 'catalogo'
 
-export const IMAGE_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'image/svg+xml',
-  'image/avif',
-]
+/**
+ * Lo que el backend acepta de verdad (uploadDocument): PDF, PNG, JPG y WEBP.
+ * SVG y AVIF estaban aquí pero el servidor los rechazaba, así que el archivo
+ * pasaba la validación del navegador y moría en el envío.
+ */
+export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 export const ACCEPTED: Record<ResourceCategory, string[]> = {
-  logo: IMAGE_TYPES,
+  // El logo va a los videos y a las piezas: se necesita PNG (con transparencia).
+  logo: ['image/png'],
   linea_grafica: [...IMAGE_TYPES, 'application/pdf'],
   catalogo: [...IMAGE_TYPES, 'application/pdf', 'text/plain'],
 }
@@ -29,7 +29,8 @@ export const LABELS: Record<ResourceCategory, string> = {
   catalogo: 'catálogo',
 }
 
-export const MAX_MB = 25
+/** El servidor corta en 10 MB: pedir más aquí solo producía errores al subir. */
+export const MAX_MB = 10
 
 /** Atributo `accept` del input, derivado de la misma lista que valida. */
 export function acceptFor(categoria: ResourceCategory): string {
@@ -42,9 +43,11 @@ export function acceptFor(categoria: ResourceCategory): string {
  */
 export function rejectionReason(file: File, categoria: ResourceCategory): string | null {
   if (!ACCEPTED[categoria].includes(file.type)) {
-    const allowed = categoria === 'logo' ? 'una imagen' : 'una imagen o un PDF'
     const tipo = file.type || 'de tipo desconocido'
-    return `El ${LABELS[categoria]} debe ser ${allowed}. "${file.name}" es ${tipo}.`
+    if (categoria === 'logo') {
+      return `El logo tiene que ser un PNG. "${file.name}" es ${tipo}. Si lo tienes en .ai, .psd o .jpg, expórtalo a PNG con fondo transparente.`
+    }
+    return `El ${LABELS[categoria]} debe ser una imagen (PNG, JPG o WEBP) o un PDF. "${file.name}" es ${tipo}.`
   }
 
   if (file.size > MAX_MB * 1024 * 1024) {
