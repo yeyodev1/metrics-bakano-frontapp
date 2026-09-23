@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useGlobalUserModal } from '@/composables/useGlobalUserModal'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import type { Workspace, WorkspaceUser } from '@/types'
 import AccountAdminsFilter from './AccountAdminsFilter.vue'
 import AccountAdminsTable from './AccountAdminsTable.vue'
@@ -10,6 +11,7 @@ import ResendInviteModal from './ResendInviteModal.vue'
 
 const globalUserModal = useGlobalUserModal()
 const toast = useToast()
+const confirm = useConfirm()
 
 const users = ref<WorkspaceUser[]>([])
 const isLoading = ref(false)
@@ -84,6 +86,33 @@ async function submitResendInvite(password: string) {
     toast.error(err.response?.data?.message || 'Error al reenviar invitación')
   } finally {
     isResendingInvite.value = false
+  }
+}
+
+/**
+ * Borrar desde aqui, que es donde se ven todas las personas. Antes solo se
+ * podia editar o reenviar la invitacion: una cuenta mal creada se quedaba en
+ * la lista para siempre. Pide confirmacion sostenida porque no se deshace.
+ */
+async function eliminarUsuario(user: WorkspaceUser): Promise<void> {
+  const ok = await confirm.confirm({
+    title: `¿Eliminar a ${user.name || user.email}?`,
+    message:
+      'Esto borra la cuenta de forma permanente y no se puede deshacer. ' +
+      'Pierde el acceso a todos sus entornos y, si aparece en planificaciones o notificaciones, ' +
+      'esas referencias quedarán sin nombre. Si solo quieres quitarle el acceso, edítalo y desactívalo.',
+    confirmText: 'Sí, eliminar para siempre',
+    cancelText: 'Cancelar',
+    requireHold: true,
+  })
+  if (!ok) return
+
+  try {
+    await workspaceService.deleteGlobalUser((user as any)._id)
+    users.value = users.value.filter((u) => (u as any)._id !== (user as any)._id)
+    toast.success('Usuario eliminado.')
+  } catch (error: any) {
+    toast.error(error?.response?.data?.message || 'No se pudo eliminar.')
   }
 }
 
@@ -248,6 +277,7 @@ onMounted(() => {
           :users="seccion.usuarios"
           @edit-user="openEditGlobalUser"
           @resend-invite="openResendInvite"
+          @delete-user="eliminarUsuario"
         />
       </section>
     </template>

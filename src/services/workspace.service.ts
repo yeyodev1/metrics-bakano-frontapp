@@ -113,6 +113,12 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
+  /** Borra a cualquier persona desde "Admins de cuenta" (equipo o cliente). */
+  async deleteGlobalUser(userId: string): Promise<void> {
+    await this.delete(`admin/users/${userId}`)
+  }
+
+
   async deleteInternalUser(userId: string): Promise<void> {
     await this.delete(`admin/internal-users/${userId}`)
   }
