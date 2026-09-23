@@ -34,6 +34,11 @@ class IncidenteService extends APIBase {
     return res.data
   }
 
+  async uno(id: string): Promise<Incidente> {
+    const res = await this.get<{ incidente: Incidente }>(`incidentes/${id}`)
+    return res.data.incidente
+  }
+
   async tomar(id: string): Promise<Incidente> {
     const res = await this.patch<{ incidente: Incidente }>(`incidentes/${id}/tomar`, {})
     return res.data.incidente
