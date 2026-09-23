@@ -10,6 +10,7 @@ import DashboardTabsNavigation from './components/DashboardTabsNavigation.vue'
 import WorkspacesTab from './components/WorkspacesTab.vue'
 import AccountAdminsTab from './components/AccountAdminsTab.vue'
 import SuperadminsTab from './components/SuperadminsTab.vue'
+import EquipoInternoTab from './components/EquipoInternoTab.vue'
 import PlanningTab from './components/PlanningTab.vue'
 import CreateWorkspaceWizardModal from './components/CreateWorkspaceWizardModal.vue'
 
@@ -17,7 +18,7 @@ import CreateWorkspaceWizardModal from './components/CreateWorkspaceWizardModal.
 const workspacesTabRef = ref<InstanceType<typeof WorkspacesTab> | null>(null)
 const superadminsTabRef = ref<InstanceType<typeof SuperadminsTab> | null>(null)
 
-const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'planning'>('workspaces')
+const activeTab = ref<'workspaces' | 'account-admins' | 'superadmins' | 'equipo' | 'planning'>('workspaces')
 const showCreateWorkspace = ref(false)
 
 const selectedWorkspace = computed(() => {
@@ -72,6 +73,9 @@ function switchTab(tab: 'workspaces' | 'account-admins' | 'superadmins' | 'plann
       v-if="activeTab === 'superadmins'"
       ref="superadminsTabRef"
     />
+
+    <!-- Content: Equipo interno de Bakano -->
+    <EquipoInternoTab v-if="activeTab === 'equipo'" />
 
     <!-- Content: Planning Tab -->
     <PlanningTab

@@ -97,6 +97,25 @@ class WorkspaceService extends APIBase {
   async deleteSuperadmin(userId: string): Promise<void> {
     await this.delete(`admin/superadmins/${userId}`)
   }
+
+  // ── Equipo interno de Bakano ─────────────────────────────────
+
+  async listInternalUsers(): Promise<{ users: any[] }> {
+    const res = await this.get<{ users: any[] }>('admin/internal-users')
+    return res.data
+  }
+
+  async updateInternalUser(
+    userId: string,
+    payload: { internalRole?: string; name?: string; isActive?: boolean },
+  ): Promise<{ user: any }> {
+    const res = await this.patch<{ user: any }>(`admin/internal-users/${userId}`, payload)
+    return res.data
+  }
+
+  async deleteInternalUser(userId: string): Promise<void> {
+    await this.delete(`admin/internal-users/${userId}`)
+  }
   /** `onlyAccountAdmins` deja solo a los administradores de cuenta de clientes. */
   async listAllCollaborators(
     search?: string,
