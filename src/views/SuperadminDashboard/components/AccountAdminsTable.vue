@@ -35,6 +35,7 @@ const ROLES_INTERNOS: Record<string, string> = {
 const emit = defineEmits<{
   (e: 'edit-user', user: WorkspaceUser): void
   (e: 'resend-invite', user: WorkspaceUser): void
+  (e: 'delete-user', user: WorkspaceUser): void
 }>()
 </script>
 
@@ -109,6 +110,9 @@ const emit = defineEmits<{
               </button>
               <button class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--invite" @click="emit('resend-invite', user)" title="Reenviar invitación">
                 <i class="fa-solid fa-paper-plane" />
+              </button>
+              <button class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--danger" @click="emit('delete-user', user)" title="Eliminar">
+                <i class="fa-solid fa-trash-can" />
               </button>
             </div>
           </td>
