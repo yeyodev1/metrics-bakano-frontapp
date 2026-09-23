@@ -230,6 +230,13 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Ads: Metas de Clientes', requiresAuth: true, requiresInternal: true },
       },
       {
+        // Incidentes de clientes detectados por el bot: los ve todo el equipo.
+        path: 'incidentes',
+        name: 'Incidentes',
+        component: () => import('../views/incidentes/IncidentesView.vue'),
+        meta: { title: 'Bakano Metrics: Incidentes de clientes', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'onboarding-progreso',
         name: 'OnboardingProgreso',
         component: () => import('../views/onboarding/OnboardingProgresoView.vue'),
