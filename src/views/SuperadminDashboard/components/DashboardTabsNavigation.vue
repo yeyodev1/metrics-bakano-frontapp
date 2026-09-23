@@ -3,6 +3,7 @@ export type SuperadminTab =
   | 'workspaces'
   | 'account-admins'
   | 'superadmins'
+  | 'equipo'
   | 'planning'
 
 defineProps<{ activeTab: SuperadminTab }>()
@@ -24,6 +25,7 @@ const TABS: Array<{ id: SuperadminTab; label: string; icon: string }> = [
   { id: 'workspaces', label: 'Entornos', icon: 'fa-solid fa-layer-group' },
   { id: 'account-admins', label: 'Admins de cuenta', icon: 'fa-solid fa-users-gear' },
   { id: 'superadmins', label: 'Superadmins', icon: 'fa-solid fa-user-shield' },
+  { id: 'equipo', label: 'Equipo Bakano', icon: 'fa-solid fa-people-group' },
   { id: 'planning', label: 'Planificación', icon: 'fa-solid fa-calendar-days' },
 ]
 </script>
