@@ -32,10 +32,16 @@ const ROLES_INTERNOS: Record<string, string> = {
   trafficker: 'Trafficker',
 }
 
+function fechaCorta(iso?: string): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('es-EC', { timeZone: 'America/Guayaquil', day: 'numeric', month: 'short' })
+}
+
 const emit = defineEmits<{
   (e: 'edit-user', user: WorkspaceUser): void
   (e: 'resend-invite', user: WorkspaceUser): void
   (e: 'delete-user', user: WorkspaceUser): void
+  (e: 'invitar-bot', user: WorkspaceUser): void
 }>()
 </script>
 
@@ -47,6 +53,7 @@ const emit = defineEmits<{
           <th>Usuario</th>
           <th v-if="muestraRolInterno">Rol interno</th>
           <th>Cuenta</th>
+          <th>Bot</th>
           <th>Estado</th>
           <th>Acciones</th>
         </tr>
@@ -99,6 +106,26 @@ const emit = defineEmits<{
             </div>
           </td>
           <td>
+            <!-- Desde que el flujo pasa por Telegram, esto se mira tanto como
+                 el estado de la cuenta: si no conectó el bot, no se entera de nada. -->
+            <span
+              v-if="(user as any).isInternal"
+              class="bot-chip bot-chip--na"
+              title="El bot es para clientes"
+            >—</span>
+            <span
+              v-else-if="(user as any).botConectado"
+              class="bot-chip bot-chip--ok"
+              title="Ya conectó su Telegram con Metrics"
+            ><i class="fa-brands fa-telegram" /> Conectado</span>
+            <span
+              v-else-if="(user as any).presentacionBotEnviadaEn"
+              class="bot-chip bot-chip--pend"
+              :title="`Invitación enviada el ${fechaCorta((user as any).presentacionBotEnviadaEn)}, todavía sin conectar`"
+            >Invitado</span>
+            <span v-else class="bot-chip bot-chip--sin" title="Todavía no se le envió la invitación">Sin invitar</span>
+          </td>
+          <td>
             <span class="superadmin-dashboard__status-chip" :class="{ 'superadmin-dashboard__status-chip--active': user.isActive }">
               {{ user.isActive ? 'Activo' : 'Inactivo' }}
             </span>
@@ -110,6 +137,14 @@ const emit = defineEmits<{
               </button>
               <button class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--invite" @click="emit('resend-invite', user)" title="Reenviar invitación">
                 <i class="fa-solid fa-paper-plane" />
+              </button>
+              <button
+                v-if="!(user as any).isInternal"
+                class="superadmin-dashboard__action-btn bot-btn"
+                :title="(user as any).presentacionBotEnviadaEn ? 'Volver a enviar la invitación al bot' : 'Enviar la invitación al bot'"
+                @click="emit('invitar-bot', user)"
+              >
+                <i class="fa-brands fa-telegram" />
               </button>
               <button class="superadmin-dashboard__action-btn superadmin-dashboard__action-btn--danger" @click="emit('delete-user', user)" title="Eliminar">
                 <i class="fa-solid fa-trash-can" />
@@ -123,6 +158,45 @@ const emit = defineEmits<{
 </template>
 
 <style lang="scss" scoped>
+.bot-btn { color: #2aabee; }
+
+/* Estado del bot por persona. Colores por significado, no por decoración:
+   verde ya está adentro, ámbar le llegó y no entró, gris ni se enteró. */
+.bot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  &--ok {
+    background: rgba(47, 125, 93, 0.12);
+    color: #2f7d5d;
+    border-color: rgba(47, 125, 93, 0.3);
+  }
+
+  &--pend {
+    background: rgba(180, 103, 26, 0.12);
+    color: #b4671a;
+    border-color: rgba(180, 103, 26, 0.3);
+  }
+
+  &--sin {
+    background: rgba(100, 100, 110, 0.1);
+    color: #6b6b78;
+    border-color: rgba(100, 100, 110, 0.25);
+  }
+
+  &--na {
+    background: transparent;
+    color: #a0a0aa;
+  }
+}
+
 .superadmin-dashboard__user-table-container {
   // min-width: 0 es lo que permite encoger dentro de un contenedor flex; sin
   // el, overflow-x no llegaba a activarse y la columna Estado quedaba cortada

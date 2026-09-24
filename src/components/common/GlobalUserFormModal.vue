@@ -183,6 +183,16 @@ async function handleSubmit() {
               <option value="colaborador">Colaborador (Solo ver reportes y configurar)</option>
             </select>
           </div>
+          <!-- El flujo ya no pasa por la plataforma: quien entra a un entorno
+               recibe el acceso al bot en el momento. Se dice aquí para que
+               nadie mande ese correo a mano ni se pregunte si salió. -->
+          <p v-if="modalOptions.mode !== 'edit'" class="aviso-bot-alta">
+            <i class="fa-brands fa-telegram" />
+            <span>
+              Al invitarlo le llega por correo el <b>acceso al bot de Telegram</b>, donde ve sus citas,
+              guiones y facturación sin entrar a Metrics. Entra con este mismo correo y un código de 6 números.
+            </span>
+          </p>
           <p v-if="userError" class="global-modal__error-text">{{ userError }}</p>
           <div class="global-modal__footer">
             <button type="button" class="global-modal__btn-ghost" @click="close(null)">Cancelar</button>
@@ -198,6 +208,29 @@ async function handleSubmit() {
 </template>
 
 <style lang="scss" scoped>
+/* Aviso de que la invitación al bot sale sola al dar de alta. */
+.aviso-bot-alta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.25rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(133, 82, 156, 0.28);
+  background: rgba(133, 82, 156, 0.07);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #5b5266;
+
+  i {
+    color: #85529c;
+    font-size: 1rem;
+    margin-top: 0.1rem;
+  }
+
+  b { color: #3d3648; }
+}
+
 .global-modal-overlay {
   position: fixed;
   inset: 0;
