@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+/**
+ * Pantalla de firma del contrato.
+ *
+ * Antes esto era un recorrido de cuatro pasos: aceptar un video, llenar un
+ * formulario largo, firmar y agendar una reunión, todo en la misma página. El
+ * cliente se caía en el formulario. Ahora los datos los da por Telegram —donde
+ * ya está hablando— y este link abre una sola cosa: leer y firmar.
+ */
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { onboardingService } from '@/services/onboarding.service'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
 
-import OnboardingSidebar from './components/OnboardingSidebar.vue'
-import OnboardingStepVideo from './components/OnboardingStepVideo.vue'
 import OnboardingStepContract from './components/OnboardingStepContract.vue'
-import OnboardingStepScheduling from './components/OnboardingStepScheduling.vue'
-import OnboardingStepDone from './components/OnboardingStepDone.vue'
 import OnboardingContractModal from './components/OnboardingContractModal.vue'
 
 const router = useRouter()
@@ -17,23 +21,21 @@ const route = useRoute()
 const userStore = useUserStore()
 const toast = useToast()
 
+const BOT_URL = 'https://t.me/BakanoAgencyBot'
+
 const workspaceId = computed(() => route.params.workspaceId as string)
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const currentStep = ref(1)
-
-// Status
-const videoAccepted = ref(false)
 const contractSubmitted = ref(false)
-const meetingScheduled = ref(false)
+const workspaceName = ref('')
 
-// Contract Data
-const contractData = ref({
+/** Los datos los llenó por Telegram; aquí solo se muestran. */
+const contractData = ref<Record<string, any>>({
   rucBakano: '0993213210001',
-  nombreCliente: userStore.name || '',
+  nombreCliente: '',
   rucCliente: '',
-  representanteCliente: userStore.firstName && userStore.lastName ? `${userStore.firstName} ${userStore.lastName}` : '',
+  representanteCliente: '',
   cantidadGuiones: 0,
   videosEntretenimiento: 0,
   videosVenta: 0,
@@ -44,13 +46,17 @@ const contractData = ref({
   plazoMeses: 6,
   mesesPermanencia: 3,
   mensualidadesPenalidad: 1,
-  email: userStore.email || ''
+  email: userStore.email || '',
 })
+
+const CAMPOS_OBLIGATORIOS = ['rucCliente', 'nombreCliente', 'representanteCliente', 'email']
+
+const faltantes = computed(() =>
+  CAMPOS_OBLIGATORIOS.filter((c) => !String(contractData.value[c] ?? '').trim())
+)
 
 const showPreviewModal = ref(false)
 const pendingContractPayload = ref<any>(null)
-
-let pollingInterval: number | undefined
 
 onMounted(async () => {
   if (!workspaceId.value) {
@@ -59,29 +65,10 @@ onMounted(async () => {
   }
   try {
     const response = await onboardingService.getStatus(workspaceId.value)
-
-    if (response.preNegotiatedContract) {
-      Object.assign(contractData.value, response.preNegotiatedContract)
-    }
-
-    const status = response.onboardingStatus
-    videoAccepted.value = status?.videoGenesisAccepted || false
-    contractSubmitted.value = status?.contractSubmitted || false
-    meetingScheduled.value = status?.meetingScheduled || false
-
-    // El paso de recursos se eliminó del flujo: quien lo tuviera pendiente o
-    // completado aterriza directo en la agenda.
-    if (meetingScheduled.value) {
-      currentStep.value = 4
-      setTimeout(() => {
-        router.push(`/app/workspaces/${workspaceId.value}`)
-      }, 3000)
-    } else if (contractSubmitted.value) {
-      currentStep.value = 3
-      startPolling()
-    } else if (videoAccepted.value) {
-      currentStep.value = 2
-    }
+    if (response.preNegotiatedContract) Object.assign(contractData.value, response.preNegotiatedContract)
+    if (response.contractData) Object.assign(contractData.value, response.contractData)
+    workspaceName.value = response.workspaceName || ''
+    contractSubmitted.value = response.onboardingStatus?.contractSubmitted || false
   } catch (error) {
     console.error(error)
   } finally {
@@ -89,27 +76,10 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => {
-  stopPolling()
-})
-
-async function onAcceptVideo() {
-  isSubmitting.value = true
-  try {
-    await onboardingService.acceptVideo(workspaceId.value)
-    videoAccepted.value = true
-    currentStep.value = 2
-  } catch (error) {
-    console.error(error)
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
 function handlePreview(eventPayload: any) {
   pendingContractPayload.value = {
     ...contractData.value,
-    clientSignatureBase64: eventPayload.signatureBase64
+    clientSignatureBase64: eventPayload.signatureBase64,
   }
   showPreviewModal.value = true
 }
@@ -122,13 +92,10 @@ async function onSubmitContract() {
   isSubmitting.value = true
   try {
     if (!pendingContractPayload.value) return
-    
     await onboardingService.submitContract(workspaceId.value, pendingContractPayload.value)
     contractSubmitted.value = true
     closePreviewModal()
-    toast.success('¡Información Recibida! En breve se creará el grupo de WhatsApp y se te enviará el PDF del contrato con las firmas oficiales.')
-    currentStep.value = 3
-    startPolling()
+    toast.success('Contrato firmado. Te llega el PDF con las firmas a tu correo.')
   } catch (error) {
     console.error(error)
     toast.error('Hubo un error al procesar tu contrato.')
@@ -137,51 +104,10 @@ async function onSubmitContract() {
   }
 }
 
-async function onMeetingScheduled() {
-  isSubmitting.value = true
-  try {
-    await onboardingService.markMeetingScheduled(workspaceId.value)
-    meetingScheduled.value = true
-    stopPolling()
-    currentStep.value = 4
-    setTimeout(() => {
-      router.push(`/app/workspaces/${workspaceId.value}`)
-    }, 5000)
-  } catch (error) {
-    console.error(error)
-    toast.error('Hubo un error al marcar la sesión como agendada.')
-  } finally {
-    isSubmitting.value = false
-  }
+function irAMetrics() {
+  router.push(`/app/workspaces/${workspaceId.value}`)
 }
 
-function startPolling() {
-  if (pollingInterval) return
-  pollingInterval = window.setInterval(async () => {
-    try {
-      const status = await onboardingService.getStatus(workspaceId.value)
-      if (status?.onboardingStatus?.meetingScheduled) {
-        meetingScheduled.value = true
-        stopPolling()
-        currentStep.value = 4
-        setTimeout(() => {
-          router.push(`/app/workspaces/${workspaceId.value}`)
-        }, 5000)
-      }
-    } catch (e) {
-      console.error("Polling error", e)
-    }
-  }, 3000)
-}
-
-function stopPolling() {
-  if (pollingInterval) {
-    clearInterval(pollingInterval)
-    pollingInterval = undefined
-  }
-}
-
-// Temporary logout for development
 function onLogout() {
   userStore.clear()
   router.push({ name: 'AuthLogin' })
@@ -189,132 +115,219 @@ function onLogout() {
 </script>
 
 <template>
-  <div class="onboarding-flow-wrapper">
-    <div v-if="isLoading" class="onboarding-loading">
-      <i class="fa-solid fa-spinner fa-spin"></i> Cargando tu experiencia...
-    </div>
-
-    <div v-else class="onboarding-glass-card">
-      <OnboardingSidebar 
-        :currentStep="currentStep" 
-        @logout="onLogout" 
-      />
-
-      <!-- RIGHT MAIN AREA -->
-      <div class="card-main">
-        <div class="main-content-wrapper">
-          <Transition name="fade" mode="out-in">
-            <OnboardingStepVideo 
-              v-if="currentStep === 1" 
-              :isSubmitting="isSubmitting"
-              @accept="onAcceptVideo"
-            />
-            
-            <OnboardingStepContract 
-              v-else-if="currentStep === 2"
-              :contractData="contractData"
-              :isSubmitting="isSubmitting"
-              @preview="handlePreview"
-            />
-
-            <OnboardingStepScheduling
-              v-else-if="currentStep === 3"
-              @scheduled="onMeetingScheduled"
-            />
-
-            <OnboardingStepDone
-              v-else-if="currentStep === 4"
-            />
-          </Transition>
-        </div>
+  <div class="firma">
+    <header class="firma__head">
+      <div class="firma__marca">
+        <span class="firma__punto" />
+        <span>Bakano</span>
+        <span v-if="workspaceName" class="firma__entorno">· {{ workspaceName }}</span>
       </div>
-    </div>
-  </div>
+      <button class="firma__salir" @click="onLogout">
+        <i class="fa-solid fa-right-from-bracket" /> Salir
+      </button>
+    </header>
 
-  <OnboardingContractModal 
-    :show="showPreviewModal"
-    :contractData="contractData"
-    :isSubmitting="isSubmitting"
-    @close="closePreviewModal"
-    @confirm="onSubmitContract"
-  />
+    <!-- Cargando: el esqueleto tiene la forma de lo que viene -->
+    <main v-if="isLoading" class="firma__caja">
+      <span class="skel skel--titulo" />
+      <span class="skel skel--linea" />
+      <div class="firma__skel-datos">
+        <span v-for="n in 4" :key="n" class="skel skel--dato" />
+      </div>
+      <span class="skel skel--firma" />
+    </main>
+
+    <!-- Ya firmó -->
+    <main v-else-if="contractSubmitted" class="firma__caja firma__caja--centrada">
+      <p class="firma__emoji">✅</p>
+      <h1 class="firma__titulo">Tu contrato está firmado</h1>
+      <p class="firma__sub">
+        Te llega el PDF con las dos firmas a <strong>{{ contractData.email }}</strong>.
+        Todo lo que sigue lo manejamos por el chat de Telegram.
+      </p>
+      <div class="firma__acciones">
+        <a class="firma__btn" :href="BOT_URL" target="_blank" rel="noopener">💬 Volver al chat</a>
+        <button class="firma__btn firma__btn--plano" @click="irAMetrics">Ir a mi entorno</button>
+      </div>
+    </main>
+
+    <!-- Le faltan datos: se los pide por Telegram, no aquí -->
+    <main v-else-if="faltantes.length" class="firma__caja firma__caja--centrada">
+      <p class="firma__emoji">📝</p>
+      <h1 class="firma__titulo">Falta completar tu contrato</h1>
+      <p class="firma__sub">
+        Los datos del contrato se llenan por el chat, en un minuto y sin formularios.
+        Vuelve a Telegram y el bot te va preguntando uno por uno.
+      </p>
+      <div class="firma__acciones">
+        <a class="firma__btn" :href="BOT_URL" target="_blank" rel="noopener">💬 Completar en Telegram</a>
+      </div>
+    </main>
+
+    <!-- Lo único que hace esta pantalla: leer y firmar -->
+    <main v-else class="firma__caja">
+      <OnboardingStepContract
+        :contractData="contractData"
+        :isSubmitting="isSubmitting"
+        @preview="handlePreview"
+      />
+    </main>
+
+    <OnboardingContractModal
+      :show="showPreviewModal"
+      :contractData="contractData"
+      :isSubmitting="isSubmitting"
+      @close="closePreviewModal"
+      @confirm="onSubmitContract"
+    />
+  </div>
 </template>
 
 <style lang="scss" scoped>
-.onboarding-flow-wrapper {
+.firma {
   width: 100%;
-  max-width: 1300px;
+  max-width: 920px;
   margin: 0 auto;
+  padding: 1.25rem 1.25rem 3rem;
   font-family: 'Inter', system-ui, sans-serif;
-}
 
-.onboarding-loading {
-  width: 100%;
-  padding: 4rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.5rem;
-  color: $primary;
-  gap: 1.5rem;
-}
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
 
-.onboarding-glass-card {
-  display: flex;
-  width: 100%;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 32px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  min-height: 70vh;
+  &__marca {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $primary-dark;
+  }
 
-  @media (max-width: 992px) {
-    flex-direction: column;
-    border-radius: 24px;
+  &__punto {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $primary, $secondary);
+  }
+
+  &__entorno {
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: $text-secondary;
+  }
+
+  &__salir {
+    border: 1px solid rgba(107, 114, 128, 0.2);
+    background: $white;
+    color: $text-secondary;
+    border-radius: 9px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    &:hover { border-color: $secondary; color: $secondary; }
+  }
+
+  &__caja {
+    background: $white;
+    border: 1px solid rgba(107, 114, 128, 0.16);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 16px 40px rgba(25, 20, 35, 0.06);
+    display: grid;
+    gap: 0.85rem;
+
+    @media (max-width: 640px) { padding: 1.25rem; border-radius: 16px; }
+
+    &--centrada {
+      justify-items: center;
+      text-align: center;
+      padding-block: 3rem;
+      gap: 0.6rem;
+    }
+  }
+
+  &__emoji { font-size: 2.5rem; margin: 0; line-height: 1; }
+
+  &__titulo {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  &__sub {
+    margin: 0;
+    color: $text-secondary;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    max-width: 52ch;
+  }
+
+  &__acciones {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.75rem;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: linear-gradient(135deg, $primary, $secondary);
+    color: $white;
+    border: none;
+    border-radius: 11px;
+    padding: 0.7rem 1.4rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+
+    &--plano {
+      background: $white;
+      color: $secondary;
+      border: 1px solid rgba(107, 114, 128, 0.2);
+    }
+  }
+
+  &__skel-datos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin: 0.5rem 0;
   }
 }
 
-.card-main {
-  flex: 1;
-  background: transparent;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 4rem;
-  overflow-y: auto;
+.skel {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(133, 82, 156, 0.08) 25%, rgba(133, 82, 156, 0.16) 50%, rgba(133, 82, 156, 0.08) 75%);
+  background-size: 200% 100%;
+  animation: firma-brillo 1.2s ease-in-out infinite;
 
-  @media (max-width: 768px) {
-    padding: 2rem 1.5rem;
-  }
+  &--titulo { height: 26px; width: 45%; }
+  &--linea { height: 12px; width: 70%; }
+  &--dato { height: 58px; }
+  &--firma { height: 160px; }
 }
 
-.main-content-wrapper {
-  width: 100%;
-  max-width: 600px;
-
-  /* Let step 2 grow a bit more if needed */
-  :deep(.step-content--large) {
-    max-width: 700px;
-  }
-}
-
-/* Transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.4s ease, transform 0.4s ease;
-}
-
-.fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
+@keyframes firma-brillo {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 </style>

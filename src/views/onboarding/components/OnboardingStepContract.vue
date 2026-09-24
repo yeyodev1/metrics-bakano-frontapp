@@ -20,10 +20,24 @@ const contractSignatureText = ref('')
 const hasDrawnSignature = ref(false)
 const signaturePadRef = ref<InstanceType<typeof SignaturePad> | null>(null)
 
-const isSignatureValid = computed(() => {
-  if (!props.contractData.representanteCliente) return false
-  const textMatches = contractSignatureText.value.replace(/\s+/g, '').toLowerCase() === props.contractData.representanteCliente.replace(/\s+/g, '').toLowerCase()
-  return textMatches && hasDrawnSignature.value
+const nombreCoincide = computed(() => {
+  const objetivo = String(props.contractData.representanteCliente || '').replace(/\s+/g, '').toLowerCase()
+  if (!objetivo) return false
+  return contractSignatureText.value.replace(/\s+/g, '').toLowerCase() === objetivo
+})
+
+const isSignatureValid = computed(() => nombreCoincide.value && hasDrawnSignature.value)
+
+/**
+ * Que falta, con nombre y apellido. El mensaje anterior pedia las dos cosas
+ * siempre, asi que quien ya habia escrito bien su nombre no entendia por que
+ * le seguia saliendo el error.
+ */
+const queFalta = computed(() => {
+  const faltan: string[] = []
+  if (!hasDrawnSignature.value) faltan.push('dibujar tu firma arriba')
+  if (!nombreCoincide.value) faltan.push(`escribir tu nombre tal cual: ${props.contractData.representanteCliente || 'tu nombre'}`)
+  return faltan
 })
 
 function onPreview() {
@@ -39,9 +53,17 @@ function onPreview() {
 
 <template>
   <div class="step-content step-content--large" key="step2">
-    <h1 class="main-title">Información del Contrato</h1>
-    <p class="main-subtitle">Verifica la información para la generación de tu contrato PDF.</p>
-    
+    <h1 class="main-title">Tu contrato</h1>
+    <p class="main-subtitle">
+      Revisa que los datos estén bien, léelo y fírmalo. Nada más.
+    </p>
+
+    <!-- Los datos vienen del chat: aquí solo se muestran. Editarlos en dos
+         lugares distintos es la forma más rápida de que no coincidan. -->
+    <p class="datos-origen">
+      💬 Esto lo llenaste por Telegram. Si algo está mal, corrígelo ahí y vuelve a abrir este link.
+    </p>
+
     <form class="contract-form" @submit.prevent="onPreview">
       <div class="form-row">
         <div class="form-group">
@@ -50,23 +72,23 @@ function onPreview() {
         </div>
         <div class="form-group">
           <label>Tu RUC/C.I.</label>
-          <input type="text" v-model="contractData.rucCliente" required />
+          <input type="text" :value="contractData.rucCliente" disabled />
         </div>
       </div>
 
       <div class="form-group">
         <label>Nombre o Razón Social</label>
-        <input type="text" v-model="contractData.nombreCliente" required />
+        <input type="text" :value="contractData.nombreCliente" disabled />
       </div>
       
       <div class="form-group">
         <label>Representante Legal</label>
-        <input type="text" v-model="contractData.representanteCliente" required />
+        <input type="text" :value="contractData.representanteCliente" disabled />
       </div>
       
       <div class="form-group">
         <label>Email para recibir contrato</label>
-        <input type="email" v-model="contractData.email" required />
+        <input type="email" :value="contractData.email" disabled />
       </div>
 
       <div class="signature-section">
@@ -102,7 +124,10 @@ function onPreview() {
           />
           <div class="signature-status" v-if="contractSignatureText.length > 0 || hasDrawnSignature">
             <span v-if="isSignatureValid" class="status-valid"><i class="fa-solid fa-check-circle"></i> Firma electrónica completada</span>
-            <span v-else class="status-invalid"><i class="fa-solid fa-xmark-circle"></i> Debes dibujar tu firma y escribir tu nombre idéntico al Representante Legal.</span>
+            <span v-else class="status-invalid">
+              <i class="fa-solid fa-circle-exclamation" />
+              Te falta {{ queFalta.join(' y ') }}.
+            </span>
           </div>
         </div>
       </div>
@@ -115,6 +140,17 @@ function onPreview() {
 </template>
 
 <style lang="scss" scoped>
+.datos-origen {
+  margin: 0 0 1.25rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 10px;
+  background: rgba(133, 82, 156, 0.08);
+  border: 1px solid rgba(133, 82, 156, 0.22);
+  color: #5b3f70;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .step-content {
   width: 100%;
 }
