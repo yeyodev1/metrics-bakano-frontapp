@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import RecorridoCliente from './components/RecorridoCliente.vue'
 import {
   onboardingProgresoService,
   type EstadoPaso,
@@ -303,6 +304,10 @@ onMounted(cargar)
             </div>
           </div>
         </section>
+
+        <!-- El recorrido completo, con las etapas internas que el cliente
+             también ve en el bot. -->
+        <RecorridoCliente v-if="abierto" :workspace-id="abierto.workspaceId" :key="abierto.workspaceId" />
 
         <section v-if="bitacora.length" class="onb__bitacora">
           <p class="onb__paso-title">Bitácora</p>
