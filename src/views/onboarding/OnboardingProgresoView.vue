@@ -34,6 +34,26 @@ const ESTADOS: { valor: EstadoPaso; texto: string }[] = [
   { valor: 'no_aplica', texto: 'No aplica' },
 ]
 
+/** Emojis por estado: se leen de un vistazo sin tener que ir a la leyenda. */
+const ESTADO_EMOJI: Record<EstadoPaso, string> = {
+  pendiente: '⬜',
+  agendada: '🗓️',
+  cumplida: '✅',
+  bloqueada: '⛔',
+  no_aplica: '➖',
+}
+
+/** Y por paso, para reconocer la fila sin leerla entera. */
+const PASO_EMOJI: Record<string, string> = {
+  bienvenida: '🤝',
+  especializacion: '📣',
+  levantamiento: '📝',
+  produccion: '🎬',
+  meta: '📣',
+  crm: '🗂️',
+  estrategia: '📝',
+}
+
 const ESTADO_TEXTO: Record<EstadoPaso, string> = {
   pendiente: 'Pendiente',
   agendada: 'Agendada',
@@ -169,8 +189,10 @@ onMounted(cargar)
 
 <template>
   <div class="onb">
+    <!-- Ancho completo y pegado a la izquierda: esta pantalla es una lista de
+         trabajo, no un articulo. Centrarla dejaba media pantalla en blanco. -->
     <header class="onb__head">
-      <p class="onb__tag">Equipo Bakano</p>
+      <p class="onb__tag">🚀 Equipo Bakano</p>
       <h1 class="onb__title">Onboarding de clientes</h1>
       <p class="onb__sub">
         En qué paso va cada cliente, quién lo tiene y, si está trabado, por qué. Marca tu avance aquí mismo.
@@ -178,53 +200,78 @@ onMounted(cargar)
     </header>
 
     <section class="onb__totals">
-      <article class="onb__total">
-        <p class="onb__total-label">Clientes</p>
-        <p class="onb__total-value">{{ totales.clientes }}</p>
-        <p class="onb__total-foot">en la lista</p>
-      </article>
-      <article class="onb__total onb__total--bad">
-        <p class="onb__total-label">Trabados</p>
-        <p class="onb__total-value">{{ totales.bloqueados }}</p>
-        <p class="onb__total-foot">con motivo escrito</p>
-      </article>
-      <article class="onb__total onb__total--warn">
-        <p class="onb__total-label">Sin moverse</p>
-        <p class="onb__total-value">{{ totales.parados }}</p>
-        <p class="onb__total-foot">7 días o más</p>
-      </article>
-      <article class="onb__total onb__total--ok">
-        <p class="onb__total-label">Completos</p>
-        <p class="onb__total-value">{{ totales.completos }}</p>
-        <p class="onb__total-foot">listos para producir</p>
-      </article>
+      <template v-if="cargando">
+        <article v-for="n in 4" :key="n" class="onb__total onb__total--skel">
+          <span class="skel skel--sm" />
+          <span class="skel skel--lg" />
+          <span class="skel skel--sm" />
+        </article>
+      </template>
+      <template v-else>
+        <article class="onb__total">
+          <p class="onb__total-label">👥 Clientes</p>
+          <p class="onb__total-value">{{ totales.clientes }}</p>
+          <p class="onb__total-foot">en la lista</p>
+        </article>
+        <article class="onb__total onb__total--bad">
+          <p class="onb__total-label">⛔ Trabados</p>
+          <p class="onb__total-value">{{ totales.bloqueados }}</p>
+          <p class="onb__total-foot">con motivo escrito</p>
+        </article>
+        <article class="onb__total onb__total--warn">
+          <p class="onb__total-label">🐢 Sin moverse</p>
+          <p class="onb__total-value">{{ totales.parados }}</p>
+          <p class="onb__total-foot">7 días o más</p>
+        </article>
+        <article class="onb__total onb__total--ok">
+          <p class="onb__total-label">✅ Completos</p>
+          <p class="onb__total-value">{{ totales.completos }}</p>
+          <p class="onb__total-foot">listos para producir</p>
+        </article>
+      </template>
     </section>
 
     <div class="onb__filters">
-      <button :class="{ 'is-active': filtro === 'pendientes' }" @click="filtro = 'pendientes'; cargar()">En proceso</button>
-      <button :class="{ 'is-active': filtro === 'bloqueados' }" @click="filtro = 'bloqueados'; cargar()">Trabados</button>
-      <button :class="{ 'is-active': filtro === 'todos' }" @click="filtro = 'todos'; cargar()">Todos</button>
-      <input v-model="busqueda" class="onb__buscador" type="search" placeholder="Buscar cliente…" />
-      <span class="onb__cuenta">{{ filas.length }} clientes</span>
+      <button :class="{ 'is-active': filtro === 'pendientes' }" @click="filtro = 'pendientes'; cargar()">⏳ En proceso</button>
+      <button :class="{ 'is-active': filtro === 'bloqueados' }" @click="filtro = 'bloqueados'; cargar()">⛔ Trabados</button>
+      <button :class="{ 'is-active': filtro === 'todos' }" @click="filtro = 'todos'; cargar()">📋 Todos</button>
+      <input v-model="busqueda" class="onb__buscador" type="search" placeholder="🔍 Buscar cliente…" />
+      <span v-if="!cargando" class="onb__cuenta">{{ filas.length }} clientes</span>
     </div>
 
-    <p v-if="cargando" class="onb__loading">Cargando…</p>
-    <p v-else-if="errorCarga" class="onb__error">{{ errorCarga }}</p>
-    <p v-else-if="!filas.length" class="onb__vacio">No hay clientes con ese filtro.</p>
+    <!-- Esqueleto con la forma exacta de las filas: la pantalla no salta
+         cuando llegan los datos. -->
+    <ul v-if="cargando" class="onb__lista">
+      <li v-for="n in 8" :key="n" class="onb__fila onb__fila--skel">
+        <div class="onb__fila-main">
+          <span class="skel skel--md" />
+          <span class="skel skel--sm" />
+        </div>
+        <div class="onb__fila-pasos">
+          <span v-for="p in 4" :key="p" class="skel skel--punto" />
+        </div>
+        <div class="onb__fila-barra"><span class="skel skel--barra" /></div>
+        <span class="skel skel--dias" />
+      </li>
+    </ul>
+
+    <p v-else-if="errorCarga" class="onb__error">😕 {{ errorCarga }}</p>
+    <p v-else-if="!filas.length" class="onb__vacio">🔎 No hay clientes con ese filtro.</p>
 
     <ul v-else class="onb__lista">
       <li v-for="row in filas" :key="row.workspaceId" class="onb__fila" @click="abrir(row)">
         <div class="onb__fila-main">
           <p class="onb__fila-nombre">
             {{ row.entorno }}
-            <span v-if="row.bloqueado" class="onb__chip onb__chip--bad">Trabado</span>
-            <span v-else-if="row.porcentaje === 100" class="onb__chip onb__chip--ok">Completo</span>
-            <span v-if="row.tieneTelegram" class="onb__chip onb__chip--tg">Telegram</span>
+            <span v-if="row.bloqueado" class="onb__chip onb__chip--bad">⛔ Trabado</span>
+            <span v-else-if="row.porcentaje === 100" class="onb__chip onb__chip--ok">✅ Completo</span>
+            <span v-if="row.tieneTelegram" class="onb__chip onb__chip--tg">💬 Telegram</span>
           </p>
           <p class="onb__fila-sub">
             <template v-if="row.bloqueado">{{ row.motivoBloqueo }}</template>
             <template v-else-if="row.siguiente">
-              Sigue: {{ row.pasos.find((p) => p.paso === row.siguiente)?.etiqueta }} ·
+              Sigue: {{ PASO_EMOJI[row.siguiente] }}
+              {{ row.pasos.find((p) => p.paso === row.siguiente)?.etiqueta }} ·
               {{ row.pasos.find((p) => p.paso === row.siguiente)?.responsable }}
             </template>
             <template v-else>Todo cumplido</template>
@@ -234,16 +281,17 @@ onMounted(cargar)
           <span
             v-for="paso in row.pasos"
             :key="paso.paso"
-            class="onb__punto"
-            :class="`onb__punto--${paso.estado}`"
+            class="onb__paso-emoji"
             :title="`${paso.etiqueta}: ${ESTADO_TEXTO[paso.estado]}`"
-          />
+          >{{ ESTADO_EMOJI[paso.estado] }}</span>
         </div>
         <div class="onb__fila-barra">
           <div class="onb__barra"><span :style="{ width: `${row.porcentaje}%` }" /></div>
           <span class="onb__pct">{{ row.porcentaje }}%</span>
         </div>
-        <p class="onb__fila-dias">{{ row.diasSinMover ?? 0 }} d</p>
+        <p class="onb__fila-dias" :class="{ 'onb__fila-dias--alerta': (row.diasSinMover ?? 0) >= 7 }">
+          {{ row.diasSinMover ?? 0 }} d
+        </p>
       </li>
     </ul>
 
@@ -252,86 +300,102 @@ onMounted(cargar)
       <aside class="onb__panel-caja">
         <header class="onb__panel-head">
           <div>
-            <p class="onb__tag">Onboarding</p>
+            <p class="onb__tag">🚀 Onboarding</p>
             <h2 class="onb__panel-title">{{ abierto.entorno }}</h2>
-            <p class="onb__sub">{{ abierto.porcentaje }}% completado · {{ abierto.diasSinMover ?? 0 }} días sin moverse</p>
+            <p class="onb__sub">
+              {{ abierto.porcentaje }}% completado · {{ abierto.diasSinMover ?? 0 }} días sin moverse
+              <template v-if="abierto.tieneTelegram"> · 💬 Telegram conectado</template>
+            </p>
           </div>
           <button class="onb__cerrar" @click="cerrar">✕</button>
         </header>
 
         <p v-if="aviso" class="onb__aviso">{{ aviso }}</p>
-        <p v-if="cargandoDetalle" class="onb__loading">Cargando detalle…</p>
 
-        <section v-for="paso in abierto.pasos" :key="paso.paso" class="onb__paso">
-          <header class="onb__paso-head">
-            <p class="onb__paso-title">{{ paso.etiqueta }}</p>
-            <span class="onb__chip" :class="`onb__chip--${paso.estado}`">{{ ESTADO_TEXTO[paso.estado] }}</span>
-          </header>
-          <p class="onb__paso-meta">
-            {{ paso.responsable }} · {{ paso.fecha ? fecha(paso.fecha) : 'sin fecha' }}
-            <template v-if="paso.actualizadoPorNombre">
-              · último cambio: {{ paso.actualizadoPorNombre }} ({{ fecha(paso.actualizadoEn) }})
-            </template>
-          </p>
+        <template v-if="cargandoDetalle">
+          <section v-for="n in 3" :key="n" class="onb__paso onb__paso--skel">
+            <span class="skel skel--md" />
+            <span class="skel skel--sm" />
+            <span class="skel skel--campo" />
+          </section>
+        </template>
 
-          <div v-if="borrador[paso.paso]" class="onb__form">
-            <select v-model="borrador[paso.paso].estado" class="onb__select">
-              <option v-for="e in ESTADOS" :key="e.valor" :value="e.valor">{{ e.texto }}</option>
-            </select>
-            <input
-              v-model="borrador[paso.paso].motivo"
-              class="onb__input"
-              :placeholder="borrador[paso.paso].estado === 'bloqueada' ? 'Por qué no avanza (obligatorio)' : 'Motivo (opcional)'"
-            />
-            <input v-model="borrador[paso.paso].nota" class="onb__input" placeholder="Nota interna" />
-            <input
-              v-model="borrador[paso.paso].pendienteDelCliente"
-              class="onb__input"
-              placeholder="Qué falta del cliente (se lo puede recordar el bot)"
-            />
-            <div class="onb__acciones">
-              <button class="onb__btn" :disabled="guardando === paso.paso" @click="guardar(paso)">
-                {{ guardando === paso.paso ? 'Guardando…' : 'Guardar avance' }}
-              </button>
-              <button
-                class="onb__btn onb__btn--ghost"
-                :disabled="guardando === paso.paso || !abierto.tieneTelegram"
-                :title="abierto.tieneTelegram ? 'Enviar recordatorio por Telegram' : 'El cliente no tiene Telegram conectado'"
-                @click="recordar(paso)"
-              >
-                Recordar por Telegram
-              </button>
+        <template v-else>
+          <section v-for="paso in abierto.pasos" :key="paso.paso" class="onb__paso">
+            <header class="onb__paso-head">
+              <p class="onb__paso-title">{{ PASO_EMOJI[paso.paso] }} {{ paso.etiqueta }}</p>
+              <span class="onb__chip" :class="`onb__chip--${paso.estado}`">
+                {{ ESTADO_EMOJI[paso.estado] }} {{ ESTADO_TEXTO[paso.estado] }}
+              </span>
+            </header>
+            <p class="onb__paso-meta">
+              {{ paso.responsable }} · {{ paso.fecha ? fecha(paso.fecha) : 'sin fecha' }}
+              <template v-if="paso.actualizadoPorNombre">
+                · último cambio: {{ paso.actualizadoPorNombre }} ({{ fecha(paso.actualizadoEn) }})
+              </template>
+            </p>
+
+            <div v-if="borrador[paso.paso]" class="onb__form">
+              <select v-model="borrador[paso.paso].estado" class="onb__select">
+                <option v-for="e in ESTADOS" :key="e.valor" :value="e.valor">{{ ESTADO_EMOJI[e.valor] }} {{ e.texto }}</option>
+              </select>
+              <input
+                v-model="borrador[paso.paso].motivo"
+                class="onb__input"
+                :placeholder="borrador[paso.paso].estado === 'bloqueada' ? 'Por qué no avanza (obligatorio)' : 'Motivo (opcional)'"
+              />
+              <input v-model="borrador[paso.paso].nota" class="onb__input" placeholder="Nota interna" />
+              <input
+                v-model="borrador[paso.paso].pendienteDelCliente"
+                class="onb__input"
+                placeholder="Qué falta del cliente (se lo puede recordar el bot)"
+              />
+              <div class="onb__acciones">
+                <button class="onb__btn" :disabled="guardando === paso.paso" @click="guardar(paso)">
+                  {{ guardando === paso.paso ? 'Guardando…' : '💾 Guardar avance' }}
+                </button>
+                <button
+                  class="onb__btn onb__btn--ghost"
+                  :disabled="guardando === paso.paso || !abierto.tieneTelegram"
+                  :title="abierto.tieneTelegram ? 'Enviar recordatorio por Telegram' : 'El cliente no tiene Telegram conectado'"
+                  @click="recordar(paso)"
+                >
+                  💬 Recordar por Telegram
+                </button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <!-- El recorrido completo, con las etapas internas que el cliente
-             también ve en el bot. -->
-        <RecorridoCliente v-if="abierto" :workspace-id="abierto.workspaceId" :key="abierto.workspaceId" />
+          <!-- El recorrido completo, con las etapas internas que el cliente
+               también ve en el bot. -->
+          <RecorridoCliente :workspace-id="abierto.workspaceId" :key="abierto.workspaceId" />
 
-        <section v-if="bitacora.length" class="onb__bitacora">
-          <p class="onb__paso-title">Bitácora</p>
-          <ul>
-            <li v-for="e in bitacora" :key="e._id">
-              <strong>{{ fecha(e.createdAt) }}</strong> · {{ e.paso }} → {{ ESTADO_TEXTO[e.estado] }}
-              <template v-if="e.porNombre"> · {{ e.porNombre }}</template>
-              <template v-if="e.motivo"> · {{ e.motivo }}</template>
-            </li>
-          </ul>
-        </section>
+          <section v-if="bitacora.length" class="onb__bitacora">
+            <p class="onb__paso-title">🗒️ Bitácora</p>
+            <ul>
+              <li v-for="e in bitacora" :key="e._id">
+                <strong>{{ fecha(e.createdAt) }}</strong> · {{ PASO_EMOJI[e.paso] }} {{ e.paso }} →
+                {{ ESTADO_EMOJI[e.estado] }} {{ ESTADO_TEXTO[e.estado] }}
+                <template v-if="e.porNombre"> · {{ e.porNombre }}</template>
+                <template v-if="e.motivo"> · {{ e.motivo }}</template>
+              </li>
+            </ul>
+          </section>
+        </template>
       </aside>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
+/* Lista de trabajo: ancho completo, pegada a la izquierda. */
 .onb {
-  padding: 1.5rem;
-  max-width: 1100px;
-  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+  width: 100%;
 }
 
-.onb__head { margin-bottom: 1.25rem; }
+.onb__head { margin-bottom: 1.5rem; }
+
 .onb__tag {
   margin: 0;
   color: $text-secondary;
@@ -340,194 +404,362 @@ onMounted(cargar)
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.onb__title { margin: 0.5rem 0 0.25rem; color: $primary-dark; font-size: 1.6rem; font-weight: 800; }
-.onb__sub { margin: 0; color: $text-secondary; font-size: 0.86rem; }
-.onb__loading { color: $text-secondary; font-size: 0.9rem; padding: 1.5rem 0; }
-.onb__error { color: $alert-error; font-size: 0.9rem; padding: 1rem 0; }
-.onb__vacio { color: $text-secondary; font-size: 0.9rem; padding: 2rem 0; text-align: center; }
 
+.onb__title {
+  margin: 0.25rem 0 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.onb__sub {
+  margin: 0.35rem 0 0;
+  color: $text-secondary;
+  font-size: 0.9rem;
+  max-width: 70ch;
+}
+
+/* ── Totales ─────────────────────────────────────────────── */
 .onb__totals {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
+
 .onb__total {
-  --tono: #{$primary-dark};
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-left: 4px solid var(--tono);
-  border-radius: 12px;
-  padding: 0.9rem 1rem;
+  background: $white;
+  border: 1px solid rgba(107, 114, 128, 0.18);
+  border-radius: 14px;
+  padding: 0.9rem 1.1rem;
+  border-left: 3px solid rgba(107, 114, 128, 0.18);
 
-  &--bad { --tono: #{$alert-error}; }
-  &--warn { --tono: #{$alert-warning}; }
-  &--ok { --tono: #059669; }
+  &--bad { border-left-color: #e6285c; }
+  &--warn { border-left-color: #b4671a; }
+  &--ok { border-left-color: #2f7d5d; }
+
+  &--skel {
+    display: grid;
+    gap: 0.4rem;
+  }
 }
-.onb__total-label { margin: 0; color: $text-secondary; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
-.onb__total-value { margin: 0.2rem 0 0.1rem; color: $primary-dark; font-size: 1.5rem; font-weight: 800; }
-.onb__total-foot { margin: 0; color: $text-secondary; font-size: 0.75rem; }
 
+.onb__total-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: $text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.onb__total-value {
+  margin: 0.2rem 0 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.onb__total-foot {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: $text-secondary;
+}
+
+/* ── Filtros ─────────────────────────────────────────────── */
 .onb__filters {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  margin: 1rem 0 0.75rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
+  margin-bottom: 1rem;
 
   button {
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    background: #fff;
+    border: 1px solid rgba(107, 114, 128, 0.18);
+    background: $white;
     color: $text-secondary;
-    border-radius: 999px;
-    padding: 0.35rem 0.85rem;
-    font-size: 0.78rem;
-    font-weight: 700;
+    border-radius: 10px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
     cursor: pointer;
 
-    &.is-active { background: $primary-dark; color: #fff; border-color: $primary-dark; }
+    &.is-active {
+      background: #85529c;
+      border-color: #85529c;
+      color: $white;
+    }
   }
 }
-.onb__buscador {
-  flex: 1;
-  min-width: 180px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 999px;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.82rem;
-}
-.onb__cuenta { color: $text-secondary; font-size: 0.75rem; font-weight: 700; }
 
-.onb__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.onb__buscador {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 1px solid rgba(107, 114, 128, 0.18);
+  border-radius: 10px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.85rem;
+  background: $white;
+}
+
+.onb__cuenta {
+  font-size: 0.8rem;
+  color: $text-secondary;
+  white-space: nowrap;
+}
+
+/* ── Filas ───────────────────────────────────────────────── */
+.onb__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
 .onb__fila {
   display: grid;
-  grid-template-columns: 1fr auto 160px 48px;
+  grid-template-columns: minmax(0, 1fr) auto 180px 48px;
   align-items: center;
-  gap: 0.9rem;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  gap: 1rem;
+  background: $white;
+  border: 1px solid rgba(107, 114, 128, 0.18);
   border-radius: 12px;
-  padding: 0.75rem 1rem;
+  padding: 0.8rem 1.1rem;
   cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 
-  &:hover { border-color: rgba(0, 0, 0, 0.16); }
+  &:hover { border-color: #85529c; transform: translateX(2px); }
 
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
-  }
+  &--skel { cursor: default; &:hover { transform: none; border-color: rgba(107, 114, 128, 0.18); } }
 }
-.onb__fila-nombre { margin: 0; color: $primary-dark; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.onb__fila-sub { margin: 0.15rem 0 0; color: $text-secondary; font-size: 0.78rem; }
+
+.onb__fila-main { min-width: 0; display: grid; gap: 0.25rem; }
+
+.onb__fila-nombre {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.onb__fila-sub {
+  margin: 0;
+  font-size: 0.8rem;
+  color: $text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .onb__fila-pasos { display: flex; gap: 0.3rem; }
-.onb__fila-dias { margin: 0; color: $text-secondary; font-size: 0.78rem; text-align: right; }
 
-.onb__punto {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #e2e8f0;
-
-  &--agendada { background: #3b82f6; }
-  &--cumplida { background: #059669; }
-  &--bloqueada { background: #{$alert-error}; }
-  &--no_aplica { background: #cbd5e1; }
-}
+.onb__paso-emoji { font-size: 0.95rem; line-height: 1; cursor: help; }
 
 .onb__fila-barra { display: flex; align-items: center; gap: 0.5rem; }
+
 .onb__barra {
   flex: 1;
-  height: 8px;
-  background: #eef2f7;
+  height: 7px;
+  background: rgba(133, 82, 156, 0.12);
   border-radius: 999px;
   overflow: hidden;
 
-  span { display: block; height: 100%; background: linear-gradient(90deg, #e6285c, #85529c); }
+  span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #e6285c, #85529c);
+    border-radius: 999px;
+  }
 }
-.onb__pct { color: $text-secondary; font-size: 0.75rem; font-weight: 700; }
+
+.onb__pct {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: $text-secondary;
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+}
+
+.onb__fila-dias {
+  margin: 0;
+  font-size: 0.78rem;
+  color: $text-secondary;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+
+  &--alerta { color: #b4671a; font-weight: 700; }
+}
 
 .onb__chip {
-  display: inline-block;
-  border-radius: 999px;
-  padding: 0.1rem 0.5rem;
   font-size: 0.68rem;
-  font-weight: 800;
-  background: #eef2f7;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(100, 100, 110, 0.1);
   color: $text-secondary;
+  white-space: nowrap;
 
-  &--ok, &--cumplida { background: #dcfce7; color: #047857; }
-  &--bad, &--bloqueada { background: #fee2e2; color: #b91c1c; }
-  &--agendada { background: #dbeafe; color: #1d4ed8; }
-  &--tg { background: #e0f2fe; color: #0369a1; }
+  &--bad { background: rgba(230, 40, 92, 0.12); color: #e6285c; }
+  &--ok, &--cumplida { background: rgba(47, 125, 93, 0.14); color: #2f7d5d; }
+  &--tg { background: rgba(42, 171, 238, 0.14); color: #1d8cc4; }
+  &--bloqueada { background: rgba(230, 40, 92, 0.12); color: #e6285c; }
+  &--agendada { background: rgba(133, 82, 156, 0.14); color: #85529c; }
 }
 
+.onb__error, .onb__vacio {
+  margin: 2rem 0;
+  color: $text-secondary;
+  font-size: 0.9rem;
+}
+
+/* ── Panel de detalle ────────────────────────────────────── */
 .onb__panel {
   position: fixed;
   inset: 0;
-  background: rgba(15, 17, 23, 0.45);
+  background: rgba(20, 16, 26, 0.45);
   display: flex;
   justify-content: flex-end;
   z-index: 60;
 }
+
 .onb__panel-caja {
   width: min(560px, 100%);
-  background: #f8fafc;
   height: 100%;
   overflow-y: auto;
-  padding: 1.25rem;
+  background: $primary-light;
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
 }
-.onb__panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
-.onb__panel-title { margin: 0.4rem 0 0.2rem; color: $primary-dark; font-size: 1.3rem; font-weight: 800; }
-.onb__cerrar { border: none; background: transparent; font-size: 1.1rem; cursor: pointer; color: $text-secondary; }
+
+.onb__panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.onb__panel-title { margin: 0.25rem 0 0; font-size: 1.3rem; font-weight: 800; }
+
+.onb__cerrar {
+  border: 1px solid rgba(107, 114, 128, 0.18);
+  background: $white;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 .onb__aviso {
-  margin: 0 0 0.75rem;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
+  margin: 0;
+  padding: 0.6rem 0.9rem;
   border-radius: 10px;
-  padding: 0.6rem 0.8rem;
-  color: #3730a3;
-  font-size: 0.82rem;
+  background: rgba(133, 82, 156, 0.1);
+  color: #6b3f80;
+  font-size: 0.85rem;
 }
 
 .onb__paso {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: $white;
+  border: 1px solid rgba(107, 114, 128, 0.18);
   border-radius: 12px;
-  padding: 0.9rem 1rem;
-  margin-bottom: 0.7rem;
-}
-.onb__paso-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-.onb__paso-title { margin: 0; color: $primary-dark; font-size: 0.95rem; font-weight: 800; }
-.onb__paso-meta { margin: 0.2rem 0 0.6rem; color: $text-secondary; font-size: 0.76rem; }
+  padding: 1rem;
 
-.onb__form { display: grid; gap: 0.45rem; }
-.onb__select, .onb__input {
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 9px;
-  padding: 0.45rem 0.7rem;
-  font-size: 0.82rem;
-  width: 100%;
+  &--skel { display: grid; gap: 0.5rem; }
 }
+
+.onb__paso-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.onb__paso-title { margin: 0; font-weight: 700; font-size: 0.95rem; }
+
+.onb__paso-meta { margin: 0.3rem 0 0.7rem; font-size: 0.78rem; color: $text-secondary; }
+
+.onb__form { display: grid; gap: 0.5rem; }
+
+.onb__select, .onb__input {
+  width: 100%;
+  border: 1px solid rgba(107, 114, 128, 0.18);
+  border-radius: 9px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  background: $white;
+}
+
 .onb__acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
 .onb__btn {
   border: none;
-  background: $primary-dark;
-  color: #fff;
+  background: #85529c;
+  color: $white;
   border-radius: 9px;
-  padding: 0.45rem 0.95rem;
-  font-size: 0.8rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.83rem;
   font-weight: 700;
   cursor: pointer;
 
-  &:disabled { opacity: 0.6; cursor: default; }
-  &--ghost { background: #fff; color: $primary-dark; border: 1px solid rgba(0, 0, 0, 0.12); }
+  &:disabled { opacity: 0.55; cursor: default; }
+
+  &--ghost {
+    background: $white;
+    color: #85529c;
+    border: 1px solid rgba(107, 114, 128, 0.18);
+  }
 }
 
 .onb__bitacora {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: $white;
+  border: 1px solid rgba(107, 114, 128, 0.18);
   border-radius: 12px;
-  padding: 0.9rem 1rem;
+  padding: 1rem;
 
-  ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.35rem; }
-  li { color: $text-secondary; font-size: 0.78rem; }
+  ul { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+  li { font-size: 0.8rem; color: $text-secondary; }
+}
+
+/* ── Esqueletos ──────────────────────────────────────────── */
+.skel {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(133, 82, 156, 0.08) 25%, rgba(133, 82, 156, 0.16) 50%, rgba(133, 82, 156, 0.08) 75%);
+  background-size: 200% 100%;
+  animation: onb-brillo 1.2s ease-in-out infinite;
+
+  &--sm { height: 10px; width: 45%; }
+  &--md { height: 14px; width: 60%; }
+  &--lg { height: 26px; width: 55%; }
+  &--campo { height: 34px; width: 100%; }
+  &--barra { height: 7px; width: 100%; border-radius: 999px; }
+  &--dias { height: 10px; width: 28px; }
+  &--punto { height: 14px; width: 14px; border-radius: 50%; }
+}
+
+@keyframes onb-brillo {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 900px) {
+  .onb { padding: 1.25rem 1rem 2.5rem; }
+
+  .onb__fila {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .onb__fila-dias { text-align: left; }
 }
 </style>
