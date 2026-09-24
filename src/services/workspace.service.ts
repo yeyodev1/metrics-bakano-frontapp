@@ -113,6 +113,12 @@ class WorkspaceService extends APIBase {
     return res.data
   }
 
+  /** Manda (o vuelve a mandar) la invitacion al bot de Telegram. */
+  async enviarInvitacionBot(userId: string): Promise<{ message: string }> {
+    const res = await this.post<{ message: string }>(`admin/users/${userId}/invitacion-bot`, {})
+    return res.data
+  }
+
   /** Borra a cualquier persona desde "Admins de cuenta" (equipo o cliente). */
   async deleteGlobalUser(userId: string): Promise<void> {
     await this.delete(`admin/users/${userId}`)

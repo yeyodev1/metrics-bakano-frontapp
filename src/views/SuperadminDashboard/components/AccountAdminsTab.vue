@@ -90,6 +90,32 @@ async function submitResendInvite(password: string) {
 }
 
 /**
+ * Manda el acceso al bot por correo. Sale solo al dar de alta a alguien; esto
+ * es para el resto de casos: el que lo perdio, el que entro antes de que el
+ * bot existiera, o el que dice que nunca le llego.
+ */
+async function invitarAlBot(user: WorkspaceUser): Promise<void> {
+  const yaFue = Boolean((user as any).presentacionBotEnviadaEn)
+  const ok = await confirm.confirm({
+    title: yaFue ? `¿Volver a enviarle la invitación?` : `¿Enviarle la invitación al bot?`,
+    message:
+      `Le llega a ${user.email} el acceso al bot de Telegram, con el paso a paso para entrar con su correo. ` +
+      (yaFue ? 'Ya se le envió antes; esto le manda el correo otra vez.' : ''),
+    confirmText: 'Sí, enviar',
+    cancelText: 'Cancelar',
+  })
+  if (!ok) return
+
+  try {
+    const res = await workspaceService.enviarInvitacionBot((user as any)._id)
+    ;(user as any).presentacionBotEnviadaEn = new Date().toISOString()
+    toast.success(res.message)
+  } catch (error: any) {
+    toast.error(error?.response?.data?.message || 'No se pudo enviar la invitación.')
+  }
+}
+
+/**
  * Borrar desde aqui, que es donde se ven todas las personas. Antes solo se
  * podia editar o reenviar la invitacion: una cuenta mal creada se quedaba en
  * la lista para siempre. Pide confirmacion sostenida porque no se deshace.
@@ -278,6 +304,7 @@ onMounted(() => {
           @edit-user="openEditGlobalUser"
           @resend-invite="openResendInvite"
           @delete-user="eliminarUsuario"
+          @invitar-bot="invitarAlBot"
         />
       </section>
     </template>
