@@ -24,6 +24,14 @@ class AuthService extends APIBase {
   }
 
   /**
+   * POST /api/auth/aviso-bot-visto
+   * El cliente dio por visto el aviso del bot: deja de mostrarse.
+   */
+  async marcarAvisoBotVisto(): Promise<void> {
+    await this.post('auth/aviso-bot-visto', {})
+  }
+
+  /**
    * POST /api/auth/forgot-password
    * Responde igual exista o no el correo, a propósito.
    */
