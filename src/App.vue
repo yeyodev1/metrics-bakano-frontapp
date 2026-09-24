@@ -7,6 +7,7 @@ import GlobalConfirmModal from '@/components/common/GlobalConfirmModal.vue'
 import GlobalUserFormModal from '@/components/common/GlobalUserFormModal.vue'
 import GlobalSuperadminModal from '@/components/common/GlobalSuperadminModal.vue'
 import AppUpdater from '@/components/common/AppUpdater.vue'
+import AvisoBotTelegram from '@/components/common/AvisoBotTelegram.vue'
 import { sesionFresca } from '@/router/session'
 
 const router = useRouter()
@@ -40,6 +41,7 @@ onUnmounted(() => {
 
 <template>
   <div class="app-container">
+    <AvisoBotTelegram />
     <RouterView />
     <GlobalToast />
     <GlobalConfirmModal />
