@@ -3,6 +3,7 @@ import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import type { PlanningEntry, GlobalPlanningEntry } from '@/types'
 import type { VideoCalendarItem } from '@/types/videoPlanning'
 import PlanningEntryCard from './PlanningEntryCard.vue'
+import { diasDeLaGrilla } from '@/utils/calendario'
 
 const props = defineProps({
   currentMonth: {
@@ -43,29 +44,25 @@ const emit = defineEmits(['click-day', 'edit-entry', 'click-video', 'click-meeti
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
-const daysInMonth = computed(() => {
-  const year = props.currentMonth.getFullYear()
-  const month = props.currentMonth.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  
-  const days: (Date | null)[] = []
-  
-  // Fill empty days at start (Monday-based)
-  let startOffset = firstDay.getDay() - 1
-  if (startOffset < 0) startOffset = 6 // Sunday
-  
-  for (let i = 0; i < startOffset; i++) {
-    days.push(null)
-  }
-  
-  // Fill actual days
-  for (let i = 1; i <= lastDay.getDate(); i++) {
-    days.push(new Date(year, month, i))
-  }
-  
-  return days
-})
+/**
+ * La grilla completa, con los días del mes anterior y del siguiente que caen
+ * en la primera y la última semana. Antes iban en blanco: una producción del
+ * 30 de septiembre no aparecía al mirar octubre, aunque fuera la misma semana.
+ */
+const daysInMonth = computed(() => diasDeLaGrilla(props.currentMonth))
+
+function esDeOtroMes(day: Date): boolean {
+  return day.getMonth() !== props.currentMonth.getMonth()
+}
+
+/** Si el día tiene algo, se muestra aunque sea de otro mes (también en celular). */
+function tieneAlgo(day: Date): boolean {
+  return (
+    getEntriesForDay(day).length > 0 ||
+    getVideoItemsForDay(day).length > 0 ||
+    getGhlMeetingsForDay(day).length > 0
+  )
+}
 
 function getEntriesForDay(day: Date) {
   const targetDate = day.toLocaleDateString('en-CA') 
@@ -151,7 +148,8 @@ watch(() => props.currentMonth, scrollToToday)
         :key="idx"
         class="planning-month__day"
         :class="{
-          'is-empty': !day,
+          'is-otro-mes': esDeOtroMes(day),
+          'tiene-algo': tieneAlgo(day),
           'is-today': isToday(day),
           'is-past': isPast(day),
           'is-clickable': day && canManage
@@ -263,6 +261,12 @@ watch(() => props.currentMonth, scrollToToday)
   }
 
   &__day {
+    &.is-otro-mes {
+      background: rgba(107, 114, 128, 0.04);
+
+      .planning-month__day-number { opacity: 0.45; }
+    }
+
     min-height: 140px;
     padding: 0.75rem;
     border-right: 1px solid rgba($primary-dark, 0.04);
@@ -271,10 +275,6 @@ watch(() => props.currentMonth, scrollToToday)
     transition: background 0.2s;
 
     &:nth-child(7n) { border-right: none; }
-
-    &.is-empty {
-      background: rgba($primary-dark, 0.01);
-    }
 
     &.is-clickable {
       cursor: pointer;
@@ -305,7 +305,9 @@ watch(() => props.currentMonth, scrollToToday)
     @media (max-width: 768px) {
       min-height: auto;
       padding: 1.25rem 1.5rem;
-      &.is-empty { display: none; }
+      /* En el celular la grilla se vuelve una lista: un día de otro mes solo
+         ocupa lugar si tiene algo agendado. */
+      &.is-otro-mes:not(.tiene-algo) { display: none; }
       
       border-right: none;
       display: flex;

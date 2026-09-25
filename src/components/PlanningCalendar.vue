@@ -3,6 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useUserStore } from '@/stores/user'
+import { rangoVisibleDelMes } from '@/utils/calendario'
 import { planningService } from '@/services/planning.service'
 import { workspaceService } from '@/services/workspace.service'
 import { videoPlanningService } from '@/services/videoPlanning.service'
@@ -177,8 +178,11 @@ const activeVideoItems = computed(() => {
 async function fetchEntries() {
   if (!props.workspaceId) return
   isLoading.value = true
-  const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1).toISOString()
-  const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59).toISOString()
+  // La grilla del mes incluye días del mes anterior y del siguiente: se piden
+  // todos, si no la semana que cruza dos meses aparece a medias.
+  const rango = rangoVisibleDelMes(currentMonth.value)
+  const start = rango.inicio.toISOString()
+  const end = rango.fin.toISOString()
   
   try {
     const [res] = await Promise.all([
@@ -229,8 +233,9 @@ async function fetchGlobalWeek() {
 async function fetchGlobalMonth() {
   isLoading.value = true
   try {
-    const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1).toISOString()
-    const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0).toISOString()
+    const rango = rangoVisibleDelMes(currentMonth.value)
+    const start = rango.inicio.toISOString()
+    const end = rango.fin.toISOString()
     const res = await planningService.listMyWeek({ startDate: start, endDate: end })
     globalMonthEntries.value = res.entries
   } catch {
@@ -412,8 +417,8 @@ let crmSyncSeq = 0
 function currentRange(): { start: Date; end: Date } {
   if (viewMode.value.includes('month')) {
     return {
-      start: new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1),
-      end: new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59, 999),
+      start: rangoVisibleDelMes(currentMonth.value).inicio,
+      end: rangoVisibleDelMes(currentMonth.value).fin,
     }
   }
   const start = new Date(currentWeekStart.value)
