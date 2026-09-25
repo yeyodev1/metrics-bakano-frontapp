@@ -30,7 +30,7 @@ const emit = defineEmits<{
       <p>
         La ruta <code>POST /api/planning-entries/:entryId/video-planning</code> devuelve
         <code>404 Not Found</code>. El equipo de backend debe implementar las rutas de
-        planificación de videos en <strong>ads-bakano-clients-backapp</strong> antes de
+        planificación de videos en <strong>metrics-bakano-backapp</strong> antes de
         poder usar esta sección.
       </p>
       <p class="vp-view__backend-banner-routes">
