@@ -1,18 +1,23 @@
 <script setup lang="ts">
 /**
- * El recorrido del cliente, de la bienvenida a la salida a ventas.
+ * El recorrido del cliente, paso a paso, para marcarlo aquí mismo.
  *
- * Ocho etapas se deducen solas de los datos (las reuniones agendadas, los
- * guiones cargados, la producción grabada). Las cuatro que no dejan rastro
- * —los avatares, las escenas, la aprobación de los videos y la salida a
- * ventas— se marcan aquí, y es lo único editable: si una etapa se mueve sola,
- * dejar que alguien la fuerce a mano solo sirve para que el estado mienta.
+ * Es la herramienta de Genesis: abre un cliente y ve los 15 pasos del proceso
+ * con su estado real. Los que dejan rastro en los datos (las reuniones
+ * agendadas, los guiones, la producción grabada) vienen resueltos solos; los
+ * demás se marcan con un toque.
+ *
+ * Cualquiera se puede corregir a mano. El equipo ve cosas que los datos no
+ * cuentan, así que su marca manda — pero si lo marcado no coincide con lo que
+ * el sistema deduce, se dice, para que nadie trabaje sobre un estado que
+ * miente.
  */
 import { ref, onMounted, computed } from 'vue'
 import { recorridoService, type EtapaCliente, type EstadoEtapa } from '@/services/recorrido.service'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ workspaceId: string }>()
+const emit = defineEmits<{ (e: 'avanzo'): void }>()
 
 const toast = useToast()
 const etapas = ref<EtapaCliente[]>([])
@@ -20,26 +25,23 @@ const cargando = ref(true)
 const guardando = ref<string | null>(null)
 
 const listas = computed(() => etapas.value.filter((e) => e.estado === 'listo' || e.estado === 'no_aplica').length)
+const porcentaje = computed(() => (etapas.value.length ? Math.round((listas.value / etapas.value.length) * 100) : 0))
+const actual = computed(() => etapas.value.find((e) => e.estado === 'en_curso') || etapas.value.find((e) => e.estado === 'pendiente'))
 
-const ESTADOS: { valor: EstadoEtapa; texto: string }[] = [
-  { valor: 'pendiente', texto: 'Pendiente' },
-  { valor: 'en_curso', texto: 'En curso' },
-  { valor: 'listo', texto: 'Listo' },
-  { valor: 'no_aplica', texto: 'No aplica' },
+const ESTADOS: { valor: EstadoEtapa; texto: string; emoji: string }[] = [
+  { valor: 'pendiente', texto: 'Pendiente', emoji: '⬜' },
+  { valor: 'en_curso', texto: 'En curso', emoji: '🔄' },
+  { valor: 'listo', texto: 'Listo', emoji: '✅' },
+  { valor: 'no_aplica', texto: 'No aplica', emoji: '➖' },
 ]
 
-const TEXTO_ESTADO: Record<EstadoEtapa, string> = {
-  pendiente: 'Pendiente',
-  en_curso: 'En curso',
-  listo: 'Listo',
-  no_aplica: 'No aplica',
-}
+const EMOJI: Record<EstadoEtapa, string> = { pendiente: '⬜', en_curso: '🔄', listo: '✅', no_aplica: '➖' }
+const TEXTO: Record<EstadoEtapa, string> = { pendiente: 'Pendiente', en_curso: 'En curso', listo: 'Listo', no_aplica: 'No aplica' }
 
 async function cargar(): Promise<void> {
   cargando.value = true
   try {
-    const r = await recorridoService.ver(props.workspaceId)
-    etapas.value = r.etapas
+    etapas.value = (await recorridoService.ver(props.workspaceId)).etapas
   } catch {
     toast.error('No se pudo cargar el recorrido.')
   } finally {
@@ -51,9 +53,9 @@ async function marcar(etapa: EtapaCliente, estado: EstadoEtapa): Promise<void> {
   if (etapa.estado === estado) return
   guardando.value = etapa.etapa
   try {
-    const r = await recorridoService.marcar(props.workspaceId, etapa.etapa, { estado })
-    etapas.value = r.etapas
-    toast.success(`${etapa.etiqueta}: ${TEXTO_ESTADO[estado].toLowerCase()}.`)
+    etapas.value = (await recorridoService.marcar(props.workspaceId, etapa.etapa, { estado })).etapas
+    toast.success(`${etapa.etiqueta}: ${TEXTO[estado].toLowerCase()}.`)
+    emit('avanzo')
   } catch (error: any) {
     toast.error(error?.response?.data?.message || 'No se pudo marcar la etapa.')
   } finally {
@@ -61,28 +63,50 @@ async function marcar(etapa: EtapaCliente, estado: EstadoEtapa): Promise<void> {
   }
 }
 
+/** Un toque: lo que no está listo pasa a listo, y al revés. */
+function alternar(etapa: EtapaCliente): void {
+  marcar(etapa, etapa.estado === 'listo' ? 'pendiente' : 'listo')
+}
+
 function fecha(iso?: string): string {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('es-EC', { timeZone: 'America/Guayaquil', day: 'numeric', month: 'short' })
 }
 
+/** Marcado a mano distinto de lo que ven los datos: hay que decirlo. */
+function discrepa(e: EtapaCliente): boolean {
+  return Boolean(e.segunElSistema && e.segunElSistema !== e.estado)
+}
+
+defineExpose({ cargar })
 onMounted(cargar)
 </script>
 
 <template>
   <section class="rec">
     <header class="rec__head">
-      <div>
-        <h3 class="rec__title">Recorrido del cliente</h3>
+      <div class="rec__titulo-caja">
+        <h3 class="rec__title">🚀 Recorrido del cliente</h3>
         <p class="rec__sub">
           <template v-if="cargando">Cargando…</template>
-          <template v-else>{{ listas }} de {{ etapas.length }} pasos listos · el cliente ve esto igual en el bot</template>
+          <template v-else>
+            {{ listas }} de {{ etapas.length }} pasos · lo mismo que ve el cliente en el bot
+          </template>
         </p>
       </div>
       <button class="rec__refrescar" :disabled="cargando" title="Volver a cargar" @click="cargar">
         <i class="fa-solid fa-rotate" :class="{ 'rec__girando': cargando }" />
       </button>
     </header>
+
+    <div v-if="!cargando" class="rec__avance">
+      <div class="rec__barra"><span :style="{ width: `${porcentaje}%` }" /></div>
+      <span class="rec__pct">{{ porcentaje }}%</span>
+    </div>
+
+    <p v-if="!cargando && actual" class="rec__ahora">
+      👉 <b>Ahora:</b> {{ actual.etiqueta }}<template v-if="actual.responsable"> · {{ actual.responsable }}</template>
+    </p>
 
     <ol v-if="cargando" class="rec__lista">
       <li v-for="n in 6" :key="n" class="rec__etapa rec__etapa--esqueleto">
@@ -96,33 +120,39 @@ onMounted(cargar)
         v-for="etapa in etapas"
         :key="etapa.etapa"
         class="rec__etapa"
-        :class="[`rec__etapa--${etapa.estado}`, { 'rec__etapa--manual': etapa.seMarca === 'manual' }]"
+        :class="[`rec__etapa--${etapa.estado}`, { 'rec__etapa--guardando': guardando === etapa.etapa }]"
       >
-        <span class="rec__punto">
-          <i v-if="etapa.estado === 'listo'" class="fa-solid fa-check" />
-          <i v-else-if="etapa.estado === 'en_curso'" class="fa-solid fa-circle-half-stroke" />
-          <i v-else-if="etapa.estado === 'no_aplica'" class="fa-solid fa-minus" />
-          <span v-else class="rec__punto-vacio" />
-        </span>
+        <button
+          class="rec__marca"
+          :disabled="guardando === etapa.etapa"
+          :title="etapa.estado === 'listo' ? 'Desmarcar' : 'Marcar como listo'"
+          @click="alternar(etapa)"
+        >
+          {{ EMOJI[etapa.estado] }}
+        </button>
 
         <div class="rec__cuerpo">
           <div class="rec__fila">
             <b class="rec__etiqueta">{{ etapa.orden }}. {{ etapa.etiqueta }}</b>
-            <span class="rec__chip" :class="`rec__chip--${etapa.estado}`">{{ TEXTO_ESTADO[etapa.estado] }}</span>
             <span v-if="etapa.deQuien === 'cliente'" class="rec__quien">Cliente</span>
+            <span v-if="etapa.responsable" class="rec__resp">{{ etapa.responsable }}</span>
           </div>
 
           <p class="rec__que">{{ etapa.que }}</p>
 
           <p class="rec__meta">
-            <span v-if="etapa.responsable"><i class="fa-solid fa-user" /> {{ etapa.responsable }}</span>
             <span v-if="etapa.detalle"><i class="fa-solid fa-circle-info" /> {{ etapa.detalle }}</span>
             <span v-if="etapa.porNombre">
               <i class="fa-solid fa-pen" /> {{ etapa.porNombre }}<template v-if="etapa.en"> · {{ fecha(etapa.en) }}</template>
             </span>
           </p>
 
-          <div v-if="etapa.seMarca === 'manual'" class="rec__acciones">
+          <p v-if="discrepa(etapa)" class="rec__discrepa">
+            ⚠️ Marcado a mano como <b>{{ TEXTO[etapa.estado].toLowerCase() }}</b>, pero los datos dicen
+            <b>{{ TEXTO[etapa.segunElSistema!].toLowerCase() }}</b>.
+          </p>
+
+          <div class="rec__acciones">
             <button
               v-for="opcion in ESTADOS"
               :key="opcion.valor"
@@ -131,10 +161,9 @@ onMounted(cargar)
               :disabled="guardando === etapa.etapa"
               @click="marcar(etapa, opcion.valor)"
             >
-              {{ opcion.texto }}
+              {{ opcion.emoji }} {{ opcion.texto }}
             </button>
           </div>
-          <p v-else class="rec__auto"><i class="fa-solid fa-wand-magic-sparkles" /> Se mueve sola con los datos</p>
         </div>
       </li>
     </ol>
@@ -144,7 +173,7 @@ onMounted(cargar)
 <style lang="scss" scoped>
 .rec {
   margin-top: 1.5rem;
-  border-top: 1px solid var(--color-border, #e7e1ec);
+  border-top: 1px solid rgba(107, 114, 128, 0.16);
   padding-top: 1.25rem;
 
   &__head {
@@ -154,82 +183,116 @@ onMounted(cargar)
     gap: 1rem;
   }
 
-  &__title {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-  }
+  &__title { margin: 0; font-size: 1rem; font-weight: 700; }
 
-  &__sub {
-    margin: 0.15rem 0 0;
-    font-size: 0.82rem;
-    color: #6b6478;
-  }
+  &__sub { margin: 0.15rem 0 0; font-size: 0.82rem; color: $text-secondary; }
 
   &__refrescar {
-    border: 1px solid #e7e1ec;
-    background: #fff;
-    color: #6b6478;
+    border: 1px solid rgba(107, 114, 128, 0.2);
+    background: $white;
+    color: $text-secondary;
     border-radius: 8px;
     width: 32px;
     height: 32px;
     cursor: pointer;
+    flex-shrink: 0;
 
     &:disabled { opacity: 0.5; cursor: default; }
   }
 
   &__girando { animation: rec-girar 0.9s linear infinite; }
 
+  &__avance {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.9rem;
+  }
+
+  &__barra {
+    flex: 1;
+    height: 8px;
+    background: rgba(133, 82, 156, 0.14);
+    border-radius: 999px;
+    overflow: hidden;
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, $primary, $secondary);
+      transition: width 0.4s ease;
+    }
+  }
+
+  &__pct {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: $secondary;
+    font-variant-numeric: tabular-nums;
+    min-width: 38px;
+    text-align: right;
+  }
+
+  &__ahora {
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.9rem;
+    border-radius: 10px;
+    background: rgba(230, 40, 92, 0.07);
+    border: 1px solid rgba(230, 40, 92, 0.2);
+    font-size: 0.88rem;
+    color: #8c2040;
+  }
+
   &__lista {
     list-style: none;
     margin: 1rem 0 0;
     padding: 0;
     display: grid;
-    gap: 0.25rem;
+    gap: 0.4rem;
   }
 
   &__etapa {
     display: grid;
-    grid-template-columns: 28px 1fr;
-    gap: 0.75rem;
-    padding: 0.7rem 0;
-    border-bottom: 1px dashed #efeaf3;
-    position: relative;
+    grid-template-columns: 40px 1fr;
+    gap: 0.8rem;
+    padding: 0.8rem;
+    border: 1px solid rgba(107, 114, 128, 0.14);
+    border-radius: 12px;
+    background: $white;
+    transition: border-color 0.2s, opacity 0.2s;
 
-    &:last-child { border-bottom: none; }
-
+    &--listo { border-color: rgba(47, 125, 93, 0.35); background: rgba(47, 125, 93, 0.04); }
+    &--en_curso { border-color: rgba(180, 103, 26, 0.35); }
+    &--no_aplica { opacity: 0.6; }
+    &--guardando { opacity: 0.6; }
     &--esqueleto { align-items: center; }
   }
 
   &__hueso {
-    background: linear-gradient(90deg, #f1edf5 25%, #e7e1ec 50%, #f1edf5 75%);
+    background: linear-gradient(90deg, rgba(133, 82, 156, 0.08) 25%, rgba(133, 82, 156, 0.16) 50%, rgba(133, 82, 156, 0.08) 75%);
     background-size: 200% 100%;
     animation: rec-brillo 1.2s ease-in-out infinite;
     border-radius: 6px;
 
-    &--punto { width: 22px; height: 22px; border-radius: 50%; }
+    &--punto { width: 28px; height: 28px; border-radius: 50%; }
     &--linea { height: 14px; }
   }
 
-  &__punto {
+  /* Un toque en el emoji marca listo o lo deshace. */
+  &__marca {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(107, 114, 128, 0.18);
+    background: $white;
+    font-size: 1.1rem;
+    cursor: pointer;
     display: grid;
     place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    font-size: 0.7rem;
-    background: #f1edf5;
-    color: #8a8194;
-  }
 
-  &__etapa--listo &__punto { background: rgba(47, 125, 93, 0.14); color: #2f7d5d; }
-  &__etapa--en_curso &__punto { background: rgba(180, 103, 26, 0.14); color: #b4671a; }
-
-  &__punto-vacio {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    border: 1.5px solid #c8c0d2;
+    &:hover:not(:disabled) { border-color: $secondary; }
+    &:disabled { cursor: default; opacity: 0.6; }
   }
 
   &__fila {
@@ -239,33 +302,26 @@ onMounted(cargar)
     flex-wrap: wrap;
   }
 
-  &__etiqueta { font-size: 0.92rem; }
-
-  &__chip {
-    font-size: 0.68rem;
-    font-weight: 700;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
-    background: #f1edf5;
-    color: #6b6478;
-
-    &--listo { background: rgba(47, 125, 93, 0.14); color: #2f7d5d; }
-    &--en_curso { background: rgba(180, 103, 26, 0.14); color: #b4671a; }
-  }
+  &__etiqueta { font-size: 0.93rem; }
 
   &__quien {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: #85529c;
-    border: 1px solid rgba(133, 82, 156, 0.3);
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: $primary;
+    border: 1px solid rgba(230, 40, 92, 0.3);
     border-radius: 999px;
-    padding: 0.1rem 0.5rem;
+    padding: 0.08rem 0.5rem;
+  }
+
+  &__resp {
+    font-size: 0.72rem;
+    color: $text-secondary;
   }
 
   &__que {
     margin: 0.2rem 0 0;
-    font-size: 0.83rem;
-    color: #6b6478;
+    font-size: 0.82rem;
+    color: $text-secondary;
     line-height: 1.5;
   }
 
@@ -273,46 +329,48 @@ onMounted(cargar)
     display: flex;
     flex-wrap: wrap;
     gap: 0.9rem;
-    margin: 0.35rem 0 0;
-    font-size: 0.75rem;
+    margin: 0.3rem 0 0;
+    font-size: 0.74rem;
     color: #8a8194;
 
-    i { margin-right: 0.3rem; }
+    i { margin-right: 0.25rem; }
+  }
+
+  &__discrepa {
+    margin: 0.4rem 0 0;
+    padding: 0.45rem 0.7rem;
+    border-radius: 8px;
+    background: rgba(180, 103, 26, 0.1);
+    color: #8a5014;
+    font-size: 0.78rem;
+    line-height: 1.45;
   }
 
   &__acciones {
     display: flex;
-    gap: 0.35rem;
+    gap: 0.3rem;
     flex-wrap: wrap;
     margin-top: 0.5rem;
   }
 
   &__btn {
-    border: 1px solid #e0d9e7;
-    background: #fff;
-    color: #5b5266;
+    border: 1px solid rgba(107, 114, 128, 0.18);
+    background: $white;
+    color: $text-secondary;
     border-radius: 8px;
-    padding: 0.28rem 0.65rem;
-    font-size: 0.76rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.74rem;
     font-weight: 600;
     cursor: pointer;
 
-    &:hover:not(:disabled) { border-color: #85529c; color: #85529c; }
-    &:disabled { opacity: 0.55; cursor: default; }
+    &:hover:not(:disabled) { border-color: $secondary; color: $secondary; }
+    &:disabled { opacity: 0.5; cursor: default; }
 
     &--activo {
-      background: #85529c;
-      border-color: #85529c;
-      color: #fff;
+      background: $secondary;
+      border-color: $secondary;
+      color: $white;
     }
-  }
-
-  &__auto {
-    margin: 0.4rem 0 0;
-    font-size: 0.73rem;
-    color: #a79eb2;
-
-    i { margin-right: 0.3rem; }
   }
 }
 
