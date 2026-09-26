@@ -7,6 +7,7 @@ import type { Resource } from '@/types'
 import BrandProfileInternalView from './brandProfile/sections/BrandProfileInternalView.vue'
 import ClientProfileSummary from './brandProfile/sections/ClientProfileSummary.vue'
 import ClientProfileWizard from './brandProfile/sections/ClientProfileWizard.vue'
+import VentasLucasSection from './brandProfile/sections/VentasLucasSection.vue'
 
 const route = useRoute()
 const workspaceId = route.params['workspaceId'] as string
@@ -283,6 +284,8 @@ onMounted(() => {
         @resource-file="handleBrandResourceFile"
         @delete-resource="deleteBrandResource"
       />
+
+      <VentasLucasSection :workspace-id="workspaceId" :profile="profile" />
 
     </template>
     </div>
