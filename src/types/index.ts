@@ -117,9 +117,24 @@ export interface OnboardingStatus {
   meetingScheduled: boolean
 }
 
+export interface ClausulaContrato {
+  titulo: string
+  texto: string
+}
+
+/** El texto del contrato lo arma el servidor: el mismo que va al PDF. */
+export interface TextoContrato {
+  titulo: string
+  clausulas: ClausulaContrato[]
+  bakano: { razonSocial: string; ruc: string; representante: string; cargo: string }
+}
+
 export interface OnboardingStatusResponse {
   onboardingStatus: OnboardingStatus
   preNegotiatedContract?: any
+  contractData?: Record<string, any> | null
+  contrato?: TextoContrato
+  workspaceName?: string
 }
 
 export interface Workspace {

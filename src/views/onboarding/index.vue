@@ -12,6 +12,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { onboardingService } from '@/services/onboarding.service'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
+import type { TextoContrato } from '@/types'
 
 import OnboardingStepContract from './components/OnboardingStepContract.vue'
 import OnboardingContractModal from './components/OnboardingContractModal.vue'
@@ -32,7 +33,8 @@ const workspaceName = ref('')
 
 /** Los datos los llenó por Telegram; aquí solo se muestran. */
 const contractData = ref<Record<string, any>>({
-  rucBakano: '0993213210001',
+  rucBakano: '0993408804001',
+  razonSocialBakano: 'BAKANOEC SAS',
   nombreCliente: '',
   rucCliente: '',
   representanteCliente: '',
@@ -49,7 +51,9 @@ const contractData = ref<Record<string, any>>({
   email: userStore.email || '',
 })
 
-const CAMPOS_OBLIGATORIOS = ['rucCliente', 'nombreCliente', 'representanteCliente', 'email']
+const CAMPOS_OBLIGATORIOS = ['rucCliente', 'nombreCliente', 'representanteCliente', 'email', 'presupuestoPauta']
+
+const contrato = ref<TextoContrato | null>(null)
 
 const faltantes = computed(() =>
   CAMPOS_OBLIGATORIOS.filter((c) => !String(contractData.value[c] ?? '').trim())
@@ -67,6 +71,11 @@ onMounted(async () => {
     const response = await onboardingService.getStatus(workspaceId.value)
     if (response.preNegotiatedContract) Object.assign(contractData.value, response.preNegotiatedContract)
     if (response.contractData) Object.assign(contractData.value, response.contractData)
+    if (response.contrato) {
+      contrato.value = response.contrato
+      contractData.value.rucBakano = response.contrato.bakano.ruc
+      contractData.value.razonSocialBakano = response.contrato.bakano.razonSocial
+    }
     workspaceName.value = response.workspaceName || ''
     contractSubmitted.value = response.onboardingStatus?.contractSubmitted || false
   } catch (error) {
@@ -132,7 +141,7 @@ function onLogout() {
       <span class="skel skel--titulo" />
       <span class="skel skel--linea" />
       <div class="firma__skel-datos">
-        <span v-for="n in 4" :key="n" class="skel skel--dato" />
+        <span v-for="n in 5" :key="n" class="skel skel--dato" />
       </div>
       <span class="skel skel--firma" />
     </main>
@@ -143,7 +152,8 @@ function onLogout() {
       <h1 class="firma__titulo">Tu contrato está firmado</h1>
       <p class="firma__sub">
         Te llega el PDF con las dos firmas a <strong>{{ contractData.email }}</strong>.
-        Todo lo que sigue lo manejamos por el chat de Telegram.
+        Si lo necesitas otra vez, pídeselo al bot de Telegram y te lo manda cuando quieras.
+        Todo lo que sigue lo manejamos por ese chat.
       </p>
       <div class="firma__acciones">
         <a class="firma__btn" :href="BOT_URL" target="_blank" rel="noopener">💬 Volver al chat</a>
@@ -175,6 +185,7 @@ function onLogout() {
 
     <OnboardingContractModal
       :show="showPreviewModal"
+      :contrato="contrato"
       :contractData="contractData"
       :isSubmitting="isSubmitting"
       @close="closePreviewModal"
