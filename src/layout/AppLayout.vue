@@ -818,6 +818,17 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Legalidades</span>
           </RouterLink>
 
+          <!-- Integraciones — CRM del cliente. Cliente y equipo: el equipo lo
+               conecta cuando Bakano administra el CRM. -->
+          <RouterLink
+            v-if="currentWorkspaceId"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspaceIntegrations', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-plug" aria-hidden="true" />
+            <span>Integraciones</span>
+          </RouterLink>
+
           <!-- Expert agendas — clients only -->
           <RouterLink
             v-if="currentWorkspaceId && (!idVista.isInternal || idVista.role === 'superadmin')"
