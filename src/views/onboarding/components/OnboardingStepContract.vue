@@ -26,6 +26,11 @@ const nombreCoincide = computed(() => {
   return contractSignatureText.value.replace(/\s+/g, '').toLowerCase() === objetivo
 })
 
+const pautaTexto = computed(() => {
+  const n = Number(props.contractData.presupuestoPauta)
+  return n > 0 ? `$${n.toLocaleString('en-US')} al mes` : ''
+})
+
 const isSignatureValid = computed(() => nombreCoincide.value && hasDrawnSignature.value)
 
 /**
@@ -67,8 +72,8 @@ function onPreview() {
     <form class="contract-form" @submit.prevent="onPreview">
       <div class="form-row">
         <div class="form-group">
-          <label>RUC Bakano</label>
-          <input type="text" :value="contractData.rucBakano" disabled />
+          <label>Contratas con</label>
+          <input type="text" :value="`${contractData.razonSocialBakano} · RUC ${contractData.rucBakano}`" disabled />
         </div>
         <div class="form-group">
           <label>Tu RUC/C.I.</label>
@@ -89,6 +94,15 @@ function onPreview() {
       <div class="form-group">
         <label>Email para recibir contrato</label>
         <input type="email" :value="contractData.email" disabled />
+      </div>
+
+      <div class="form-group">
+        <label>Inversión mensual en anuncios (sin impuestos)</label>
+        <input type="text" :value="pautaTexto" disabled />
+        <small class="dato-ayuda">
+          Mínimo $300 al mes: con menos no podemos asegurar cierres y los resultados pueden tardar más.
+          Este valor crece a medida que crece tu facturación.
+        </small>
       </div>
 
       <div class="signature-section">
@@ -140,6 +154,12 @@ function onPreview() {
 </template>
 
 <style lang="scss" scoped>
+.dato-ayuda {
+  color: #6b7280;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 .datos-origen {
   margin: 0 0 1.25rem;
   padding: 0.7rem 0.95rem;
