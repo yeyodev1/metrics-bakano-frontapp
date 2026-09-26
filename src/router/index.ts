@@ -256,6 +256,14 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/financeBilling/FinanceBillingView.vue'),
         meta: { title: 'Bakano: Mi suscripción', requiresAuth: true },
       },
+      // ── Integraciones (CRM GoHighLevel + Bakanology) ─────
+      // El bot de Telegram le manda este link al cliente para conectar su CRM.
+      {
+        path: 'workspaces/:workspaceId/integraciones',
+        name: 'WorkspaceIntegrations',
+        component: () => import('../views/integraciones/WorkspaceIntegracionesView.vue'),
+        meta: { title: 'Bakano: Integraciones', requiresAuth: true },
+      },
       // ── Brand Resources ──────────────────────────────────
       {
         path: 'workspaces/:workspaceId/resources',
