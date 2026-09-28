@@ -15,7 +15,9 @@ import { useToast } from '@/composables/useToast'
 import type { TextoContrato } from '@/types'
 
 import OnboardingStepContract from './components/OnboardingStepContract.vue'
-import OnboardingContractModal from './components/OnboardingContractModal.vue'
+import ContratoCorreoEstado from './components/ContratoCorreoEstado.vue'
+import type { EnvioContrato } from '@/services/onboarding.service'
+import { apiBaseUrl } from '@/config/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -25,11 +27,15 @@ const toast = useToast()
 const BOT_URL = 'https://t.me/BakanoAgencyBot'
 
 const workspaceId = computed(() => route.params.workspaceId as string)
+const pdfUrl = computed(() => `${apiBaseUrl()}/onboarding/${workspaceId.value}/contract.pdf`)
+const conSesion = computed(() => Boolean(localStorage.getItem('access_token')))
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
 const contractSubmitted = ref(false)
 const workspaceName = ref('')
+const envioInicial = ref<EnvioContrato | null>(null)
+const recienFirmado = ref(false)
 
 /** Los datos los llenó por Telegram; aquí solo se muestran. */
 const contractData = ref<Record<string, any>>({
@@ -38,16 +44,6 @@ const contractData = ref<Record<string, any>>({
   nombreCliente: '',
   rucCliente: '',
   representanteCliente: '',
-  cantidadGuiones: 0,
-  videosEntretenimiento: 0,
-  videosVenta: 0,
-  numeroFunnels: 0,
-  frecuenciaSesiones: 'Semanales',
-  valorMensual: 1000,
-  diasPago: 5,
-  plazoMeses: 6,
-  mesesPermanencia: 3,
-  mensualidadesPenalidad: 1,
   email: userStore.email || '',
 })
 
@@ -58,9 +54,6 @@ const contrato = ref<TextoContrato | null>(null)
 const faltantes = computed(() =>
   CAMPOS_OBLIGATORIOS.filter((c) => !String(contractData.value[c] ?? '').trim())
 )
-
-const showPreviewModal = ref(false)
-const pendingContractPayload = ref<any>(null)
 
 onMounted(async () => {
   if (!workspaceId.value) {
@@ -85,29 +78,26 @@ onMounted(async () => {
   }
 })
 
-function handlePreview(eventPayload: any) {
-  pendingContractPayload.value = {
-    ...contractData.value,
-    clientSignatureBase64: eventPayload.signatureBase64,
-  }
-  showPreviewModal.value = true
-}
-
-function closePreviewModal() {
-  showPreviewModal.value = false
-}
-
-async function onSubmitContract() {
+async function onFirmar(payload: { signatureBase64: string; nombreFirmado: string; correoEnvio: string }) {
   isSubmitting.value = true
   try {
-    if (!pendingContractPayload.value) return
-    await onboardingService.submitContract(workspaceId.value, pendingContractPayload.value)
+    const r = await onboardingService.submitContract(workspaceId.value, {
+      ...contractData.value,
+      clientSignatureBase64: payload.signatureBase64,
+      nombreFirmado: payload.nombreFirmado,
+      correoEnvio: payload.correoEnvio,
+    })
+    contractData.value.email = payload.correoEnvio
+    envioInicial.value = r.correo
+    recienFirmado.value = true
     contractSubmitted.value = true
-    closePreviewModal()
-    toast.success('Contrato firmado. Te llega el PDF con las firmas a tu correo.')
-  } catch (error) {
-    console.error(error)
-    toast.error('Hubo un error al procesar tu contrato.')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch (error: any) {
+    if (error?.response?.status === 409) {
+      contractSubmitted.value = true
+      return
+    }
+    toast.error(error?.response?.data?.error || 'No pudimos firmar tu contrato. Inténtalo de nuevo.')
   } finally {
     isSubmitting.value = false
   }
@@ -131,7 +121,7 @@ function onLogout() {
         <span>Bakano</span>
         <span v-if="workspaceName" class="firma__entorno">· {{ workspaceName }}</span>
       </div>
-      <button class="firma__salir" @click="onLogout">
+      <button v-if="conSesion" class="firma__salir" @click="onLogout">
         <i class="fa-solid fa-right-from-bracket" /> Salir
       </button>
     </header>
@@ -141,56 +131,52 @@ function onLogout() {
       <span class="skel skel--titulo" />
       <span class="skel skel--linea" />
       <div class="firma__skel-datos">
-        <span v-for="n in 5" :key="n" class="skel skel--dato" />
+        <span v-for="n in 4" :key="n" class="skel skel--dato" />
       </div>
       <span class="skel skel--firma" />
     </main>
 
-    <!-- Ya firmó -->
+    <!-- Firmado: a qué correo salió y si llegó -->
     <main v-else-if="contractSubmitted" class="firma__caja firma__caja--centrada">
-      <p class="firma__emoji">✅</p>
-      <h1 class="firma__titulo">Tu contrato está firmado</h1>
-      <p class="firma__sub">
-        Te llega el PDF con las dos firmas a <strong>{{ contractData.email }}</strong>.
-        Si lo necesitas otra vez, pídeselo al bot de Telegram y te lo manda cuando quieras.
-        Todo lo que sigue lo manejamos por ese chat.
-      </p>
+      <span class="firma__icono"><i class="fa-solid fa-circle-check" /></span>
+      <h1 class="firma__titulo">{{ recienFirmado ? '¡Listo, firmaste tu contrato!' : 'Tu contrato está firmado' }}</h1>
+      <ContratoCorreoEstado :workspaceId="workspaceId" :envioInicial="envioInicial" />
       <div class="firma__acciones">
-        <a class="firma__btn" :href="BOT_URL" target="_blank" rel="noopener">💬 Volver al chat</a>
-        <button class="firma__btn firma__btn--plano" @click="irAMetrics">Ir a mi entorno</button>
+        <a class="firma__btn firma__btn--plano" :href="pdfUrl" target="_blank" rel="noopener">
+          <i class="fa-solid fa-file-pdf" /> Ver el PDF
+        </a>
+        <a class="firma__btn firma__btn--plano" :href="BOT_URL" target="_blank" rel="noopener">
+          <i class="fa-brands fa-telegram" /> Volver al chat
+        </a>
+        <button v-if="conSesion" class="firma__btn firma__btn--plano" @click="irAMetrics">Ir a mi entorno</button>
       </div>
     </main>
 
     <!-- Le faltan datos: se los pide por Telegram, no aquí -->
     <main v-else-if="faltantes.length" class="firma__caja firma__caja--centrada">
-      <p class="firma__emoji">📝</p>
+      <span class="firma__icono firma__icono--ambar"><i class="fa-solid fa-pen-to-square" /></span>
       <h1 class="firma__titulo">Falta completar tu contrato</h1>
       <p class="firma__sub">
         Los datos del contrato se llenan por el chat, en un minuto y sin formularios.
         Vuelve a Telegram y el bot te va preguntando uno por uno.
       </p>
       <div class="firma__acciones">
-        <a class="firma__btn" :href="BOT_URL" target="_blank" rel="noopener">💬 Completar en Telegram</a>
+        <a class="firma__btn" :href="BOT_URL" target="_blank" rel="noopener">
+          <i class="fa-brands fa-telegram" /> Completar en Telegram
+        </a>
       </div>
     </main>
 
-    <!-- Lo único que hace esta pantalla: leer y firmar -->
+    <!-- Lo único que hace esta pantalla: firmar -->
     <main v-else class="firma__caja">
       <OnboardingStepContract
         :contractData="contractData"
+        :contrato="contrato"
+        :pdfUrl="pdfUrl"
         :isSubmitting="isSubmitting"
-        @preview="handlePreview"
+        @firmar="onFirmar"
       />
     </main>
-
-    <OnboardingContractModal
-      :show="showPreviewModal"
-      :contrato="contrato"
-      :contractData="contractData"
-      :isSubmitting="isSubmitting"
-      @close="closePreviewModal"
-      @confirm="onSubmitContract"
-    />
   </div>
 </template>
 
@@ -269,7 +255,13 @@ function onLogout() {
     }
   }
 
-  &__emoji { font-size: 2.5rem; margin: 0; line-height: 1; }
+  &__icono {
+    font-size: 2.6rem;
+    line-height: 1;
+    color: $alert-success;
+
+    &--ambar { color: $alert-warning; }
+  }
 
   &__titulo {
     margin: 0;

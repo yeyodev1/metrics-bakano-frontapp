@@ -400,15 +400,16 @@ const routes: Array<RouteRecordRaw> = [
 
   // ── Client Onboarding (full-screen, no sidebar) ───────────
   {
+    // Sin login: el link del contrato abre directo la firma. La API de
+    // onboarding ya era pública; pedir sesión solo frenaba al cliente.
     path: '/onboarding/:workspaceId',
     component: () => import('../layout/OnboardingLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       {
         path: '',
         name: 'ClientOnboarding',
         component: () => import('../views/onboarding/index.vue'),
-        meta: { title: 'Bakano Ads: Onboarding de Cliente', requiresAuth: true },
+        meta: { title: 'Bakano: Firma tu contrato' },
       },
     ],
   },
