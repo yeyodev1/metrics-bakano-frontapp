@@ -595,6 +595,16 @@ watch(() => route.params.workspaceId, async (newId) => {
             <i class="fa-solid fa-rocket" aria-hidden="true" />
             <span>Onboarding</span>
           </RouterLink>
+          <!-- Claude (MCP): el equipo usa Bakano desde Claude, según su rol. -->
+          <RouterLink
+            v-if="idVista.isInternal || idVista.role === 'superadmin'"
+            class="app-layout__nav-item"
+            :to="{ name: 'ClaudeMcp' }"
+          >
+            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
+            <span>Claude (MCP)</span>
+            <span class="app-layout__nav-tag app-layout__nav-tag--purple">Nuevo</span>
+          </RouterLink>
           <!-- Incidentes: lo que el bot detecta en Telegram cuando un cliente
                la está pasando mal. Todo el equipo lo ve, no solo quien recibió
                el correo. -->

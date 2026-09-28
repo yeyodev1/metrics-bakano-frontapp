@@ -237,6 +237,14 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Metrics: Incidentes de clientes', requiresAuth: true, requiresInternal: true },
       },
       {
+        // Conectar Claude con Bakano (MCP del equipo): URL, qué puede hacer tu
+        // rol y en qué apps estás conectado.
+        path: 'claude',
+        name: 'ClaudeMcp',
+        component: () => import('../views/mcp/ClaudeMcpView.vue'),
+        meta: { title: 'Bakano Metrics: Claude (MCP)', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'onboarding-progreso',
         name: 'OnboardingProgreso',
         component: () => import('../views/onboarding/OnboardingProgresoView.vue'),
