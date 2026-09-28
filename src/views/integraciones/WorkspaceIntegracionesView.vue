@@ -2,7 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import integracionesService, { type IntegracionesVista } from '@/services/integraciones.service'
+import { useUserStore } from '@/stores/user'
 import CrmCard from './CrmCard.vue'
+import CrmRevisionSection from './CrmRevisionSection.vue'
 import BakanologyCard from './BakanologyCard.vue'
 
 /**
@@ -13,6 +15,14 @@ import BakanologyCard from './BakanologyCard.vue'
  */
 const route = useRoute()
 const workspaceId = computed(() => String(route.params.workspaceId))
+
+const userStore = useUserStore()
+
+/**
+ * Equipo de Bakano = interno o superadmin, con la identidad real (no la de
+ * "ver como"), igual que el resto de la app. El backend igual responde 403.
+ */
+const esEquipo = computed(() => userStore.isInternal || userStore.role === 'superadmin')
 
 const data = ref<IntegracionesVista | null>(null)
 const loading = ref(true)
@@ -60,6 +70,11 @@ onMounted(load)
         v-model:crm="data.crm"
         :workspace-id="workspaceId"
         :agencia-disponible="!!data.agenciaDisponible"
+      />
+      <CrmRevisionSection
+        v-if="esEquipo && data.crm && data.crm.estado === 'conectado'"
+        v-model:crm="data.crm"
+        :workspace-id="workspaceId"
       />
       <BakanologyCard v-if="data.bakanologyUrl" :url="data.bakanologyUrl" />
     </div>
