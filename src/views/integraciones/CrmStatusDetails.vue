@@ -27,7 +27,11 @@ const conectadoPor = computed(() => {
         <dt>Location ID</dt>
         <dd class="details__mono">{{ crm.locationId }}</dd>
       </div>
-      <div class="details__item">
+      <div v-if="crm.modo === 'agencia'" class="details__item">
+        <dt>Conexión</dt>
+        <dd>Conectado con la cuenta de agencia de Bakano</dd>
+      </div>
+      <div v-else class="details__item">
         <dt>Token</dt>
         <dd class="details__mono">••••{{ crm.tokenFinal }}</dd>
       </div>

@@ -14,7 +14,7 @@ import CrmStatusDetails from './CrmStatusDetails.vue'
  * formulario), conectado (detalle + acciones) y con error (motivo + formulario
  * para cambiar el token). Las llamadas viven aquí; la vista solo carga.
  */
-const props = defineProps<{ workspaceId: string; crm: CrmVista | null }>()
+const props = defineProps<{ workspaceId: string; crm: CrmVista | null; agenciaDisponible: boolean }>()
 const emit = defineEmits<{ 'update:crm': [crm: CrmVista | null] }>()
 
 const { addToast } = useToast()
@@ -28,6 +28,7 @@ const disconnecting = ref(false)
 
 const busy = computed(() => saving.value || testing.value || disconnecting.value)
 const showForm = computed(() => !props.crm || props.crm.estado === 'error' || editing.value)
+const esAgencia = computed(() => props.crm?.modo === 'agencia')
 
 const BENEFICIOS = [
   { icon: 'fa-brands fa-whatsapp', text: 'Revisamos cada día tus conversaciones de WhatsApp.' },
@@ -49,7 +50,7 @@ async function onSubmit(credenciales: CrmCredenciales) {
     editing.value = false
     addToast({
       type: 'success',
-      title: primeraVez ? '¡CRM conectado!' : 'Token actualizado',
+      title: primeraVez ? '¡CRM conectado!' : 'Conexión actualizada',
       message: 'Desde ahora revisamos tu CRM cada día.',
     })
   } catch (error) {
@@ -137,8 +138,8 @@ function startEditing() {
       <i class="fa-solid fa-circle-exclamation" aria-hidden="true" />
       <span>
         <strong>La conexión dejó de funcionar.</strong>
-        {{ crm.ultimoError || 'No pudimos leer tu CRM con el token guardado.' }}
-        Actualiza el token para seguir revisando tu CRM.
+        {{ crm.ultimoError || 'No pudimos leer tu CRM con la conexión guardada.' }}
+        {{ esAgencia ? 'Revisa el Location ID' : 'Actualiza el token' }} para seguir revisando tu CRM.
       </span>
     </p>
 
@@ -156,7 +157,7 @@ function startEditing() {
         :disabled="busy"
         @click="startEditing"
       >
-        <i class="fa-solid fa-key" aria-hidden="true" /> Actualizar token
+        <i class="fa-solid fa-key" aria-hidden="true" /> {{ esAgencia ? 'Cambiar conexión' : 'Actualizar token' }}
       </button>
       <button type="button" class="crm-card__btn crm-card__btn--danger" :disabled="busy" @click="onDisconnect">
         <i :class="disconnecting ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-link-slash'" aria-hidden="true" />
@@ -165,13 +166,14 @@ function startEditing() {
     </div>
 
     <div v-if="showForm" class="crm-card__form">
-      <h3 v-if="crm">{{ crm.estado === 'error' ? 'Actualiza tu token' : 'Nuevo token' }}</h3>
+      <h3 v-if="crm">{{ crm.estado === 'error' ? 'Actualiza tu conexión' : esAgencia ? 'Cambiar conexión' : 'Nuevo token' }}</h3>
       <CrmConnectForm
         :initial-location-id="crm?.locationId"
         :saving="saving"
         :error="formError"
-        :submit-label="crm ? 'Guardar token' : 'Conectar'"
+        :submit-label="crm ? 'Guardar' : 'Conectar'"
         :cancelable="editing"
+        :token-opcional="agenciaDisponible"
         @submit="onSubmit"
         @cancel="editing = false"
       />

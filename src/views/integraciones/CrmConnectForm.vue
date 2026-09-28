@@ -13,6 +13,8 @@ const props = defineProps<{
   error: string
   submitLabel: string
   cancelable?: boolean
+  /** Con cuenta de agencia disponible el token es opcional. */
+  tokenOpcional?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -24,16 +26,30 @@ const locationId = ref(props.initialLocationId || '')
 const token = ref('')
 const showToken = ref(false)
 
-const canSubmit = computed(() => locationId.value.trim().length > 0 && token.value.trim().length > 0 && !props.saving)
+const canSubmit = computed(
+  () =>
+    locationId.value.trim().length > 0 &&
+    (props.tokenOpcional || token.value.trim().length > 0) &&
+    !props.saving
+)
 
 function onSubmit() {
   if (!canSubmit.value) return
-  emit('submit', { locationId: locationId.value.trim(), token: token.value.trim() })
+  const limpio = token.value.trim()
+  emit('submit', limpio ? { locationId: locationId.value.trim(), token: limpio } : { locationId: locationId.value.trim() })
 }
 </script>
 
 <template>
   <form class="form" novalidate @submit.prevent="onSubmit">
+    <p v-if="tokenOpcional" class="form__note">
+      <i class="fa-solid fa-circle-info" aria-hidden="true" />
+      <span>
+        Si tu CRM está en la cuenta de Bakano, basta con el Location ID. Si tienes tu propio GoHighLevel, pega
+        también tu token.
+      </span>
+    </p>
+
     <CrmTokenGuide />
 
     <div class="form__field">
@@ -52,7 +68,10 @@ function onSubmit() {
     </div>
 
     <div class="form__field">
-      <label for="crm-token">Token de integración privada</label>
+      <label for="crm-token">
+        Token de integración privada
+        <span v-if="tokenOpcional" class="form__optional">(opcional)</span>
+      </label>
       <div class="form__secret">
         <input
           id="crm-token"
@@ -135,6 +154,16 @@ function onSubmit() {
   color: $text-secondary; cursor: pointer; font-size: 0.95rem;
   &:hover { color: $primary-dark; }
   &:focus-visible { outline: 2px solid #6366f1; outline-offset: -2px; }
+}
+
+.form__optional { font-weight: 500; color: $text-secondary; }
+
+.form__note {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  margin: 0; padding: 0.65rem 0.8rem; border-radius: 10px;
+  background: $alert-info-bg; color: $primary-dark;
+  font-size: 0.8rem; line-height: 1.45;
+  i { margin-top: 0.15rem; color: $alert-info; }
 }
 
 .form__hint {

@@ -56,7 +56,11 @@ onMounted(load)
     </div>
 
     <div v-else-if="data" class="integ__list">
-      <CrmCard v-model:crm="data.crm" :workspace-id="workspaceId" />
+      <CrmCard
+        v-model:crm="data.crm"
+        :workspace-id="workspaceId"
+        :agencia-disponible="!!data.agenciaDisponible"
+      />
       <BakanologyCard v-if="data.bakanologyUrl" :url="data.bakanologyUrl" />
     </div>
   </div>
