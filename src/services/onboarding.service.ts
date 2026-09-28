@@ -1,5 +1,5 @@
 import APIBase from './httpBase'
-import type { OnboardingStatusResponse } from '@/types'
+import type { OnboardingStatusResponse, TextoContrato } from '@/types'
 
 export interface EstadoCorreoContrato {
   correo: string | null
@@ -26,6 +26,12 @@ class OnboardingService extends APIBase {
   /** Firma y devuelve cómo salió el correo con el contrato firmado. */
   async submitContract(workspaceId: string, data: any): Promise<{ correo: EnvioContrato }> {
     const res = await this.post<{ correo: EnvioContrato }>(`onboarding/${workspaceId}/step2`, data)
+    return res.data
+  }
+
+  /** El contrato modelo, público: el que se manda antes de cerrar la venta. */
+  async contratoModelo(): Promise<TextoContrato & { version: number }> {
+    const res = await this.get<TextoContrato & { version: number }>('contrato/modelo')
     return res.data
   }
 
