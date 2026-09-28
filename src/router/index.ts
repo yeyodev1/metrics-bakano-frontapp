@@ -399,6 +399,13 @@ const routes: Array<RouteRecordRaw> = [
   },
 
   // ── Client Onboarding (full-screen, no sidebar) ───────────
+  // Contrato modelo, público: se le manda al prospecto antes de cerrar la venta.
+  {
+    path: '/contrato',
+    name: 'ContratoModelo',
+    component: () => import('../views/contrato/ContratoModeloView.vue'),
+    meta: { title: 'Bakano: Contrato de servicios' },
+  },
   {
     // Sin login: el link del contrato abre directo la firma. La API de
     // onboarding ya era pública; pedir sesión solo frenaba al cliente.
