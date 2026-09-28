@@ -706,10 +706,10 @@ watch(() => route.params.workspaceId, async (newId) => {
                   <i class="fa-solid fa-calendar-plus" /> Agendar
                 </a>
                 <div class="app-layout__crm-notice-links">
-                  <a href="https://wa.me/593939380957" target="_blank" rel="noopener noreferrer" class="app-layout__crm-link" title="Soporte WhatsApp">
+                  <a href="https://wa.me/593962728548" target="_blank" rel="noopener noreferrer" class="app-layout__crm-link" title="Soporte WhatsApp">
                     <i class="fa-brands fa-whatsapp" />
                   </a>
-                  <a href="mailto:cjurado@bakano.ec" class="app-layout__crm-link" title="Correo de soporte">
+                  <a href="mailto:drobles@bakano.ec" class="app-layout__crm-link" title="Correo de soporte: David Robles">
                     <i class="fa-solid fa-envelope" />
                   </a>
                 </div>
@@ -956,7 +956,7 @@ watch(() => route.params.workspaceId, async (newId) => {
               Cerrar sesión y cambiar de cuenta
             </button>
             <a
-              href="https://wa.me/593939380957"
+              href="https://wa.me/593962728548"
               target="_blank"
               rel="noopener noreferrer"
               class="app-layout__deactivated-btn app-layout__deactivated-btn--whatsapp"

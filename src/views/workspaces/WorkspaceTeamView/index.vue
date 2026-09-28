@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import davidFoto from '@/assets/team/david.jpg'
 import { useRoute } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
 import type { WorkspaceUser } from '@/types'
@@ -48,11 +49,12 @@ const getInternalUserFallback = (names: string[]) => {
 const luisPhoto = computed(() => getInternalUserPhoto(['luis reyes', 'luis@bakano']) || 'https://ui-avatars.com/api/?name=Luis+Reyes&background=FFD700&color=0b0c10&size=200&bold=true')
 const denissePhoto = computed(() => getInternalUserPhoto(['denisse quimi', 'denisse@bakano']))
 const diegoPhoto = computed(() => getInternalUserPhoto(['diego reyes', 'diego@bakano']))
-const carlosPhoto = computed(() => getInternalUserPhoto(['carlos jurado', 'carlos@bakano']))
+// Soporte y tecnología: David Robles (Carlos Jurado ya no está en Bakano).
+const davidPhoto = computed(() => getInternalUserPhoto(['david robles', 'drobles@bakano']) || davidFoto)
 
 const denisseFallback = computed(() => getInternalUserFallback(['denisse quimi', 'denisse@bakano']))
 const diegoFallback = computed(() => getInternalUserFallback(['diego reyes', 'diego@bakano']))
-const carlosFallback = computed(() => getInternalUserFallback(['carlos jurado', 'carlos@bakano']))
+const davidFallback = computed(() => getInternalUserFallback(['david robles', 'drobles@bakano']))
 
 const teamRanking = ref<TeamRankingType[]>([])
 const errorMsg = ref('')
@@ -268,12 +270,12 @@ onMounted(async () => {
           
           <div class="premium-grid">
             <div class="premium-member-card">
-              <div v-if="carlosPhoto" class="premium-member-card__avatar-img-wrapper">
-                <img :src="carlosPhoto" alt="Carlos Jurado" />
+              <div v-if="davidPhoto" class="premium-member-card__avatar-img-wrapper">
+                <img :src="davidPhoto" alt="David Robles" />
               </div>
-              <div v-else class="premium-member-card__avatar fallback">{{ carlosFallback }}</div>
+              <div v-else class="premium-member-card__avatar fallback">{{ davidFallback }}</div>
               <div class="premium-member-card__info">
-                <h3>Carlos Jurado</h3>
+                <h3>David Robles</h3>
                 <span class="role-badge">Líder de Tecnología</span>
               </div>
             </div>
