@@ -237,6 +237,14 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Metrics: Incidentes de clientes', requiresAuth: true, requiresInternal: true },
       },
       {
+        // Conectar Claude con Bakano (MCP del equipo): URL, qué puede hacer tu
+        // rol y en qué apps estás conectado.
+        path: 'claude',
+        name: 'ClaudeMcp',
+        component: () => import('../views/mcp/ClaudeMcpView.vue'),
+        meta: { title: 'Bakano Metrics: Claude (MCP)', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'onboarding-progreso',
         name: 'OnboardingProgreso',
         component: () => import('../views/onboarding/OnboardingProgresoView.vue'),
@@ -255,6 +263,14 @@ const routes: Array<RouteRecordRaw> = [
         name: 'FinanceBilling',
         component: () => import('../views/financeBilling/FinanceBillingView.vue'),
         meta: { title: 'Bakano: Mi suscripción', requiresAuth: true },
+      },
+      // ── Integraciones (CRM GoHighLevel + Bakanology) ─────
+      // El bot de Telegram le manda este link al cliente para conectar su CRM.
+      {
+        path: 'workspaces/:workspaceId/integraciones',
+        name: 'WorkspaceIntegrations',
+        component: () => import('../views/integraciones/WorkspaceIntegracionesView.vue'),
+        meta: { title: 'Bakano: Integraciones', requiresAuth: true },
       },
       // ── Brand Resources ──────────────────────────────────
       {

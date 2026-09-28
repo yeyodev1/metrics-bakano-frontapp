@@ -87,6 +87,12 @@ export interface BrandProfile {
   canalesDetail?: string[]
   actividadesClave?: string[]
   customerJourneyCases?: CustomerJourneyCase[]
+  /** Ventas por WhatsApp: lo mismo que el negocio le cuenta a Lucas. */
+  infoVentas?: string
+  datosPago?: string
+  reglasVenta?: string[]
+  ventasActualizadoEn?: string
+  ventasFuente?: 'lucas' | 'metrics'
   updatedAt?: string
 }
 
