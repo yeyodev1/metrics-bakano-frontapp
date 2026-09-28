@@ -1,415 +1,360 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+/**
+ * Firmar en un solo paso: dibuja con el dedo, escribe su nombre y firma.
+ *
+ * Antes había que marcar una casilla para que se habilitara la firma y luego
+ * pasar por una "previsualización" antes de confirmar. Eran dos pasos que no
+ * agregaban nada: el contrato completo se lee aquí mismo, y al firmar ya dice
+ * a qué correo le llega.
+ */
+import { ref, computed, type PropType } from 'vue'
 import SignaturePad from '@/components/common/SignaturePad.vue'
+import type { TextoContrato } from '@/types'
 
 const props = defineProps({
-  contractData: {
-    type: Object,
-    required: true
-  },
-  isSubmitting: {
-    type: Boolean,
-    default: false
-  }
+  contractData: { type: Object, required: true },
+  contrato: { type: Object as PropType<TextoContrato | null>, default: null },
+  pdfUrl: { type: String, required: true },
+  isSubmitting: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['preview'])
+const emit = defineEmits<{
+  (e: 'firmar', payload: { signatureBase64: string; nombreFirmado: string; correoEnvio: string }): void
+}>()
 
-const contractTermsAccepted = ref(false)
-const contractSignatureText = ref('')
-const hasDrawnSignature = ref(false)
 const signaturePadRef = ref<InstanceType<typeof SignaturePad> | null>(null)
+const hasDrawnSignature = ref(false)
+const nombre = ref('')
+const verContrato = ref(false)
+
+const correo = ref(String(props.contractData.email || ''))
+const editandoCorreo = ref(false)
+const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+const correoValido = computed(() => CORREO_RE.test(correo.value.trim()))
 
 const nombreCoincide = computed(() => {
   const objetivo = String(props.contractData.representanteCliente || '').replace(/\s+/g, '').toLowerCase()
-  if (!objetivo) return false
-  return contractSignatureText.value.replace(/\s+/g, '').toLowerCase() === objetivo
+  return Boolean(objetivo) && nombre.value.replace(/\s+/g, '').toLowerCase() === objetivo
 })
 
 const pautaTexto = computed(() => {
   const n = Number(props.contractData.presupuestoPauta)
-  return n > 0 ? `$${n.toLocaleString('en-US')} al mes` : ''
+  return n > 0 ? `$${n.toLocaleString('en-US')} al mes` : '—'
 })
 
-const isSignatureValid = computed(() => nombreCoincide.value && hasDrawnSignature.value)
-
-/**
- * Que falta, con nombre y apellido. El mensaje anterior pedia las dos cosas
- * siempre, asi que quien ya habia escrito bien su nombre no entendia por que
- * le seguia saliendo el error.
- */
+/** Lo que falta, en palabras, para que el botón no sea un misterio. */
 const queFalta = computed(() => {
   const faltan: string[] = []
-  if (!hasDrawnSignature.value) faltan.push('dibujar tu firma arriba')
-  if (!nombreCoincide.value) faltan.push(`escribir tu nombre tal cual: ${props.contractData.representanteCliente || 'tu nombre'}`)
+  if (!hasDrawnSignature.value) faltan.push('dibujar tu firma')
+  if (!nombreCoincide.value) faltan.push(`escribir tu nombre: ${props.contractData.representanteCliente || ''}`)
+  if (!correoValido.value) faltan.push('un correo válido')
   return faltan
 })
 
-function onPreview() {
-  const clientSignatureBase64 = signaturePadRef.value ? signaturePadRef.value.getSignatureImage() || '' : ''
-  emit('preview', {
-    termsAccepted: contractTermsAccepted.value,
-    signatureValid: isSignatureValid.value,
-    signatureBase64: clientSignatureBase64,
-    signatureText: contractSignatureText.value
+function limpiarFirma() {
+  signaturePadRef.value?.clear()
+  hasDrawnSignature.value = false
+}
+
+function firmar() {
+  if (queFalta.value.length || props.isSubmitting) return
+  emit('firmar', {
+    signatureBase64: signaturePadRef.value?.getSignatureImage() || '',
+    nombreFirmado: nombre.value.trim(),
+    correoEnvio: correo.value.trim().toLowerCase(),
   })
 }
 </script>
 
 <template>
-  <div class="step-content step-content--large" key="step2">
-    <h1 class="main-title">Tu contrato</h1>
-    <p class="main-subtitle">
-      Revisa que los datos estén bien, léelo y fírmalo. Nada más.
-    </p>
+  <div class="contrato">
+    <header class="contrato__cabeza">
+      <h1 class="contrato__titulo">Firma tu contrato</h1>
+      <p class="contrato__sub">Dibuja tu firma, escribe tu nombre y listo. Te llega firmado a tu correo al instante.</p>
+    </header>
 
-    <!-- Los datos vienen del chat: aquí solo se muestran. Editarlos en dos
-         lugares distintos es la forma más rápida de que no coincidan. -->
-    <p class="datos-origen">
-      💬 Esto lo llenaste por Telegram. Si algo está mal, corrígelo ahí y vuelve a abrir este link.
-    </p>
+    <!-- Los datos vienen del chat de Telegram: aquí solo se muestran. -->
+    <dl class="contrato__datos">
+      <div><dt>Contratas con</dt><dd>{{ contractData.razonSocialBakano }} · RUC {{ contractData.rucBakano }}</dd></div>
+      <div><dt>A nombre de</dt><dd>{{ contractData.nombreCliente }} · {{ contractData.rucCliente }}</dd></div>
+      <div><dt>Representante legal</dt><dd>{{ contractData.representanteCliente }}</dd></div>
+      <div><dt>Inversión en anuncios</dt><dd>{{ pautaTexto }} <span class="contrato__nota">sin impuestos, mínimo $300</span></dd></div>
+    </dl>
 
-    <form class="contract-form" @submit.prevent="onPreview">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Contratas con</label>
-          <input type="text" :value="`${contractData.razonSocialBakano} · RUC ${contractData.rucBakano}`" disabled />
-        </div>
-        <div class="form-group">
-          <label>Tu RUC/C.I.</label>
-          <input type="text" :value="contractData.rucCliente" disabled />
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Nombre o Razón Social</label>
-        <input type="text" :value="contractData.nombreCliente" disabled />
-      </div>
-      
-      <div class="form-group">
-        <label>Representante Legal</label>
-        <input type="text" :value="contractData.representanteCliente" disabled />
-      </div>
-      
-      <div class="form-group">
-        <label>Email para recibir contrato</label>
-        <input type="email" :value="contractData.email" disabled />
-      </div>
-
-      <div class="form-group">
-        <label>Inversión mensual en anuncios (sin impuestos)</label>
-        <input type="text" :value="pautaTexto" disabled />
-        <small class="dato-ayuda">
-          Mínimo $300 al mes: con menos no podemos asegurar cierres y los resultados pueden tardar más.
-          Este valor crece a medida que crece tu facturación.
-        </small>
-      </div>
-
-      <div class="signature-section">
-        <h3 class="signature-title">Firma Electrónica del Contrato</h3>
-        <div class="contract-terms-box">
-          <p>Al confirmar, aceptas voluntariamente el <strong>CONTRATO DE PRESTACIÓN DE SERVICIOS DE MARKETING DIGITAL Y CONSULTORÍA COMERCIAL</strong> con los datos estipulados.</p>
-        </div>
-        
-        <div class="checkbox-container">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="contractTermsAccepted" />
-            <span class="checkbox-text">He leído y acepto los términos y condiciones.</span>
-          </label>
-        </div>
-
-        <div class="form-group signature-group">
-          <label>1. Dibuja tu firma (con el mouse o dedo)</label>
-          <SignaturePad 
-            ref="signaturePadRef"
-            v-model="hasDrawnSignature"
-            :disabled="!contractTermsAccepted"
-          />
-        </div>
-
-        <div class="form-group signature-group" :class="{ 'is-valid': isSignatureValid }">
-          <label>2. Para confirmar, escribe tu nombre: <strong class="highlight-name">{{ contractData.representanteCliente || 'tu nombre' }}</strong></label>
-          <input 
-            type="text" 
-            v-model="contractSignatureText" 
-            :placeholder="contractData.representanteCliente || 'Escribe tu nombre aquí'"
-            :disabled="!contractTermsAccepted"
-            class="signature-input"
-          />
-          <div class="signature-status" v-if="contractSignatureText.length > 0 || hasDrawnSignature">
-            <span v-if="isSignatureValid" class="status-valid"><i class="fa-solid fa-check-circle"></i> Firma electrónica completada</span>
-            <span v-else class="status-invalid">
-              <i class="fa-solid fa-circle-exclamation" />
-              Te falta {{ queFalta.join(' y ') }}.
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <button type="button" class="btn-primary mt-4" @click="onPreview" :disabled="isSubmitting || !isSignatureValid || !contractTermsAccepted || !contractData.rucCliente.trim()">
-        Previsualizar Contrato
+    <div class="contrato__leer">
+      <button type="button" class="contrato__link" @click="verContrato = !verContrato">
+        <i class="fa-solid" :class="verContrato ? 'fa-chevron-up' : 'fa-file-lines'" />
+        {{ verContrato ? 'Ocultar el contrato' : 'Leer el contrato completo' }}
       </button>
-    </form>
+      <a class="contrato__link" :href="pdfUrl" target="_blank" rel="noopener">
+        <i class="fa-solid fa-file-pdf" /> Descargar PDF
+      </a>
+    </div>
+    <div v-if="verContrato" class="contrato__texto">
+      <template v-if="contrato">
+        <h3>{{ contrato.titulo }}</h3>
+        <p v-for="c in contrato.clausulas" :key="c.titulo">
+          <strong>{{ c.titulo }}</strong><br />{{ c.texto }}
+        </p>
+      </template>
+      <p v-else>No pudimos cargar el texto aquí. Descarga el PDF para leerlo.</p>
+    </div>
+
+    <section class="contrato__firma">
+      <div class="contrato__paso">
+        <div class="contrato__paso-cabeza">
+          <label><span class="contrato__num">1</span> Dibuja tu firma con el dedo</label>
+          <button v-if="hasDrawnSignature" type="button" class="contrato__borrar" @click="limpiarFirma">
+            <i class="fa-solid fa-rotate-left" /> Borrar
+          </button>
+        </div>
+        <SignaturePad ref="signaturePadRef" v-model="hasDrawnSignature" />
+      </div>
+
+      <div class="contrato__paso">
+        <label for="nombre-firma"><span class="contrato__num">2</span> Escribe tu nombre: <strong>{{ contractData.representanteCliente }}</strong></label>
+        <div class="contrato__campo" :class="{ 'is-ok': nombreCoincide }">
+          <input
+            id="nombre-firma"
+            v-model="nombre"
+            type="text"
+            autocomplete="name"
+            :placeholder="contractData.representanteCliente"
+          />
+          <i v-if="nombreCoincide" class="fa-solid fa-circle-check" />
+        </div>
+      </div>
+
+      <div class="contrato__correo">
+        <i class="fa-solid fa-envelope" />
+        <template v-if="!editandoCorreo">
+          <span>Te llega firmado a <strong>{{ correo }}</strong></span>
+          <button type="button" class="contrato__link" @click="editandoCorreo = true">Cambiar</button>
+        </template>
+        <template v-else>
+          <input v-model="correo" type="email" autocomplete="email" class="contrato__correo-input" @keyup.enter="editandoCorreo = !correoValido" />
+          <button type="button" class="contrato__link" :disabled="!correoValido" @click="editandoCorreo = false">Listo</button>
+        </template>
+      </div>
+
+      <button type="button" class="contrato__boton" :disabled="!!queFalta.length || isSubmitting" @click="firmar">
+        <i class="fa-solid" :class="isSubmitting ? 'fa-spinner fa-spin' : 'fa-signature'" />
+        {{ isSubmitting ? 'Firmando y enviando…' : 'Firmar contrato' }}
+      </button>
+      <p v-if="queFalta.length" class="contrato__falta">Te falta {{ queFalta.join(', ') }}.</p>
+      <p v-else class="contrato__legal">Al firmar aceptas el contrato de prestación de servicios con Bakano.</p>
+    </section>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.dato-ayuda {
-  color: #6b7280;
-  font-size: 0.8rem;
-  line-height: 1.45;
-}
+.contrato {
+  display: grid;
+  gap: 1.25rem;
 
-.datos-origen {
-  margin: 0 0 1.25rem;
-  padding: 0.7rem 0.95rem;
-  border-radius: 10px;
-  background: rgba(133, 82, 156, 0.08);
-  border: 1px solid rgba(133, 82, 156, 0.22);
-  color: #5b3f70;
-  font-size: 0.85rem;
-  line-height: 1.5;
-}
-
-.step-content {
-  width: 100%;
-}
-
-.step-content--large {
-  max-width: 700px;
-}
-
-.main-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: #111827;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.02em;
-}
-
-.main-subtitle {
-  font-size: 1.1rem;
-  color: #6b7280;
-  margin-bottom: 2rem;
-}
-
-.contract-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-top: 2rem;
-  width: 100%;
-
-  .form-row {
-    display: flex;
-    gap: 1.5rem;
-    
-    @media (max-width: 600px) {
-      flex-direction: column;
-    }
-    
-    .form-group {
-      flex: 1;
-    }
-  }
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  text-align: left;
-
-  label {
-    font-weight: 600;
-    color: #4b5563;
-    font-size: 0.95rem;
-    margin-left: 0.2rem;
-  }
-
-  input[type="text"],
-  input[type="email"],
-  input[type="number"] {
-    padding: 1.2rem 1.5rem;
-    border: 2px solid rgba(0, 0, 0, 0.08);
-    border-radius: 16px;
-    font-size: 1.05rem;
-    transition: all 0.3s ease;
-    background: #f9fafb;
-    font-family: inherit;
-
-    &:focus {
-      outline: none;
-      border-color: $primary;
-      background: $white;
-      box-shadow: 0 0 0 4px rgba($primary, 0.1);
-    }
-
-    &:disabled {
-      background: #e5e7eb;
-      color: #6b7280;
-      cursor: not-allowed;
-    }
-  }
-}
-
-.signature-section {
-  margin-top: 2.5rem;
-  padding-top: 2.5rem;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
-}
-
-.signature-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  color: #111827;
-}
-
-.contract-terms-box {
-  background: #f3f4f6;
-  padding: 1.5rem;
-  border-radius: 16px;
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #4b5563;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-
-  strong {
+  &__titulo {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     color: $primary-dark;
   }
-}
 
-.signature-group {
-  margin-bottom: 2rem;
+  &__sub {
+    margin: 0.35rem 0 0;
+    color: $text-secondary;
+    line-height: 1.55;
+  }
 
-  label {
-    font-size: 1.1rem;
-    color: #374151;
-    margin-bottom: 0.8rem;
+  &__datos {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+
+    div {
+      background: $primary-light;
+      border-radius: 12px;
+      padding: 0.7rem 0.9rem;
+    }
+
+    dt {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: $text-secondary;
+    }
+
+    dd {
+      margin: 0.2rem 0 0;
+      font-weight: 600;
+      color: $primary-dark;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__nota {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: $text-secondary;
+  }
+
+  &__leer {
     display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  &__link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: $secondary;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    &:disabled { opacity: 0.5; cursor: default; }
+  }
+
+  &__texto {
+    max-height: 340px;
+    overflow-y: auto;
+    border: 1px solid rgba($text-secondary, 0.2);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #374151;
+    white-space: pre-line;
+
+    h3 { margin: 0 0 0.75rem; font-size: 0.95rem; }
+  }
+
+  &__firma {
+    display: grid;
+    gap: 1rem;
+    border-top: 1px solid rgba($text-secondary, 0.15);
+    padding-top: 1.25rem;
+  }
+
+  &__paso {
+    display: grid;
+    gap: 0.5rem;
+
+    label { font-weight: 600; color: $primary-dark; }
+  }
+
+  &__paso-cabeza {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  &__num {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-right: 0.35rem;
+    border-radius: 50%;
+    background: $secondary;
+    color: $white;
+    font-size: 0.75rem;
+    font-weight: 800;
+  }
+
+  &__borrar {
+    background: none;
+    border: none;
+    color: $text-secondary;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: inline-flex;
+    gap: 0.35rem;
     align-items: center;
   }
 
-  .highlight-name {
-    color: $primary;
-    background: rgba($primary, 0.1);
-    padding: 0.2rem 0.6rem;
-    border-radius: 6px;
-  }
-}
+  &__campo {
+    position: relative;
 
-.signature-input {
-  font-size: 1.2rem !important;
-  padding: 1.2rem !important;
-  transition: all 0.3s ease;
-  border: 2px dashed rgba(0, 0, 0, 0.1) !important;
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.8rem 2.5rem 0.8rem 0.9rem;
+      border: 1.5px solid rgba($text-secondary, 0.3);
+      border-radius: 12px;
+      font-size: 1rem;
 
-  &:focus {
-    border-style: solid !important;
-  }
-}
+      &:focus { outline: none; border-color: $secondary; }
+    }
 
-.is-valid .signature-input {
-  border-color: #10b981 !important;
-  border-style: solid !important;
-  background: #f0fdf4 !important;
-  color: #065f46 !important;
-}
+    i {
+      position: absolute;
+      right: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: $alert-success;
+    }
 
-.signature-status {
-  margin-top: 0.8rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  i {
-    font-size: 1.1rem;
+    &.is-ok input { border-color: $alert-success; }
   }
 
-  .status-valid {
-    color: #10b981;
+  &__correo {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    background: $alert-info-bg;
+    border-radius: 12px;
+    padding: 0.75rem 0.9rem;
+    color: $primary-dark;
+    font-size: 0.92rem;
+
+    > i { color: $alert-info; }
+    strong { overflow-wrap: anywhere; }
   }
 
-  .status-invalid {
-    color: #ef4444;
+  &__correo-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.5rem 0.7rem;
+    border: 1.5px solid rgba($text-secondary, 0.3);
+    border-radius: 9px;
+    font-size: 0.95rem;
   }
-}
 
-.checkbox-container {
-  background: rgba(255, 255, 255, 0.8);
-  padding: 1.8rem;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
-  margin-bottom: 2.5rem;
-  text-align: left;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: $white;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.06);
-    transform: translateY(-2px);
-  }
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.2rem;
-  cursor: pointer;
-
-  input[type="checkbox"] {
-    margin-top: 5px;
-    width: 24px;
-    height: 24px;
-    accent-color: $primary;
+  &__boton {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.95rem 1.4rem;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, $primary, $secondary);
+    color: $white;
+    font-size: 1.05rem;
+    font-weight: 800;
     cursor: pointer;
-  }
-}
 
-.checkbox-text {
-  font-size: 1.05rem;
-  color: #4b5563;
-  line-height: 1.6;
-  font-weight: 500;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, $primary 0%, #c91e4c 100%);
-  color: $white;
-  border: none;
-  padding: 1.3rem 2.5rem;
-  border-radius: 9999px;
-  font-size: 1.15rem;
-  font-weight: 700;
-  cursor: pointer;
-  width: 100%;
-  box-shadow: 0 10px 20px rgba($primary, 0.2);
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 15px 25px rgba($primary, 0.3);
+    &:disabled { opacity: 0.45; cursor: not-allowed; }
   }
 
-  &:active:not(:disabled) {
-    transform: translateY(1px);
+  &__falta,
+  &__legal {
+    margin: -0.4rem 0 0;
+    text-align: center;
+    font-size: 0.82rem;
+    color: $text-secondary;
   }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
-  }
-}
-
-.mt-4 {
-  margin-top: 1.5rem;
 }
 </style>
