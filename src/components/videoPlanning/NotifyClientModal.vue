@@ -76,6 +76,9 @@ async function enviar() {
     resultado.value = [
       r.whatsapp.enviado ? `WhatsApp a ${r.whatsapp.contactos.length}` : 'WhatsApp falló',
       r.email.enviado ? `correo a ${r.email.destinatarios.length}` : 'correo falló',
+      r.telegram?.enviado
+        ? `Telegram${r.telegram.bloqueadoPorPago ? ' (con aviso de pago pendiente)' : ''}`
+        : 'sin Telegram conectado',
     ].join(' · ')
     emit('sent')
     await Promise.all([cargar(), cargarHistorial()])

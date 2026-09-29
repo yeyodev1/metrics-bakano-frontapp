@@ -341,7 +341,7 @@ export interface DestinatariosAviso {
 }
 
 export interface NotificacionRegistro {
-  canal: 'whatsapp' | 'email'
+  canal: 'whatsapp' | 'email' | 'telegram'
   enviadoEn: string
   porNombre?: string
   exito: boolean
@@ -367,6 +367,7 @@ export interface ResultadoNotificacion {
   numeroEnvio: number
   whatsapp: { enviado: boolean; error?: string; contactos: { correo: string }[] }
   email: { enviado: boolean; error?: string; destinatarios: string[] }
+  telegram?: { enviado: boolean; error?: string; chats: number; bloqueadoPorPago: boolean }
 }
 
 // ── Revisión de videos terminados ───────────────────────────────────────────
