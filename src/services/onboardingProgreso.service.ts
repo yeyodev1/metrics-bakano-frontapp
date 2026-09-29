@@ -15,6 +15,10 @@ export interface PasoProgreso {
   paso: PasoOnboarding
   etiqueta: string
   responsable: string
+  /** Quienes pueden marcarlo, además de los superadmin. */
+  responsableEmails: string[]
+  /** Si la persona conectada puede marcar este paso. */
+  puedoMarcar?: boolean
   estado: EstadoPaso
   fecha?: string
   motivo?: string

@@ -50,7 +50,7 @@ async function cargar(): Promise<void> {
 }
 
 async function marcar(etapa: EtapaCliente, estado: EstadoEtapa): Promise<void> {
-  if (etapa.estado === estado) return
+  if (etapa.estado === estado || etapa.puedoMarcar === false) return
   guardando.value = etapa.etapa
   try {
     etapas.value = (await recorridoService.marcar(props.workspaceId, etapa.etapa, { estado })).etapas
@@ -124,8 +124,12 @@ onMounted(cargar)
       >
         <button
           class="rec__marca"
-          :disabled="guardando === etapa.etapa"
-          :title="etapa.estado === 'listo' ? 'Desmarcar' : 'Marcar como listo'"
+          :disabled="guardando === etapa.etapa || etapa.puedoMarcar === false"
+          :title="
+            etapa.puedoMarcar === false
+              ? `La marca ${etapa.responsable} o un superadmin`
+              : etapa.estado === 'listo' ? 'Desmarcar' : 'Marcar como listo'
+          "
           @click="alternar(etapa)"
         >
           {{ EMOJI[etapa.estado] }}
@@ -152,7 +156,10 @@ onMounted(cargar)
             <b>{{ TEXTO[etapa.segunElSistema!].toLowerCase() }}</b>.
           </p>
 
-          <div class="rec__acciones">
+          <p v-if="etapa.puedoMarcar === false" class="rec__bloqueo">
+            <i class="fa-solid fa-lock" aria-hidden="true" /> La marca {{ etapa.responsable }} o un superadmin.
+          </p>
+          <div v-else class="rec__acciones">
             <button
               v-for="opcion in ESTADOS"
               :key="opcion.valor"
@@ -171,6 +178,15 @@ onMounted(cargar)
 </template>
 
 <style lang="scss" scoped>
+.rec__bloqueo {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: $text-secondary;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .rec {
   margin-top: 1.5rem;
   border-top: 1px solid rgba(107, 114, 128, 0.16);

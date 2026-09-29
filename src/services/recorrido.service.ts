@@ -16,6 +16,8 @@ export interface EtapaCliente {
   deQuien: 'cliente' | 'equipo'
   responsable?: string
   responsableEmail?: string
+  /** Si la persona conectada puede marcar esta etapa. */
+  puedoMarcar?: boolean
   seMarca: 'automatico' | 'manual'
   estado: EstadoEtapa
   detalle?: string
