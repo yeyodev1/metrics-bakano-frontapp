@@ -27,7 +27,8 @@ class VideoPlanningService extends APIBase {
       const res = await this.get<VideoPlanningResponse>(
         `planning-entries/${entryId}/video-planning`,
       )
-      return res.data.planning
+      const { planning, bloqueoPago } = res.data
+      return planning && bloqueoPago ? { ...planning, bloqueoPago } : planning
     } catch {
       return null
     }

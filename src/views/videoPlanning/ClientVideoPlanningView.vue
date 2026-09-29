@@ -28,6 +28,8 @@ const approvals = reactive<Record<string, ClienteAprobacion>>({})
 const rejections = reactive<Record<string, string>>({})
 
 const locked = computed(() => planning.value?.clienteAprobado === true)
+/** Pagos vencidos: los guiones no llegan y en su lugar va el aviso para pagar. */
+const bloqueoPago = computed(() => planning.value?.bloqueoPago ?? null)
 const items = computed(() => [...(planning.value?.items ?? [])].sort((a, b) => a.order - b.order))
 
 const reviewed = computed(() =>
@@ -129,6 +131,10 @@ async function submitApproval() {
     })
   } catch (err: any) {
     const data = err?.response?.data
+    if (data?.code === 'PAGO_PENDIENTE' && planning.value) {
+      planning.value = { ...planning.value, bloqueoPago: data.bloqueoPago }
+      return
+    }
     if (data?.code === 'CORRECTION_WINDOW_CLOSED') {
       avisoPlazo.value = data.message
       if (planning.value && data.produccion) planning.value = { ...planning.value, produccion: data.produccion }
@@ -204,6 +210,26 @@ onMounted(loadPlanning)
       <button class="cv__mismatch-btn" @click="router.push('/')">
         <i class="fa-solid fa-house" />
         Ir al Inicio
+      </button>
+    </div>
+
+    <!-- ── Pago pendiente: sin pago no hay guiones ────────────── -->
+    <div v-else-if="bloqueoPago" class="cv__pago">
+      <div class="cv__pago-icon"><i class="fa-solid fa-credit-card" /></div>
+      <h3>Tus guiones ya están listos</h3>
+      <p>
+        Para verlos y aprobarlos primero hay que ponerse al día con el pago.
+        Tienes <strong>{{ bloqueoPago.deudaTexto }}</strong> vencido.
+      </p>
+      <p class="cv__pago-sub">
+        Apenas se registre tu pago los ves aquí y, cuando los apruebes, puedes agendar tu producción.
+      </p>
+      <button
+        class="cv__pago-btn"
+        @click="router.push({ name: 'FinanceBilling', params: { workspaceId: route.params.workspaceId } })"
+      >
+        <i class="fa-solid fa-lock-open" />
+        Ver y pagar
       </button>
     </div>
 
@@ -523,6 +549,28 @@ onMounted(loadPlanning)
     border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
     transition: all 0.2s;
     &:hover { background: #dc2626; transform: translateY(-1px); }
+  }
+
+  // ── Pago pendiente ───────────────────────────────────────────
+  &__pago {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 5rem 2rem; gap: 0.75rem;
+  }
+  &__pago-icon {
+    width: 72px; height: 72px; border-radius: 20px;
+    background: rgba($primary, 0.08); border: 2px dashed rgba($primary, 0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.75rem; color: $primary; margin-bottom: 0.5rem;
+  }
+  &__pago h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: $primary-dark; }
+  &__pago p  { margin: 0; font-size: 0.92rem; color: $text-secondary; max-width: 420px; line-height: 1.5; }
+  &__pago-sub { font-size: 0.82rem !important; }
+  &__pago-btn {
+    margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;
+    background: $primary; color: $white; border: none; padding: 0.65rem 1.4rem;
+    border-radius: 10px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+    transition: all 0.2s;
+    &:hover { transform: translateY(-1px); filter: brightness(1.05); }
   }
 
   // ── Body: two-column ─────────────────────────────────────────
