@@ -248,6 +248,7 @@ export interface CreateUserPayload {
   isInternal?: boolean
   phoneNumber?: string
   phoneExtension?: string
+  bots?: BotAcceso[]
 }
 
 export interface UpdateUserPayload {
@@ -260,6 +261,8 @@ export interface UpdateUserPayload {
   isInternal?: boolean
 }
 
+export type BotAcceso = 'bakano' | 'lucas'
+
 export interface CreateGlobalUserPayload {
   name?: string
   email: string
@@ -269,6 +272,7 @@ export interface CreateGlobalUserPayload {
   workspaces: {
     workspaceId: string
     role: 'admin' | 'colaborador'
+    bots?: BotAcceso[]
   }[]
   phoneNumber?: string
   phoneExtension?: string
@@ -282,6 +286,7 @@ export interface UpdateGlobalUserPayload {
   workspaces?: {
     workspaceId: string
     role: 'admin' | 'colaborador'
+    bots?: BotAcceso[]
   }[]
   phoneNumber?: string
   phoneExtension?: string
