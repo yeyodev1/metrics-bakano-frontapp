@@ -7,7 +7,14 @@ import { useToast } from '@/composables/useToast'
 // @ts-ignore
 import { VueTelInput } from 'vue-tel-input'
 import 'vue-tel-input/vue-tel-input.css'
-import type { CreateGlobalUserPayload, UpdateGlobalUserPayload, Workspace, InternalRole } from '@/types'
+import type { CreateGlobalUserPayload, UpdateGlobalUserPayload, Workspace, InternalRole, BotAcceso } from '@/types'
+
+// A qué bot entra la persona en cada entorno. Los vendedores de un cliente
+// suelen ir solo con Lucas; el dueño, con los dos.
+const BOTS: { value: BotAcceso; label: string; icon: string; title: string }[] = [
+  { value: 'bakano', label: 'Bakano', icon: 'fa-robot', title: '@BakanoAgencyBot: onboarding, guiones, producción y Bakanology' },
+  { value: 'lucas', label: 'Lucas', icon: 'fa-comments-dollar', title: 'Lucas, el asesor de ventas por WhatsApp' },
+]
 
 // Internal role definitions for the picker
 const INTERNAL_ROLES: { value: InternalRole; label: string; icon: string }[] = [
@@ -34,7 +41,7 @@ const userForm = ref<any>({
   name: '',
   email: '',
   password: '',
-  workspaces: [] as { workspaceId: string, role: 'admin' | 'colaborador' }[],
+  workspaces: [] as { workspaceId: string, role: 'admin' | 'colaborador', bots: BotAcceso[] }[],
   phoneNumber: '',
   phoneExtension: '',
   isInternal: false,
@@ -102,7 +109,8 @@ watch(isVisible, (newVal) => {
         password: '',
         workspaces: (user.workspaces || []).map((w: any) => ({
           workspaceId: w.workspaceId?._id || w.workspaceId,
-          role: w.role
+          role: w.role,
+          bots: w.bots?.length ? [...w.bots] : ['bakano', 'lucas']
         })),
         phoneNumber: user.phoneNumber || '',
         phoneExtension: user.phoneExtension || '',
@@ -144,7 +152,7 @@ const filteredWorkspaces = computed(() => {
 function toggleWorkspace(workspaceId: string) { // Changed wsId to workspaceId
   const index = userForm.value.workspaces.findIndex((w: any) => w.workspaceId === workspaceId) // Changed wsId to workspaceId
   if (index === -1) {
-    userForm.value.workspaces.push({ workspaceId: workspaceId, role: 'colaborador' }) // Changed wsId to workspaceId
+    userForm.value.workspaces.push({ workspaceId: workspaceId, role: 'colaborador', bots: ['bakano', 'lucas'] })
   } else {
     userForm.value.workspaces.splice(index, 1)
   }
@@ -156,6 +164,26 @@ function updateWorkspaceRole(wsId: string, role: 'admin' | 'colaborador') {
     ws.role = role
   }
 }
+
+function accesoDe(wsId: string) {
+  return userForm.value.workspaces.find((w: any) => w.workspaceId === wsId)
+}
+
+// Siempre queda al menos uno: sin bot no tendría sentido darle el entorno.
+function toggleBot(wsId: string, bot: BotAcceso) {
+  const ws = accesoDe(wsId)
+  if (!ws) return
+  if (ws.bots.includes(bot)) {
+    if (ws.bots.length > 1) ws.bots = ws.bots.filter((b: BotAcceso) => b !== bot)
+  } else {
+    ws.bots = BOTS.map((b) => b.value).filter((b) => b === bot || ws.bots.includes(b))
+  }
+}
+
+/** Alguno de sus entornos entra al bot de Bakano (o es del equipo). */
+const conBakano = computed(() =>
+  userForm.value.isInternal || userForm.value.workspaces.some((w: any) => w.bots.includes('bakano'))
+)
 
 function handleImgError(e: Event) {
   const target = e.target as HTMLImageElement
@@ -180,10 +208,11 @@ async function handleSubmit() {
   }
 
   // A los clientes les llegan avisos por WhatsApp: sin numero no hay canal.
-  // A los internos de Bakano no se les exige.
+  // A los internos de Bakano no se les exige, ni a quien solo usa a Lucas.
   if (
     modalOptions.value.mode !== 'edit' &&
     !userForm.value.isInternal &&
+    conBakano.value &&
     !userForm.value.phoneNumber?.trim()
   ) {
     userError.value = 'El número de teléfono es obligatorio para usuarios cliente: es la vía de los avisos por WhatsApp.'
@@ -365,6 +394,25 @@ async function handleSubmit() {
                         <option value="colaborador">Colab</option>
                         </select>
                     </div>
+                    <div
+                      v-if="!userForm.isInternal && accesoDe(ws._id)"
+                      class="global-user-modal__ws-bots"
+                      @click.stop
+                    >
+                      <button
+                        v-for="bot in BOTS"
+                        :key="bot.value"
+                        type="button"
+                        class="global-user-modal__bot-chip"
+                        :class="[`global-user-modal__bot-chip--${bot.value}`, { 'is-active': accesoDe(ws._id)?.bots.includes(bot.value) }]"
+                        :title="bot.title"
+                        :aria-pressed="accesoDe(ws._id)?.bots.includes(bot.value)"
+                        @click="toggleBot(ws._id, bot.value)"
+                      >
+                        <i :class="`fa-solid ${bot.icon}`" />
+                        {{ bot.label }}
+                      </button>
+                    </div>
                   </div>
 
                   <div class="global-user-modal__ws-check">
@@ -391,8 +439,16 @@ async function handleSubmit() {
                   Enviar email de bienvenida
                 </span>
                 <span class="global-user-modal__welcome-desc">
-                  Se enviará un correo con las credenciales de acceso al usuario
-                  <strong>{{ userForm.isInternal ? '(colaborador interno)' : '(cliente)' }}</strong>
+                  <template v-if="conBakano">
+                    Se enviará un correo con las credenciales de acceso al usuario
+                    <strong>{{ userForm.isInternal ? '(colaborador interno)' : '(cliente)' }}</strong>
+                  </template>
+                  <template v-else>
+                    Solo tiene Lucas: no se le manda la contraseña de Metrics.
+                  </template>
+                  <template v-if="!userForm.isInternal && userForm.workspaces.some((w: any) => w.bots.includes('lucas'))">
+                    <br />A quien tenga Lucas le llega además su correo de acceso a Lucas.
+                  </template>
                 </span>
               </div>
             </label>
@@ -888,6 +944,49 @@ async function handleSubmit() {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  &__ws-bots {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+
+  &__bot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+    i {
+      font-size: 11px;
+    }
+
+    &--bakano.is-active {
+      background: #fdf2f8;
+      border-color: #e6285c;
+      color: #e6285c;
+    }
+
+    &--lucas.is-active {
+      background: #ecfdf5;
+      border-color: #059669;
+      color: #059669;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #85529c;
+      outline-offset: 2px;
+    }
   }
 
   &__ws-role-badge {
