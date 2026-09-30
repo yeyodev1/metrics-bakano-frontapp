@@ -182,6 +182,14 @@ export interface InfoProduccion {
   ventanaCerrada: boolean
 }
 
+/** El cliente tiene pagos vencidos: no ve ni aprueba sus guiones hasta pagar. */
+export interface BloqueoPago {
+  deuda: number
+  deudaTexto: string
+  facturasVencidas: number
+  mensaje: string
+}
+
 export interface VideoPlanning {
   _id: string
   planningEntryId: string
@@ -189,6 +197,8 @@ export interface VideoPlanning {
   items: VideoItem[]
   /** Solo en getByEntry. */
   produccion?: InfoProduccion | null
+  /** Solo en getByEntry, para el cliente que debe. Los items vienen sin guion. */
+  bloqueoPago?: BloqueoPago | null
   /** Contenido dio por terminada la planificación; habilita "Notificar al cliente". */
   listaParaCliente?: boolean
   /** Ciclo de revisión de videos terminados: abierto = el cron insiste cada 4h. */
@@ -207,6 +217,7 @@ export interface VideoPlanning {
 export interface VideoPlanningResponse {
   message: string
   planning: VideoPlanning
+  bloqueoPago?: BloqueoPago
 }
 
 /** A Meta ad, as offered in the linking picker. */
@@ -330,7 +341,7 @@ export interface DestinatariosAviso {
 }
 
 export interface NotificacionRegistro {
-  canal: 'whatsapp' | 'email'
+  canal: 'whatsapp' | 'email' | 'telegram'
   enviadoEn: string
   porNombre?: string
   exito: boolean
@@ -356,6 +367,7 @@ export interface ResultadoNotificacion {
   numeroEnvio: number
   whatsapp: { enviado: boolean; error?: string; contactos: { correo: string }[] }
   email: { enviado: boolean; error?: string; destinatarios: string[] }
+  telegram?: { enviado: boolean; error?: string; chats: number; bloqueadoPorPago: boolean }
 }
 
 // ── Revisión de videos terminados ───────────────────────────────────────────

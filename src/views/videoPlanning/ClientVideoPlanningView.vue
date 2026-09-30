@@ -28,6 +28,21 @@ const approvals = reactive<Record<string, ClienteAprobacion>>({})
 const rejections = reactive<Record<string, string>>({})
 
 const locked = computed(() => planning.value?.clienteAprobado === true)
+/** Pagos vencidos: los guiones no llegan y en su lugar va el aviso para pagar. */
+const bloqueoPago = computed(() => planning.value?.bloqueoPago ?? null)
+
+/**
+ * Aprobó todo y esta planificación no tiene una grabación por delante: ya
+ * puede agendar su producción él mismo, en el bot. El bot valida las reglas.
+ */
+const AGENDAR_PRODUCCION_URL = 'https://t.me/BakanoAgencyBot?start=produccion'
+const puedeAgendarProduccion = computed(
+  () =>
+    locked.value &&
+    items.value.length > 0 &&
+    items.value.every((i) => i.clienteAprobacion === ClienteAprobacion.APROBADO) &&
+    (!produccion.value || new Date(produccion.value.fecha).getTime() < Date.now()),
+)
 const items = computed(() => [...(planning.value?.items ?? [])].sort((a, b) => a.order - b.order))
 
 const reviewed = computed(() =>
@@ -129,6 +144,10 @@ async function submitApproval() {
     })
   } catch (err: any) {
     const data = err?.response?.data
+    if (data?.code === 'PAGO_PENDIENTE' && planning.value) {
+      planning.value = { ...planning.value, bloqueoPago: data.bloqueoPago }
+      return
+    }
     if (data?.code === 'CORRECTION_WINDOW_CLOSED') {
       avisoPlazo.value = data.message
       if (planning.value && data.produccion) planning.value = { ...planning.value, produccion: data.produccion }
@@ -207,6 +226,26 @@ onMounted(loadPlanning)
       </button>
     </div>
 
+    <!-- ── Pago pendiente: sin pago no hay guiones ────────────── -->
+    <div v-else-if="bloqueoPago" class="cv__pago">
+      <div class="cv__pago-icon"><i class="fa-solid fa-credit-card" /></div>
+      <h3>Tus guiones ya están listos</h3>
+      <p>
+        Para verlos y aprobarlos primero hay que ponerse al día con el pago.
+        Tienes <strong>{{ bloqueoPago.deudaTexto }}</strong> vencido.
+      </p>
+      <p class="cv__pago-sub">
+        Apenas se registre tu pago los ves aquí y, cuando los apruebes, puedes agendar tu producción.
+      </p>
+      <button
+        class="cv__pago-btn"
+        @click="router.push({ name: 'FinanceBilling', params: { workspaceId: route.params.workspaceId } })"
+      >
+        <i class="fa-solid fa-lock-open" />
+        Ver y pagar
+      </button>
+    </div>
+
     <!-- ── Error ──────────────────────────────────────────────── -->
     <div v-else-if="error" class="cv__error">
       <i class="fa-solid fa-triangle-exclamation" />
@@ -222,6 +261,19 @@ onMounted(loadPlanning)
 
     <!-- ── Content: two-column on desktop ─────────────────────── -->
     <div v-else class="cv__body">
+
+      <!-- Aprobó todo: el siguiente paso es suyo, agendar la producción. -->
+      <div v-if="puedeAgendarProduccion" class="cv__agendar">
+        <div class="cv__agendar-icon"><i class="fa-solid fa-clapperboard" /></div>
+        <div class="cv__agendar-text">
+          <strong>¡Aprobaste tus guiones! Ya puedes agendar tu producción.</strong>
+          <span>Elige tu horario en el bot de Bakano. Dejamos unos días de margen para ajustar lo que haga falta antes de grabar.</span>
+        </div>
+        <a :href="AGENDAR_PRODUCCION_URL" target="_blank" rel="noopener" class="cv__agendar-btn">
+          <i class="fa-brands fa-telegram" />
+          Agendar mi producción
+        </a>
+      </div>
 
       <!-- Plazo de correcciones: hasta 48 h antes de la producción -->
       <div
@@ -523,6 +575,52 @@ onMounted(loadPlanning)
     border-radius: 10px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
     transition: all 0.2s;
     &:hover { background: #dc2626; transform: translateY(-1px); }
+  }
+
+  // ── Agendar producción tras aprobar ──────────────────────────
+  &__agendar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    background: rgba(#16a34a, 0.07); border: 1px solid rgba(#16a34a, 0.25);
+    border-radius: 14px; padding: 1rem 1.25rem;
+  }
+  &__agendar-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    background: rgba(#16a34a, 0.12); color: #15803d;
+    display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
+  }
+  &__agendar-text {
+    flex: 1 1 260px; display: flex; flex-direction: column; gap: 0.2rem;
+    strong { font-size: 0.95rem; color: #14532d; }
+    span { font-size: 0.83rem; color: $text-secondary; }
+  }
+  &__agendar-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: #16a34a; color: $white; text-decoration: none;
+    padding: 0.6rem 1.2rem; border-radius: 10px; font-weight: 700; font-size: 0.86rem;
+    &:hover { background: #15803d; }
+  }
+
+  // ── Pago pendiente ───────────────────────────────────────────
+  &__pago {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 5rem 2rem; gap: 0.75rem;
+  }
+  &__pago-icon {
+    width: 72px; height: 72px; border-radius: 20px;
+    background: rgba($primary, 0.08); border: 2px dashed rgba($primary, 0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.75rem; color: $primary; margin-bottom: 0.5rem;
+  }
+  &__pago h3 { margin: 0; font-size: 1.25rem; font-weight: 800; color: $primary-dark; }
+  &__pago p  { margin: 0; font-size: 0.92rem; color: $text-secondary; max-width: 420px; line-height: 1.5; }
+  &__pago-sub { font-size: 0.82rem !important; }
+  &__pago-btn {
+    margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;
+    background: $primary; color: $white; border: none; padding: 0.65rem 1.4rem;
+    border-radius: 10px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+    transition: all 0.2s;
+    &:hover { transform: translateY(-1px); filter: brightness(1.05); }
   }
 
   // ── Body: two-column ─────────────────────────────────────────

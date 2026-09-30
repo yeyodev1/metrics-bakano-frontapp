@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import RecorridoCliente from './components/RecorridoCliente.vue'
+import { useUserStore } from '@/stores/user'
 import {
   onboardingProgresoService,
   type EstadoPaso,
@@ -16,6 +17,9 @@ const cargando = ref(true)
 const errorCarga = ref('')
 const filtro = ref<'todos' | 'bloqueados' | 'pendientes'>('pendientes')
 const busqueda = ref('')
+const userStore = useUserStore()
+/** Solo los clientes cuyo siguiente paso es mío. */
+const soloMios = ref(false)
 
 const abierto = ref<ProgresoEntorno | null>(null)
 const bitacora = ref<EventoOnboarding[]>([])
@@ -67,11 +71,42 @@ function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 
+/** El paso en el que va el cliente: el primero que no está cumplido. */
+function pasoActual(row: ProgresoEntorno): PasoProgreso | undefined {
+  return row.pasos.find((p) => p.paso === row.siguiente)
+}
+
+/** Es mío si mi correo está entre los responsables del paso. */
+function esMio(paso?: PasoProgreso): boolean {
+  const email = (userStore.email || '').toLowerCase()
+  return Boolean(email && paso?.responsableEmails?.some((c) => c.toLowerCase() === email))
+}
+
 const filas = computed(() => {
-  const rows = data.value?.progresos ?? []
+  let rows = data.value?.progresos ?? []
+  if (soloMios.value) rows = rows.filter((r) => esMio(pasoActual(r)))
   const q = normalizar(busqueda.value)
   return q ? rows.filter((r) => normalizar(r.entorno).includes(q)) : rows
 })
+
+const cuantosMios = computed(() => (data.value?.progresos ?? []).filter((r) => esMio(pasoActual(r))).length)
+
+/** Marcar cumplido el paso actual sin abrir el panel. */
+const marcandoRapido = ref<string | null>(null)
+const errorRapido = ref('')
+async function cumplirActual(row: ProgresoEntorno) {
+  const paso = pasoActual(row)
+  if (!paso?.puedoMarcar) return
+  marcandoRapido.value = row.workspaceId
+  try {
+    await onboardingProgresoService.marcarPaso(row.workspaceId, paso.paso, { estado: 'cumplida' })
+    await cargar()
+  } catch (error: any) {
+    errorRapido.value = error?.response?.data?.message || error?.message || 'No se pudo marcar el paso.'
+  } finally {
+    marcandoRapido.value = null
+  }
+}
 
 const totales = computed(() => {
   const rows = data.value?.progresos ?? []
@@ -235,9 +270,22 @@ onMounted(cargar)
       <button :class="{ 'is-active': filtro === 'pendientes' }" @click="filtro = 'pendientes'; cargar()">⏳ En proceso</button>
       <button :class="{ 'is-active': filtro === 'bloqueados' }" @click="filtro = 'bloqueados'; cargar()">⛔ Trabados</button>
       <button :class="{ 'is-active': filtro === 'todos' }" @click="filtro = 'todos'; cargar()">📋 Todos</button>
+      <button
+        class="onb__mios"
+        :class="{ 'is-active': soloMios }"
+        title="Clientes cuyo paso actual te toca a ti"
+        @click="soloMios = !soloMios"
+      >
+        <i class="fa-solid fa-user-check" aria-hidden="true" /> Me toca
+        <span v-if="!cargando" class="onb__mios-n">{{ cuantosMios }}</span>
+      </button>
       <input v-model="busqueda" class="onb__buscador" type="search" placeholder="🔍 Buscar cliente…" />
       <span v-if="!cargando" class="onb__cuenta">{{ filas.length }} clientes</span>
     </div>
+
+    <p v-if="errorRapido" class="onb__aviso onb__aviso--lista" @click="errorRapido = ''">
+      <i class="fa-solid fa-circle-exclamation" aria-hidden="true" /> {{ errorRapido }}
+    </p>
 
     <!-- Esqueleto con la forma exacta de las filas: la pantalla no salta
          cuando llegan los datos. -->
@@ -252,6 +300,7 @@ onMounted(cargar)
         </div>
         <div class="onb__fila-barra"><span class="skel skel--barra" /></div>
         <span class="skel skel--dias" />
+        <span />
       </li>
     </ul>
 
@@ -292,6 +341,22 @@ onMounted(cargar)
         <p class="onb__fila-dias" :class="{ 'onb__fila-dias--alerta': (row.diasSinMover ?? 0) >= 7 }">
           {{ row.diasSinMover ?? 0 }} d
         </p>
+        <!-- Marcar el paso actual sin abrir el panel. Solo a quien le toca. -->
+        <button
+          v-if="pasoActual(row)?.puedoMarcar"
+          class="onb__rapido"
+          :disabled="marcandoRapido === row.workspaceId"
+          :title="`Marcar cumplido: ${pasoActual(row)?.etiqueta}`"
+          @click.stop="cumplirActual(row)"
+        >
+          <i
+            class="fa-solid"
+            :class="marcandoRapido === row.workspaceId ? 'fa-spinner fa-spin' : 'fa-circle-check'"
+            aria-hidden="true"
+          />
+          Cumplido
+        </button>
+        <span v-else class="onb__rapido-vacio" />
       </li>
     </ul>
 
@@ -335,7 +400,11 @@ onMounted(cargar)
               </template>
             </p>
 
-            <div v-if="borrador[paso.paso]" class="onb__form">
+            <p v-if="!paso.puedoMarcar" class="onb__solo-lectura">
+              <i class="fa-solid fa-lock" aria-hidden="true" />
+              Este paso lo marca {{ paso.responsable }} o un superadmin.
+            </p>
+            <div v-else-if="borrador[paso.paso]" class="onb__form">
               <select v-model="borrador[paso.paso].estado" class="onb__select">
                 <option v-for="e in ESTADOS" :key="e.valor" :value="e.valor">{{ ESTADO_EMOJI[e.valor] }} {{ e.texto }}</option>
               </select>
@@ -520,7 +589,7 @@ onMounted(cargar)
 
 .onb__fila {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 180px 48px;
+  grid-template-columns: minmax(0, 1fr) auto 180px 48px 112px;
   align-items: center;
   gap: 1rem;
   background: $white;
@@ -617,6 +686,52 @@ onMounted(cargar)
   color: $text-secondary;
   font-size: 0.9rem;
 }
+
+/* ── Marcar rápido y "Me toca" ───────────────────────────── */
+.onb__rapido {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(47, 125, 93, 0.35);
+  background: rgba(47, 125, 93, 0.08);
+  color: #2f7d5d;
+  border-radius: 9px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: #2f7d5d; color: $white; }
+  &:disabled { opacity: 0.6; cursor: default; }
+}
+
+.onb__filters .onb__mios {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.onb__mios-n {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(133, 82, 156, 0.14);
+
+  .is-active & { background: rgba(255, 255, 255, 0.25); }
+}
+
+.onb__solo-lectura {
+  margin: 0;
+  font-size: 0.8rem;
+  color: $text-secondary;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.onb__aviso--lista { margin-bottom: 0.75rem; cursor: pointer; }
 
 /* ── Panel de detalle ────────────────────────────────────── */
 .onb__panel {

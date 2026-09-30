@@ -18,6 +18,7 @@ import VideoPlanningHero from '@/components/videoPlanning/VideoPlanningHero.vue'
 import VideoPlanningStates from '@/components/videoPlanning/VideoPlanningStates.vue'
 import VideoPlanningEmpty from '@/components/videoPlanning/VideoPlanningEmpty.vue'
 import NotifyClientModal from '@/components/videoPlanning/NotifyClientModal.vue'
+import ContextoClienteBar from '@/components/videoPlanning/ContextoClienteBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -276,6 +277,8 @@ onMounted(async () => {
       @add="openAddModal"
       @notify="showNotifyModal = true"
     />
+
+    <ContextoClienteBar v-if="workspaceId" :workspace-id="workspaceId" />
 
     <div v-if="loading" class="vp-view__loading">
       <div class="vp-view__spinner" />
