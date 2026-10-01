@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useUserFormModal } from '@/composables/useUserFormModal'
 import { workspaceService } from '@/services/workspace.service'
 import { useToast } from '@/composables/useToast'
 // @ts-ignore
 import { VueTelInput } from 'vue-tel-input'
 import 'vue-tel-input/vue-tel-input.css'
-import type { CreateUserPayload, UpdateUserPayload } from '@/types'
+import type { BotAcceso, CreateUserPayload, UpdateUserPayload } from '@/types'
+import AgentesSelector from './AgentesSelector.vue'
+
 
 const { isVisible, modalOptions, close } = useUserFormModal()
 const toast = useToast()
@@ -21,10 +23,16 @@ const userForm = ref<CreateUserPayload>({
 })
 const isSaving = ref(false)
 const userError = ref('')
+const bots = ref<BotAcceso[]>([])
+/** Al equipo interno no se le eligen agentes: entra a todo. */
+const esInterno = computed(() => Boolean(modalOptions.value.user?.isInternal))
+const conBakano = computed(() => bots.value.includes('bakano'))
 
 watch(isVisible, (newVal) => {
   if (newVal) {
     userError.value = ''
+    // Al editar se muestra lo que ya tiene; al invitar arranca vacío y se elige.
+    bots.value = modalOptions.value.mode === 'edit' ? [...(modalOptions.value.user?.bots || ['bakano', 'lucas'])] : []
     if (modalOptions.value.mode === 'edit' && modalOptions.value.user) {
       userForm.value = {
         name: modalOptions.value.user.name || '',
@@ -67,8 +75,13 @@ async function handleSubmit() {
     userError.value = 'La contraseña debe tener al menos 8 caracteres.'
     return
   }
-  // Sin telefono los avisos de WhatsApp no llegan: obligatorio desde el alta.
-  if (modalOptions.value.mode === 'create' && !userForm.value.phoneNumber?.trim()) {
+  if (!esInterno.value && !bots.value.length) {
+    userError.value = 'Elige a qué tendrá acceso: Bakano People, Lucas o los dos.'
+    return
+  }
+  // Sin telefono los avisos de WhatsApp (del bot de Bakano) no llegan: obligatorio
+  // desde el alta. Quien solo usa a Lucas no los recibe.
+  if (modalOptions.value.mode === 'create' && conBakano.value && !userForm.value.phoneNumber?.trim()) {
     userError.value = 'El número de teléfono es obligatorio: es la vía de los avisos por WhatsApp.'
     return
   }
@@ -83,7 +96,8 @@ async function handleSubmit() {
         email: userForm.value.email,
         role: userForm.value.role,
         phoneNumber: userForm.value.phoneNumber,
-        phoneExtension: userForm.value.phoneExtension
+        phoneExtension: userForm.value.phoneExtension,
+        ...(esInterno.value ? {} : { bots: bots.value }),
       }
       if (userForm.value.password) payload.password = userForm.value.password
 
@@ -101,9 +115,16 @@ async function handleSubmit() {
         password: userForm.value.password,
         role: userForm.value.role,
         phoneNumber: userForm.value.phoneNumber,
-        phoneExtension: userForm.value.phoneExtension
+        phoneExtension: userForm.value.phoneExtension,
+        bots: bots.value,
       })
-      toast.success('Usuario invitado correctamente.')
+      toast.success(
+        bots.value.length === 2
+          ? 'Listo: le llega el acceso a Bakano People y a Lucas.'
+          : bots.value[0] === 'lucas'
+            ? 'Listo: le llega el acceso a Lucas.'
+            : 'Listo: le llega el acceso a Bakano People.'
+      )
       close(user)
     }
   } catch (err: any) {
@@ -153,7 +174,7 @@ async function handleSubmit() {
           <div class="global-modal__form-group">
             <label>
               Número de teléfono
-              <span v-if="modalOptions.mode === 'create'" style="color: #dc2626;">*</span>
+              <span v-if="modalOptions.mode === 'create' && conBakano" style="color: #dc2626;">*</span>
               <span style="font-size: 0.8em; font-weight: normal; color: #64748b; margin-left: 0.5rem;">
                 (Aquí llegan los avisos por WhatsApp)
               </span>
@@ -176,6 +197,10 @@ async function handleSubmit() {
             />
           </div>
 
+          <div v-if="!esInterno" class="global-modal__form-group">
+            <AgentesSelector v-model="bots" />
+          </div>
+
           <div class="global-modal__form-group">
             <label>Nivel de acceso (Rol)</label>
             <select v-model="userForm.role" class="global-modal__select">
@@ -186,11 +211,16 @@ async function handleSubmit() {
           <!-- El flujo ya no pasa por la plataforma: quien entra a un entorno
                recibe el acceso al bot en el momento. Se dice aquí para que
                nadie mande ese correo a mano ni se pregunte si salió. -->
-          <p v-if="modalOptions.mode !== 'edit'" class="aviso-bot-alta">
+          <p v-if="modalOptions.mode !== 'edit' && bots.length" class="aviso-bot-alta">
             <i class="fa-brands fa-telegram" />
-            <span>
-              Al invitarlo le llega por correo el <b>acceso al bot de Telegram</b>, donde ve sus citas,
-              guiones y facturación sin entrar a Metrics. Entra con este mismo correo y un código de 6 números.
+            <span v-if="bots.length === 2">
+              Le llega por correo el acceso a <b>Bakano People</b> y a <b>Lucas</b> en Telegram. Entra con este mismo correo y un código de 6 números.
+            </span>
+            <span v-else-if="bots[0] === 'lucas'">
+              Le llega por correo el acceso a <b>Lucas</b> en Telegram. No recibe el acceso a Metrics ni al bot de Bakano.
+            </span>
+            <span v-else>
+              Le llega por correo el acceso a <b>Bakano People</b> en Telegram, donde ve sus citas, guiones y facturación. Entra con este mismo correo y un código de 6 números.
             </span>
           </p>
           <p v-if="userError" class="global-modal__error-text">{{ userError }}</p>

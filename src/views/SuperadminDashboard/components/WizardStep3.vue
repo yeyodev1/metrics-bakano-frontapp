@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useToast } from '@/composables/useToast'
 import type { WorkspaceUser } from '@/types'
+import AgentesSelector from '@/components/common/AgentesSelector.vue'
 
 const props = defineProps<{
   clientMode: 'new' | 'existing'
@@ -69,7 +70,11 @@ async function wizardSearchExistingClient(): Promise<void> {
         <label>Contraseña <span class="superadmin-dashboard__required">*</span></label>
         <input v-model="newClient.password" type="password" placeholder="Mínimo 8 caracteres" minlength="8" />
       </div>
-      <label class="superadmin-dashboard__wizard-checkbox">
+      <div v-if="newClient.bots.includes('bakano')" class="superadmin-dashboard__form-group">
+        <label>Teléfono (WhatsApp) <span class="superadmin-dashboard__required">*</span></label>
+        <input v-model="newClient.phoneNumber" type="tel" placeholder="Ej: 0991234567 (Ecuador) o +57 300 123 4567" />
+      </div>
+      <label v-if="newClient.bots.includes('bakano')" class="superadmin-dashboard__wizard-checkbox">
         <input v-model="newClient.sendWelcomeEmail" type="checkbox" />
         <span>Enviar email con credenciales de acceso</span>
       </label>
@@ -119,6 +124,11 @@ async function wizardSearchExistingClient(): Promise<void> {
         </p>
       </div>
     </template>
+
+    <!-- A qué agentes entra el cliente (nuevo o existente) -->
+    <div class="superadmin-dashboard__form-group" style="margin-top: 0.5rem;">
+      <AgentesSelector v-model="newClient.bots" />
+    </div>
 
     <!-- Brand profile invite -->
     <div class="superadmin-dashboard__wizard-invite-box">

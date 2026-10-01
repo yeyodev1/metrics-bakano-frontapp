@@ -239,6 +239,8 @@ export interface WorkspaceUser {
   isActive: boolean
   phoneNumber?: string
   phoneExtension?: string
+  /** A qué agentes entra en ESTE entorno (viene de listUsers). */
+  bots?: BotAcceso[]
   createdAt: string
 }
 
@@ -261,6 +263,7 @@ export interface UpdateUserPayload {
   phoneNumber?: string
   phoneExtension?: string
   isInternal?: boolean
+  bots?: BotAcceso[]
 }
 
 export type BotAcceso = 'bakano' | 'lucas'

@@ -3,7 +3,8 @@ import { ref, computed, watch } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useToast } from '@/composables/useToast'
 import ExistingUserPickerList from './ExistingUserPickerList.vue'
-import type { Workspace, WorkspaceUser } from '@/types'
+import type { BotAcceso, Workspace, WorkspaceUser } from '@/types'
+import AgentesSelector from '@/components/common/AgentesSelector.vue'
 
 /**
  * Sumar a un entorno a alguien que YA existe en la plataforma.
@@ -33,6 +34,7 @@ const saving = ref(false)
 const error = ref<string | null>(null)
 const selectedId = ref<string | undefined>(undefined)
 const role = ref<'admin' | 'colaborador'>('colaborador')
+const bots = ref<BotAcceso[]>([])
 const busqueda = ref('')
 
 watch(
@@ -41,6 +43,7 @@ watch(
     if (!visible) return
     selectedId.value = undefined
     role.value = 'colaborador'
+    bots.value = []
     busqueda.value = ''
     error.value = null
     loading.value = true
@@ -78,6 +81,10 @@ const seleccionado = computed(() => candidatos.value.find((u) => u._id === selec
 
 async function agregar() {
   if (!props.workspace || !seleccionado.value || saving.value) return
+  if (!seleccionado.value.isInternal && !bots.value.length) {
+    error.value = 'Elige a qué tendrá acceso: Bakano People, Lucas o los dos.'
+    return
+  }
   saving.value = true
   error.value = null
   try {
@@ -88,6 +95,10 @@ async function agregar() {
       email: seleccionado.value.email,
       password: '',
       role: role.value,
+      // Ya tiene cuenta: se manda su teléfono para que el alta no lo pida otra vez.
+      phoneNumber: seleccionado.value.phoneNumber,
+      phoneExtension: seleccionado.value.phoneExtension,
+      ...(seleccionado.value.isInternal ? {} : { bots: bots.value }),
     })
     toast.success(`${seleccionado.value.name || seleccionado.value.email} agregado al entorno.`)
     emit('added', user)
@@ -158,6 +169,10 @@ async function agregar() {
                 <i class="fa-solid fa-user-tie" /> Administrador
               </button>
             </div>
+          </div>
+
+          <div v-if="seleccionado && !seleccionado.isInternal" class="aeu__group">
+            <AgentesSelector v-model="bots" />
           </div>
 
           <div v-if="error" class="aeu__error">
