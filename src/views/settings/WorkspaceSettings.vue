@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import AgentesChips from '@/components/common/AgentesChips.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { workspaceService } from '@/services/workspace.service'
 import { useUserStore } from '@/stores/user'
@@ -332,6 +333,7 @@ onMounted(() => {
                         <span class="workspace-settings__role-badge" :class="`workspace-settings__role-badge--${user.role}`">
                           {{ user.role }}
                         </span>
+                        <AgentesChips v-if="!user.isInternal" :bots="user.bots" style="margin-left: 0.4rem;" />
                       </td>
                       <td v-if="canManageTeam">
                         <div v-if="canManageUser(user)" class="workspace-settings__table-actions">

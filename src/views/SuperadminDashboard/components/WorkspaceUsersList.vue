@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import AgentesChips from '@/components/common/AgentesChips.vue'
 import { useRouter } from 'vue-router'
 import type { Workspace, WorkspaceUser } from '@/types'
 
@@ -116,6 +117,7 @@ const secciones = computed(() => {
               >
                 {{ user.isInternal ? 'interno' : user.role }}
               </span>
+              <AgentesChips v-if="!user.isInternal" :bots="user.bots" />
             </div>
             <span class="superadmin-dashboard__user-email">{{ user.email }}</span>
           </div>

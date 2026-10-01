@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useToast } from '@/composables/useToast'
-import type { Workspace, WorkspaceUser, ApiError } from '@/types'
+import type { Workspace, WorkspaceUser, ApiError, BotAcceso } from '@/types'
 import WizardStep1 from './WizardStep1.vue'
 import WizardStep2 from './WizardStep2.vue'
 import WizardStep3 from './WizardStep3.vue'
@@ -28,7 +28,14 @@ const createWizardStep = ref(1)
 const wizardSelectedInternal = ref<WorkspaceUser[]>([])
 const wizardClientMode = ref<'new' | 'existing'>('new')
 const wizardSelectedExistingClient = ref<WorkspaceUser | null>(null)
-const wizardNewClient = ref({ name: '', email: '', password: '', sendWelcomeEmail: true })
+const wizardNewClient = ref({
+  name: '',
+  email: '',
+  password: '',
+  sendWelcomeEmail: true,
+  phoneNumber: '',
+  bots: [] as BotAcceso[],
+})
 const wizardSendBrandProfileInvite = ref(true)
 const isSavingWorkspace = ref(false)
 
@@ -58,8 +65,21 @@ async function wizardNextStep(): Promise<void> {
   }
 }
 
+/** "0991234567" o "+57 300…" → número y prefijo, como los guarda el backend. */
+function separarTelefono(crudo: string): { phoneNumber: string; phoneExtension: string } {
+  const t = crudo.trim()
+  const m = /^\+(\d{1,3})\s*(.*)$/.exec(t)
+  if (m) return { phoneExtension: `+${m[1]}`, phoneNumber: m[2]!.replace(/\D/g, '') }
+  return { phoneExtension: '+593', phoneNumber: t.replace(/\D/g, '') }
+}
+
 async function handleCreateWorkspace(): Promise<void> {
   workspaceError.value = ''
+  const bots = wizardNewClient.value.bots
+  if (!bots.length) {
+    workspaceError.value = 'Elige a qué tendrá acceso el cliente: Bakano People, Lucas o los dos.'
+    return
+  }
   if (wizardClientMode.value === 'new') {
     if (!wizardNewClient.value.email.trim() || !wizardNewClient.value.password.trim()) {
       workspaceError.value = 'El email y contraseña del cliente son requeridos.'
@@ -67,6 +87,10 @@ async function handleCreateWorkspace(): Promise<void> {
     }
     if (wizardNewClient.value.password.length < 8) {
       workspaceError.value = 'La contraseña debe tener al menos 8 caracteres.'
+      return
+    }
+    if (bots.includes('bakano') && !wizardNewClient.value.phoneNumber.trim()) {
+      workspaceError.value = 'El teléfono es obligatorio para Bakano People: por ahí le llegan los avisos.'
       return
     }
   } else if (!wizardSelectedExistingClient.value) {
@@ -94,12 +118,14 @@ async function handleCreateWorkspace(): Promise<void> {
         email: wizardNewClient.value.email,
         password: wizardNewClient.value.password,
         role: 'admin',
-        sendWelcomeEmail: wizardNewClient.value.sendWelcomeEmail,
+        sendWelcomeEmail: wizardNewClient.value.sendWelcomeEmail && bots.includes('bakano'),
+        bots,
+        ...(bots.includes('bakano') ? separarTelefono(wizardNewClient.value.phoneNumber) : {}),
       } as any)
     } else if (wizardSelectedExistingClient.value) {
       await workspaceService.createGlobalUser({
         email: wizardSelectedExistingClient.value.email,
-        workspaces: [{ workspaceId: newWsId, role: 'admin' }],
+        workspaces: [{ workspaceId: newWsId, role: 'admin', bots }],
       })
     }
 
@@ -130,7 +156,7 @@ function resetWizard() {
   wizardSelectedInternal.value = []
   wizardClientMode.value = 'new'
   wizardSelectedExistingClient.value = null
-  wizardNewClient.value = { name: '', email: '', password: '', sendWelcomeEmail: true }
+  wizardNewClient.value = { name: '', email: '', password: '', sendWelcomeEmail: true, phoneNumber: '', bots: [] }
   wizardSendBrandProfileInvite.value = true
 }
 
