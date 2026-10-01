@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import type { PlanningEntry, WorkspaceUser, Workspace } from '@/types'
 import { workspaceService } from '@/services/workspace.service'
+import { planningService } from '@/services/planning.service'
+import { useToast } from '@/composables/useToast'
 import BaseTimePicker from '../common/BaseTimePicker.vue'
 
 const router = useRouter()
@@ -59,6 +61,39 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save', 'delete'])
+
+const toast = useToast()
+const marcando = ref(false)
+
+/**
+ * El equipo marca a mano que la producción ya se hizo. Antes solo se marcaba
+ * al poner un guion en GRABADO, y las que no tenían guiones quedaban pendientes.
+ */
+const puedeMarcarRealizada = computed(() => {
+  const e = props.entry
+  if (!e || isClientUser.value) return false
+  if ((e as any).cancelada || /^CANCELADA/.test(e.title || '')) return false
+  return new Date(e.date).getTime() <= Date.now() + 12 * 3_600_000
+})
+
+async function marcarRealizada(realizada: boolean) {
+  if (!props.entry || marcando.value) return
+  marcando.value = true
+  try {
+    const actualizada = await planningService.marcarRealizada(props.entry._id, realizada)
+    // Mismo objeto que pinta el calendario: se refleja sin recargar.
+    Object.assign(props.entry, {
+      cumplida: actualizada.cumplida,
+      cumplidaEn: actualizada.cumplidaEn,
+      cumplidaPorNombre: actualizada.cumplidaPorNombre,
+    })
+    toast.success(realizada ? 'Producción marcada como realizada' : 'Se quitó la marca de realizada')
+  } catch (e: any) {
+    toast.error(e?.message || 'No se pudo marcar la producción.')
+  } finally {
+    marcando.value = false
+  }
+}
 
 const form = ref({
   title: '',
@@ -234,9 +269,24 @@ function goToVideoPlanning() {
           <i class="fa-solid fa-circle-check" />
           <span>
             <strong>Producción cumplida.</strong>
-            {{ entry.cumplidaPorNombre ? `${entry.cumplidaPorNombre} marcó` : 'Se marcó' }} el guion como grabado
-            <template v-if="entry.cumplidaEn">el {{ new Date(entry.cumplidaEn).toLocaleDateString('es-EC', { timeZone: 'America/Guayaquil', day: 'numeric', month: 'short' }) }}</template>.
+            {{ entry.cumplidaPorNombre ? `La marcó ${entry.cumplidaPorNombre}` : 'Quedó marcada' }}
+            <template v-if="entry.cumplidaEn"> el {{ new Date(entry.cumplidaEn).toLocaleDateString('es-EC', { timeZone: 'America/Guayaquil', day: 'numeric', month: 'short' }) }}</template>.
           </span>
+          <button
+            v-if="puedeMarcarRealizada"
+            type="button"
+            class="planning-modal__link-btn"
+            :disabled="marcando"
+            @click="marcarRealizada(false)"
+          >Quitar marca</button>
+        </div>
+        <div v-else-if="puedeMarcarRealizada" class="planning-modal__hint planning-modal__hint--pendiente">
+          <i class="fa-solid fa-clock-rotate-left" />
+          <span><strong>¿Ya se grabó?</strong> Márcala como realizada para que deje de salir pendiente.</span>
+          <button type="button" class="planning-modal__done-btn" :disabled="marcando" @click="marcarRealizada(true)">
+            <i :class="marcando ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-circle-check'" />
+            Marcar como realizada
+          </button>
         </div>
 
         <!-- Agendada desde el CRM -->
@@ -563,6 +613,21 @@ function goToVideoPlanning() {
   &__ws-label { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; color: $text-secondary; opacity: 0.6; }
   &__ws-name { font-size: 1rem; font-weight: 700; color: $primary-dark; }
 
+  &__done-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
+    border: none; border-radius: 9px; padding: 0.45rem 0.85rem; cursor: pointer;
+    background: #16a34a; color: $white; font-family: inherit; font-size: 0.74rem; font-weight: 700;
+    i { color: $white !important; opacity: 1 !important; font-size: 0.75rem; }
+    &:hover:not(:disabled) { filter: brightness(1.05); }
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+
+  &__link-btn {
+    margin-left: auto; flex-shrink: 0; border: none; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 0.72rem; font-weight: 700; color: #166534; text-decoration: underline;
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+
   &__meta-badge {
     display: flex; align-items: center; gap: 0.35rem;
     background: #0866ff; color: $white; font-size: 0.65rem; font-weight: 700;
@@ -581,6 +646,11 @@ function goToVideoPlanning() {
       background: #f0fdf4; border-bottom-color: #bbf7d0;
       i { color: #16a34a; opacity: 1; }
       span { color: #166534; }
+    }
+    &--pendiente {
+      background: #fffbeb; border-bottom-color: #fde68a; flex-wrap: wrap;
+      i { color: #d97706; opacity: 1; }
+      span { color: #92400e; flex: 1; min-width: 180px; }
     }
     &--crm {
       background: #f5f3ff; border-bottom-color: #ddd6fe;
