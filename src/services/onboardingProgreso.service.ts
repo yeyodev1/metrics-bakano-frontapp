@@ -3,11 +3,11 @@ import APIBase from './httpBase'
 export type PasoOnboarding =
   | 'bienvenida'
   | 'especializacion'
+  | 'crm'
   | 'levantamiento'
   | 'produccion'
   // Proceso anterior: se conservan para leer el historial.
   | 'meta'
-  | 'crm'
   | 'estrategia'
 export type EstadoPaso = 'pendiente' | 'agendada' | 'cumplida' | 'bloqueada' | 'no_aplica'
 

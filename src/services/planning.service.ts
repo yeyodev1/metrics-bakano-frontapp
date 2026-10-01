@@ -37,6 +37,12 @@ class PlanningService extends APIBase {
     return res.data
   }
 
+  /** El equipo marca (o desmarca) que la producción ya se grabó. */
+  async marcarRealizada(entryId: string, realizada: boolean): Promise<PlanningEntry> {
+    const res = await this.patch<{ entry: PlanningEntry }>(`planning/${entryId}/cumplida`, { realizada })
+    return res.data.entry
+  }
+
   async updateEntry(
     entryId: string,
     payload: UpdatePlanningEntryPayload,

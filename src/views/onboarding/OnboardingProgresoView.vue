@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import RecorridoCliente from './components/RecorridoCliente.vue'
+import EstadoMetricsModal from '@/components/EstadoMetricsModal.vue'
 import { useUserStore } from '@/stores/user'
 import {
   onboardingProgresoService,
@@ -22,6 +23,8 @@ const userStore = useUserStore()
 const soloMios = ref(false)
 
 const abierto = ref<ProgresoEntorno | null>(null)
+/** Panel en vivo con lo que hay en Metrics del entorno (lo mismo que ve el bot). */
+const verEstado = ref(false)
 const bitacora = ref<EventoOnboarding[]>([])
 const cargandoDetalle = ref(false)
 const guardando = ref<PasoOnboarding | null>(null)
@@ -372,8 +375,19 @@ onMounted(cargar)
               <template v-if="abierto.tieneTelegram"> · 💬 Telegram conectado</template>
             </p>
           </div>
-          <button class="onb__cerrar" @click="cerrar">✕</button>
+          <div class="onb__panel-acciones">
+            <button class="onb__estado-btn" type="button" @click="verEstado = true">
+              <i class="fa-solid fa-signal" aria-hidden="true" /> Estado en Metrics
+            </button>
+            <button class="onb__cerrar" @click="cerrar">✕</button>
+          </div>
         </header>
+        <EstadoMetricsModal
+          :show="verEstado"
+          :workspace-id="abierto.workspaceId"
+          :nombre="abierto.entorno"
+          @close="verEstado = false"
+        />
 
         <p v-if="aviso" class="onb__aviso">{{ aviso }}</p>
 
@@ -762,6 +776,27 @@ onMounted(cargar)
 }
 
 .onb__panel-title { margin: 0.25rem 0 0; font-size: 1.3rem; font-weight: 800; }
+
+.onb__panel-acciones { display: flex; align-items: flex-start; gap: 0.4rem; }
+
+.onb__estado-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 32px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba($primary, 0.3);
+  background: rgba($primary, 0.06);
+  color: $primary;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover { background: rgba($primary, 0.12); }
+}
 
 .onb__cerrar {
   border: 1px solid rgba(107, 114, 128, 0.18);

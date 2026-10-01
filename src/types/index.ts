@@ -154,6 +154,8 @@ export interface Workspace {
     isActive: boolean
   } | null
   isActive: boolean
+  /** Subcuenta de GoHighLevel vinculada (viene en el listado del panel). */
+  crm?: { locationId: string; conectado: boolean; modo: string | null } | null
   metaAds?: {
     accessToken: string
     pageAccessToken?: string

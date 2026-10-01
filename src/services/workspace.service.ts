@@ -171,6 +171,78 @@ class WorkspaceService extends APIBase {
     })
     return res.data
   }
+
+  /** Lo que hay en Metrics del entorno, en vivo (la misma foto que ve el bot de Telegram). */
+  async getEstadoMetrics(workspaceId: string): Promise<EstadoEnMetrics> {
+    const res = await this.get<EstadoEnMetrics>(`workspaces/${workspaceId}/estado-metrics`, undefined, { timeout: 30000 })
+    return res.data
+  }
+
+  async getCrmSubcuenta(workspaceId: string): Promise<CrmSubcuenta> {
+    const res = await this.get<CrmSubcuenta>(`workspaces/${workspaceId}/crm-subcuenta`)
+    return res.data
+  }
+
+  /** Probar el CRM con la cuenta de agencia puede tardar: más margen. */
+  async setCrmSubcuenta(workspaceId: string, locationId: string): Promise<CrmSubcuenta & { nota?: string }> {
+    const res = await this.put<CrmSubcuenta & { nota?: string }>(
+      `workspaces/${workspaceId}/crm-subcuenta`,
+      { locationId },
+      undefined,
+      { timeout: 45000 },
+    )
+    return res.data
+  }
 }
 
 export const workspaceService = new WorkspaceService()
+
+export interface CrmSubcuenta {
+  locationId: string | null
+  vinculadoEn: string | null
+  vinculadoPorNombre: string | null
+  crmConectado: boolean
+  crmModo: string | null
+  crmError: string | null
+  agenciaDisponible: boolean
+}
+
+export interface ArchivoEnMetrics {
+  cantidad: number
+  ultimo?: { nombre: string; url: string; subidoEn: string | null }
+}
+
+export interface EstadoEnMetrics {
+  entorno: { id: string; nombre: string; activo: boolean }
+  generadoEn: string
+  contrato: { firmado: boolean; firmadoEn: string | null; verContrato: string | null }
+  archivos: {
+    logo: ArchivoEnMetrics
+    lineaGrafica: ArchivoEnMetrics
+    catalogo: ArchivoEnMetrics
+    otros: number
+    dondeSubir: string
+  }
+  datosMarca: { completos: number; total: number; faltan: string[]; dondeVer: string }
+  facturacion: { diasRegistrados: number; ultimoDia: string | null; dondeCargar: string }
+  meta: { conectado: boolean }
+  crm: { conectado: boolean; locationId: string | null; estado: string | null; whatsapp: string | null }
+  onboarding: {
+    sesiones: { sesion: string; etiqueta: string; con: string; estado: string; fecha: string | null }[]
+    siguiente: string | null
+    completo: boolean
+  }
+  citas: { cita: string; cuando: string; con: string; linkMeet: string | null; lugar: string | null }[]
+  guiones: {
+    total: number
+    aprobados: number
+    porRevisar: number
+    conCorrecciones: number
+    porProduccion: { produccion: string; total: number; aprobados: number; porRevisar: number }[]
+    dondeVer: string
+  }
+  videos: { editados: number; aprobadosPorCliente: number; porRevisar: number; publicados: number; dondeVer: string }
+  pagos: { alDia: boolean; deuda: string | null }
+  yaEsta: string[]
+  falta: string[]
+}

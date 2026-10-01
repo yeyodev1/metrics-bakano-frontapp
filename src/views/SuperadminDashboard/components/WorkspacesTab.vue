@@ -3,6 +3,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import WorkspacesSummaryBar from './WorkspacesSummaryBar.vue'
 import DeactivateWorkspaceModal from './DeactivateWorkspaceModal.vue'
 import RenameWorkspaceModal from './RenameWorkspaceModal.vue'
+import CrmSubcuentaModal from './CrmSubcuentaModal.vue'
+import EstadoMetricsModal from '@/components/EstadoMetricsModal.vue'
 import { workspaceService } from '@/services/workspace.service'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -68,6 +70,17 @@ async function confirmarDesactivacion(datos: { motivo: string; nota?: string }) 
 // Renombrar: el nombre viaja a los avisos del cliente, asi que se cambia en
 // un modal aparte y no editando la tarjeta al vuelo.
 const wsARenombrar = ref<Workspace | null>(null)
+// Subcuenta del CRM y estado en vivo: se abren desde el menú de la tarjeta.
+const wsCrm = ref<Workspace | null>(null)
+const wsEstado = ref<Workspace | null>(null)
+
+/** Refleja en la tarjeta la subcuenta recién vinculada, sin recargar la lista. */
+function crmGuardado(locationId: string, conectado: boolean) {
+  const ws = wsCrm.value
+  if (!ws) return
+  const enLista = workspaces.value.find((w) => w._id === ws._id)
+  if (enLista) enLista.crm = { locationId, conectado, modo: enLista.crm?.modo ?? null }
+}
 const renombrando = ref(false)
 const renameModal = ref<InstanceType<typeof RenameWorkspaceModal> | null>(null)
 
@@ -304,6 +317,21 @@ onMounted(fetchWorkspaces)
       @confirmar="confirmarRenombre"
     />
 
+    <CrmSubcuentaModal
+      :show="!!wsCrm"
+      :workspace-id="wsCrm?._id || ''"
+      :nombre="wsCrm?.name || ''"
+      @close="wsCrm = null"
+      @guardado="crmGuardado"
+    />
+
+    <EstadoMetricsModal
+      :show="!!wsEstado"
+      :workspace-id="wsEstado?._id || ''"
+      :nombre="wsEstado?.name || ''"
+      @close="wsEstado = null"
+    />
+
     <!-- View: Workspaces Grid -->
     <WorkspaceList
       v-if="!selectedWorkspace"
@@ -319,6 +347,8 @@ onMounted(fetchWorkspaces)
       @open-create-workspace="emit('openCreateWorkspace')"
       @select-workspace="selectWorkspace"
       @rename-workspace="(ws: Workspace) => (wsARenombrar = ws)"
+      @crm-workspace="(ws: Workspace) => (wsCrm = ws)"
+      @estado-workspace="(ws: Workspace) => (wsEstado = ws)"
       @handle-toggle-workspace-active="handleToggleWorkspaceActive"
       @handle-delete-workspace="handleDeleteWorkspace"
       @fetch-workspaces="fetchWorkspaces"

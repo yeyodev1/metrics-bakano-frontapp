@@ -26,6 +26,8 @@ const emit = defineEmits<{
   (e: 'toggleActive', ev: Event): void
   (e: 'remove', ev: Event): void
   (e: 'enter'): void
+  (e: 'crm'): void
+  (e: 'estado'): void
 }>()
 
 function etiquetaDesactivacion(ws: any): string {
@@ -130,6 +132,12 @@ function accionMenu(fn: () => void) {
             <button type="button" class="wsc__menu-item" @click="accionMenu(() => emit('select'))">
               <i class="fa-solid fa-users" /> Gestionar usuarios
             </button>
+            <button type="button" class="wsc__menu-item" @click="accionMenu(() => emit('estado'))">
+              <i class="fa-solid fa-signal" /> Estado en Metrics
+            </button>
+            <button type="button" class="wsc__menu-item" @click="accionMenu(() => emit('crm'))">
+              <i class="fa-solid fa-diagram-project" /> Subcuenta del CRM
+            </button>
             <button type="button" class="wsc__menu-item" @click="accionMenu(() => emit('rename'))">
               <i class="fa-solid fa-pen-to-square" /> Renombrar
             </button>
@@ -157,6 +165,15 @@ function accionMenu(fn: () => void) {
       <span class="wsc__chip" :class="`wsc__chip--${bpTone(ws)}`">{{ bpLabel(ws) }}</span>
       <span v-if="ws.metaAds?.pageId" class="wsc__chip wsc__chip--ok"><i class="fa-brands fa-meta" /> Meta</span>
       <span v-else class="wsc__chip wsc__chip--warn">Sin Meta</span>
+      <button
+        v-if="ws.crm?.locationId"
+        type="button"
+        class="wsc__chip wsc__chip--btn"
+        :class="ws.crm.conectado ? 'wsc__chip--ok' : 'wsc__chip--muted'"
+        :title="`Subcuenta ${ws.crm.locationId}${ws.crm.conectado ? ' · Metrics lee este CRM' : ' · vinculada, sin lectura'}`"
+        @click="emit('crm')"
+      ><i class="fa-solid fa-diagram-project" /> CRM</button>
+      <button v-else type="button" class="wsc__chip wsc__chip--btn wsc__chip--warn" @click="emit('crm')">Sin CRM</button>
       <div class="wsc__actions">
         <button class="wsc__btn-ghost" type="button" @click="emit('select')">
           <i class="fa-solid fa-users" /><span class="wsc__btn-ghost-label">Usuarios</span>
@@ -319,6 +336,14 @@ function accionMenu(fn: () => void) {
   &--ok { background: rgba($alert-success, 0.12); color: darken($alert-success, 8%); }
   &--warn { background: rgba(#d97706, 0.12); color: #b45309; }
   &--muted { background: rgba($text-secondary, 0.14); color: $text-secondary; }
+
+  &--btn {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+
+    &:hover { filter: brightness(0.95); }
+  }
 }
 
 // Grupo de acciones: si no cabe, envuelve COMPLETO y alineado a la derecha,
