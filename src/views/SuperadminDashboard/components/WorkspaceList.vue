@@ -21,6 +21,8 @@ const emit = defineEmits<{
   (e: 'update:searchQuery', val: string): void
   (e: 'selectWorkspace', ws: Workspace): void
   (e: 'renameWorkspace', ws: Workspace): void
+  (e: 'crmWorkspace', ws: Workspace): void
+  (e: 'estadoWorkspace', ws: Workspace): void
   (e: 'handleToggleWorkspaceActive', ws: Workspace, ev: Event): void
   (e: 'handleDeleteWorkspace', ws: Workspace, ev: Event): void
   (e: 'fetchWorkspaces', loadMore: boolean): void
@@ -71,6 +73,8 @@ const localSearchQuery = computed({
         :busy="togglingWorkspaceId === ws._id || deletingWorkspaceId === ws._id"
         @select="emit('selectWorkspace', ws)"
         @rename="emit('renameWorkspace', ws)"
+        @crm="emit('crmWorkspace', ws)"
+        @estado="emit('estadoWorkspace', ws)"
         @toggle-active="(ev) => emit('handleToggleWorkspaceActive', ws, ev)"
         @remove="(ev) => emit('handleDeleteWorkspace', ws, ev)"
         @enter="router.push({ name: 'BillingRoas', params: { workspaceId: ws._id } })"

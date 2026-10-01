@@ -12,7 +12,7 @@
       description="La marca en sus versiones oficiales."
       icon="fa-solid fa-shapes"
       drop-title="Arrastra el logo o haz clic"
-      hint="Solo PNG, con fondo transparente · hasta 10 MB"
+      hint="PNG, JPG, WEBP o PDF: lo convertimos a PNG · hasta 10 MB"
       empty-text="Todavía no hay ningún logo cargado."
       :items="res.logos.value"
       :busy="res.uploading.value === 'logo'"

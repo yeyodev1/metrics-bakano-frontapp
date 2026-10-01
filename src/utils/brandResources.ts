@@ -17,8 +17,9 @@ export type ResourceCategory = 'logo' | 'linea_grafica' | 'catalogo'
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 export const ACCEPTED: Record<ResourceCategory, string[]> = {
-  // El logo va a los videos y a las piezas: se necesita PNG (con transparencia).
-  logo: ['image/png'],
+  // El logo se acepta como venga y el servidor lo convierte a PNG
+  // (logoPng.service): exigir exportarlo era donde se trababa el cliente.
+  logo: [...IMAGE_TYPES, 'image/heic', 'image/heif', 'image/gif', 'image/svg+xml', 'application/pdf'],
   linea_grafica: [...IMAGE_TYPES, 'application/pdf'],
   catalogo: [...IMAGE_TYPES, 'application/pdf', 'text/plain'],
 }
@@ -45,7 +46,7 @@ export function rejectionReason(file: File, categoria: ResourceCategory): string
   if (!ACCEPTED[categoria].includes(file.type)) {
     const tipo = file.type || 'de tipo desconocido'
     if (categoria === 'logo') {
-      return `El logo tiene que ser un PNG. "${file.name}" es ${tipo}. Si lo tienes en .ai, .psd o .jpg, expórtalo a PNG con fondo transparente.`
+      return `"${file.name}" es ${tipo} y no se puede usar como logo. Súbelo como imagen (PNG, JPG, WEBP) o PDF y lo convertimos a PNG.`
     }
     return `El ${LABELS[categoria]} debe ser una imagen (PNG, JPG o WEBP) o un PDF. "${file.name}" es ${tipo}.`
   }

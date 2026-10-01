@@ -702,8 +702,9 @@ watch(() => route.params.workspaceId, async (newId) => {
             <div class="app-layout__crm-notice-contact">
               <span class="app-layout__crm-notice-label">¿Ayuda con el CRM?</span>
               <div class="app-layout__crm-notice-actions">
-                <a href="https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm" target="_blank" rel="noopener noreferrer" class="app-layout__crm-btn app-layout__crm-btn--primary">
-                  <i class="fa-solid fa-calendar-plus" /> Agendar
+                <!-- Todo se agenda por el bot de Telegram, nunca por un calendario externo. -->
+                <a href="https://t.me/BakanoAgencyBot?start=onb_crm" target="_blank" rel="noopener noreferrer" class="app-layout__crm-btn app-layout__crm-btn--primary">
+                  <i class="fa-brands fa-telegram" /> Agendar
                 </a>
                 <div class="app-layout__crm-notice-links">
                   <a href="https://wa.me/593962728548" target="_blank" rel="noopener noreferrer" class="app-layout__crm-link" title="Soporte WhatsApp">
@@ -845,8 +846,8 @@ watch(() => route.params.workspaceId, async (newId) => {
             class="app-layout__nav-item"
             :to="{ name: 'AppBooking', params: { workspaceId: currentWorkspaceId } }"
           >
-            <i class="fa-solid fa-calendar-plus" aria-hidden="true" />
-            <span>Agenda y Asesorías</span>
+            <i class="fa-solid fa-calendar-days" aria-hidden="true" />
+            <span>Agenda</span>
           </RouterLink>
         </template>
       </nav>
