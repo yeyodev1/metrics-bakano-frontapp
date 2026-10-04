@@ -272,6 +272,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/integraciones/WorkspaceIntegracionesView.vue'),
         meta: { title: 'Bakano: Integraciones', requiresAuth: true },
       },
+      // Dashboard del CRM del cliente: conversaciones por día y respuesta por asesor.
+      {
+        path: 'workspaces/:workspaceId/crm',
+        name: 'WorkspaceCrmDashboard',
+        component: () => import('../views/integraciones/CrmDashboardView.vue'),
+        meta: { title: 'Bakano: CRM', requiresAuth: true },
+      },
       // ── Brand Resources ──────────────────────────────────
       {
         path: 'workspaces/:workspaceId/resources',

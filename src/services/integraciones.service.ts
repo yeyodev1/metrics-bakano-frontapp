@@ -16,6 +16,8 @@ export interface CrmPermisos {
   mensajes: boolean
   oportunidades: boolean
   contactos: boolean
+  /** users.readonly: opcional, para ver los nombres de los asesores. */
+  usuarios?: boolean
 }
 
 export interface CrmConectadoPor {
@@ -44,6 +46,8 @@ export interface CrmVista {
   ultimaRevision: string | null
   ultimoError: string | null
   revision: CrmRevisionConfig
+  /** Permisos opcionales que faltan (no impiden la conexión). */
+  advertencias?: string[]
 }
 
 export interface IntegracionesVista {
@@ -90,6 +94,77 @@ export interface CrmRevisionResultado {
   truncado?: boolean
 }
 
+export type CrmMetricaEstado = 'pendiente' | 'en_curso' | 'terminada' | 'fallida'
+
+export interface CrmMetricasDia {
+  dia: string
+  /** null: ese día todavía no se calcula. */
+  estado: CrmMetricaEstado | null
+  conversaciones: number
+  nuevas: number
+  contactosQueEscribieron: number
+  mensajesEntrantes: number
+  mensajesSalientes: number
+  mensajesAutomaticos: number
+  sinRespuesta: number
+  medianaRespuestaSeg: number | null
+  asesoresActivos: number
+}
+
+export interface CrmMetricasAsesor {
+  userId: string
+  nombre: string
+  mensajes: number
+  conversaciones: number
+  respuestas: number
+  medianaRespuestaSeg: number | null
+  promedioRespuestaSeg: number | null
+  sinRespuesta: number
+  diasActivo: number
+}
+
+export interface CrmCanales {
+  whatsapp: number
+  instagram: number
+  facebook: number
+  sms: number
+  otro: number
+}
+
+/** Dashboard del CRM: días cerrados hasta ayer, en hora de Ecuador. */
+export interface CrmMetricasVista {
+  conectado: boolean
+  estadoCrm: CrmEstado | null
+  problema: string | null
+  advertencias: string[]
+  desde: string
+  hasta: string
+  dias: CrmMetricasDia[]
+  totales: {
+    conversaciones: number
+    nuevas: number
+    contactosQueEscribieron: number
+    mensajesEntrantes: number
+    mensajesSalientes: number
+    mensajesAutomaticos: number
+    sinRespuesta: number
+    asesoresActivos: number
+    medianaRespuestaSeg: number | null
+    promedioRespuestaSeg: number | null
+  }
+  porCanal: CrmCanales
+  asesores: CrmMetricasAsesor[]
+  pendientes: number
+  truncado: boolean
+}
+
+export interface CrmRecalculoResultado {
+  dias: number
+  calculados: number
+  pendientes: number
+  errores: string[]
+}
+
 class IntegracionesService extends APIBase {
   async getIntegraciones(workspaceId: string) {
     const res = await this.get<IntegracionesVista>(`workspaces/${workspaceId}/integraciones`)
@@ -128,6 +203,22 @@ class IntegracionesService extends APIBase {
     const res = await this.post<CrmRevisionResultado>(
       `workspaces/${workspaceId}/integraciones/crm/revisar`,
       pedido,
+      undefined,
+      { timeout: 90000 }
+    )
+    return res.data
+  }
+
+  async metricasCrm(workspaceId: string, dias: number) {
+    const res = await this.get<CrmMetricasVista>(`workspaces/${workspaceId}/integraciones/crm/metricas?dias=${dias}`)
+    return res.data
+  }
+
+  /** Lee todas las conversaciones de cada día: puede tardar ~60s. Solo equipo. */
+  async recalcularMetricasCrm(workspaceId: string, desde: string, hasta: string) {
+    const res = await this.post<CrmRecalculoResultado>(
+      `workspaces/${workspaceId}/integraciones/crm/metricas/recalcular`,
+      { desde, hasta },
       undefined,
       { timeout: 90000 }
     )
