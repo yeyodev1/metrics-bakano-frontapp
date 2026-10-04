@@ -23,6 +23,37 @@ export interface DriveConfirmResult {
   item: VideoItem
 }
 
+/** Un guion de la planificacion, como lo ve el editor al conectar. */
+export interface GuionParaConectar {
+  itemId: string
+  numero: number
+  tema: string
+  estadoProduccion: string
+  edicion: string
+  videoClienteAprobacion: string | null
+  versiones: number
+  rondasRestantes: number
+  driveLink: string | null
+  correcciones: { segundo: string; texto: string }[]
+}
+
+export interface PlanificacionParaSubir {
+  planningId: string
+  entryId: string
+  workspaceId: string
+  workspaceName: string
+  titulo: string
+  fecha: string
+  carpetaLink: string | null
+  items: GuionParaConectar[]
+}
+
+export interface ResultadoConexion {
+  conectados: { itemId: string; numero: number; version: number; driveLink?: string }[]
+  errores: string[]
+  carpetaLink: string | null
+}
+
 // 8MB: multiplo de 256KB (requisito de Drive) y buen balance progreso/overhead.
 const CHUNK_SIZE = 8 * 1024 * 1024
 const CHUNK_RETRIES = 3
@@ -104,6 +135,37 @@ class DriveService extends APIBase {
     if (!fileId) throw new Error('Drive no devolvió el ID del archivo')
     onProgress(100)
     return fileId
+  }
+
+  // ── Subida masiva por planificacion ─────────────────────────────────────
+  async planificaciones(): Promise<PlanificacionParaSubir[]> {
+    const res = await this.get<{ planificaciones: PlanificacionParaSubir[] }>('drive/planificaciones')
+    return res.data.planificaciones
+  }
+
+  async sesionPlanificacion(planningId: string, file: File): Promise<{ uploadUrl: string }> {
+    const res = await this.post<{ uploadUrl: string }>(`drive/planificaciones/${planningId}/sesion`, {
+      fileName: file.name,
+      mimeType: file.type || 'video/mp4',
+      size: file.size,
+    })
+    return res.data
+  }
+
+  async sugerencias(
+    planningId: string,
+    archivos: { fileId: string; nombre: string }[],
+  ): Promise<{ fileId: string; itemId: string | null }[]> {
+    const res = await this.post<{ sugerencias: { fileId: string; itemId: string | null }[] }>(
+      `drive/planificaciones/${planningId}/sugerencias`,
+      { archivos },
+    )
+    return res.data.sugerencias
+  }
+
+  async conectar(planningId: string, asignaciones: { itemId: string; fileId: string }[]): Promise<ResultadoConexion> {
+    const res = await this.post<ResultadoConexion>(`drive/planificaciones/${planningId}/conectar`, { asignaciones })
+    return res.data
   }
 
   async confirm(itemId: string, fileId: string): Promise<DriveConfirmResult> {

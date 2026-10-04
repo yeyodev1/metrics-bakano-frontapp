@@ -47,7 +47,18 @@ const fecha = computed<{ texto: string; urgente: boolean } | null>(() => {
     <div class="eqc__row">
       <div class="eqc__info">
         <span class="eqc__tema">{{ titulo }}</span>
-        <span v-if="modo === 're-editar' && item.motivoRechazo" class="eqc__motivo">
+        <template v-if="modo === 're-editar' && item.correcciones?.length">
+          <span class="eqc__ronda">
+            <i class="fa-solid fa-rotate" /> Cambios del cliente · ronda {{ item.ronda }} de 2
+            <template v-if="item.rondasRestantes === 0"> · la próxima versión solo se aprueba</template>
+          </span>
+          <ul class="eqc__cambios">
+            <li v-for="(c, i) in item.correcciones" :key="i">
+              <span class="eqc__seg">{{ c.segundo }}</span> {{ c.texto }}
+            </li>
+          </ul>
+        </template>
+        <span v-else-if="modo === 're-editar' && item.motivoRechazo" class="eqc__motivo">
           <i class="fa-solid fa-circle-xmark" /> {{ item.motivoRechazo }}
         </span>
         <span v-else-if="modo === 'por-subir'" class="eqc__sub">
@@ -105,6 +116,37 @@ const fecha = computed<{ texto: string; urgente: boolean } | null>(() => {
   padding: 0.7rem 0.85rem;
 
   &--re-editar { border-color: rgba($alert-error, 0.3); }
+
+  &__ronda {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #b45309;
+
+    i { margin-right: 0.3rem; }
+  }
+
+  &__cambios {
+    margin: 0.3rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    li {
+      font-size: 0.8rem;
+      color: $primary-dark;
+      line-height: 1.4;
+    }
+  }
+
+  &__seg {
+    display: inline-block;
+    min-width: 2.6rem;
+    font-family: ui-monospace, Menlo, monospace;
+    font-weight: 700;
+    color: #e6285c;
+  }
   &--por-subir { border-color: rgba(#d97706, 0.3); }
 }
 

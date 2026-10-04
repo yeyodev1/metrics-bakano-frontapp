@@ -310,6 +310,11 @@ export interface EditorQueueItem {
   estadoProduccion: string
   driveLink?: string
   driveMonthFolderLink?: string
+  /** Cambios del cliente de la ultima ronda, con su segundo. */
+  correcciones?: { segundo: string; texto: string }[]
+  ronda?: number
+  rondasRestantes?: number
+  versiones?: number
 }
 
 export interface EditorQueue {

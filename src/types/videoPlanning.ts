@@ -153,6 +153,14 @@ export interface VideoItem {
   videoClienteAprobacion?: ClienteAprobacion
   videoClienteMotivo?: string
   videoClienteRevisadoEn?: string
+  /** Versiones entregadas por el editor (la ultima es la vigente). */
+  versiones?: { n: number; driveFileId: string; driveLink?: string; nombreArchivo?: string; subidoPorNombre?: string; en: string }[]
+  /** Cambios pedidos por el cliente, con el segundo del video. */
+  correccionesVideo?: { ronda: number; version?: number; segundo: number; texto: string; porNombre?: string; en: string }[]
+  /** Rondas de correccion usadas (maximo 2 por video). */
+  rondasUsadas?: number
+  editadoEn?: string
+  videoAprobadoEn?: string
   fechaPublicacion?: string
   copyPublicacion?: string
   order: number
@@ -408,9 +416,18 @@ export interface RevisionPendiente {
   ultimoAviso: string | null
 }
 
-export interface VideoReviewPayload {
-  reviews: { itemId: string; estado: 'APROBADO' | 'RECHAZADO'; motivo?: string }[]
+/** Un cambio pedido sobre el video: el segundo (ej. "0:15") y qué cambiar. */
+export interface CambioVideo {
+  segundo: string
+  texto: string
 }
+
+export interface VideoReviewPayload {
+  reviews: { itemId: string; estado: 'APROBADO' | 'RECHAZADO'; motivo?: string; cambios?: CambioVideo[] }[]
+}
+
+/** Rondas de cambios que tiene el cliente por video. */
+export const MAX_RONDAS_VIDEO = 2
 
 /** Planificación que un entorno tiene sin aprobar, para aterrizar desde WhatsApp. */
 export interface PlanificacionPendiente {

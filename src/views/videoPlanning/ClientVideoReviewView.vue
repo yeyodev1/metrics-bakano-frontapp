@@ -10,7 +10,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { videoPlanningService } from '@/services/videoPlanning.service'
-import type { VideoPlanning, VideoItem } from '@/types/videoPlanning'
+import type { CambioVideo, VideoPlanning, VideoItem } from '@/types/videoPlanning'
 import { useToast } from '@/composables/useToast'
 import VideoReviewCard from '@/components/videoPlanning/VideoReviewCard.vue'
 
@@ -27,12 +27,19 @@ const enviando = ref(false)
 const confirmo = ref(false)
 const enviada = ref(false)
 
-type Verdict = { estado: 'APROBADO' | 'RECHAZADO' | null; motivo: string }
+type Verdict = { estado: 'APROBADO' | 'RECHAZADO' | null; cambios: CambioVideo[] }
 const verdicts = reactive<Record<string, Verdict>>({})
+/** Error del servidor por video (ej. un cambio de vanidad), por numero. */
+const errores = reactive<Record<number, string>>({})
 
-/** Solo lo que el cliente puede juzgar: videos ya editados. */
+/**
+ * Solo lo que el cliente puede juzgar: la version vigente de los videos que
+ * esperan su veredicto. Los que ya aprobo no se vuelven a mandar.
+ */
 const videos = computed<VideoItem[]>(() =>
-  (planning.value?.items ?? []).filter((i) => i.edicion === 'EDITADO'),
+  (planning.value?.items ?? []).filter(
+    (i) => i.edicion === 'EDITADO' && (!i.videoClienteAprobacion || i.videoClienteAprobacion === 'PENDIENTE'),
+  ),
 )
 
 const locked = computed(
@@ -43,9 +50,13 @@ const revisados = computed(
   () => videos.value.filter((i) => verdicts[i._id]?.estado).length,
 )
 
+/** Cada cambio necesita su segundo y qué cambiar. */
 const faltaMotivo = computed(() =>
   videos.value.some(
-    (i) => verdicts[i._id]?.estado === 'RECHAZADO' && !verdicts[i._id]?.motivo.trim(),
+    (i) =>
+      verdicts[i._id]?.estado === 'RECHAZADO' &&
+      (!verdicts[i._id].cambios.length ||
+        verdicts[i._id].cambios.some((c) => !c.segundo.trim() || c.texto.trim().length < 8)),
   ),
 )
 
@@ -69,11 +80,7 @@ async function cargar() {
     planning.value = res
     for (const item of res.items) {
       if (item.edicion !== 'EDITADO') continue
-      const previo = item.videoClienteAprobacion
-      verdicts[item._id] = {
-        estado: previo === 'APROBADO' || previo === 'RECHAZADO' ? previo : null,
-        motivo: item.videoClienteMotivo ?? '',
-      }
+      verdicts[item._id] = { estado: null, cambios: [] }
     }
   } finally {
     loading.value = false
@@ -83,18 +90,27 @@ async function cargar() {
 async function enviar() {
   if (!planning.value || !puedeEnviar.value) return
   enviando.value = true
+  for (const k of Object.keys(errores)) delete errores[Number(k)]
   try {
     const res = await videoPlanningService.submitVideoReview(planning.value._id, {
-      reviews: videos.value.map((i) => ({
-        itemId: i._id,
-        estado: verdicts[i._id].estado as 'APROBADO' | 'RECHAZADO',
-        motivo: verdicts[i._id].motivo.trim() || undefined,
-      })),
+      reviews: videos.value.map((i) => {
+        const v = verdicts[i._id]
+        return {
+          itemId: i._id,
+          estado: v.estado as 'APROBADO' | 'RECHAZADO',
+          ...(v.estado === 'RECHAZADO'
+            ? { cambios: v.cambios.map((c) => ({ segundo: c.segundo.trim(), texto: c.texto.trim() })) }
+            : {}),
+        }
+      }),
     })
     enviada.value = true
     toast.success(res.message)
   } catch (err: any) {
-    toast.error(err?.data?.message || err?.message || 'No se pudo enviar tu revisión.')
+    const mensaje = err?.data?.message || err?.message || 'No se pudo enviar tu revisión.'
+    // Un cambio que no entra (vanidad, sin segundo) se marca en su video.
+    if (err?.data?.numero) errores[err.data.numero] = mensaje
+    toast.error(mensaje)
   } finally {
     enviando.value = false
   }
@@ -117,7 +133,7 @@ onMounted(cargar)
     <div v-else-if="!planning || !videos.length" class="cvr__state">
       <div class="cvr__icon"><i class="fa-solid fa-circle-check" /></div>
       <h3>No hay videos por revisar</h3>
-      <p>Cuando tu equipo termine de editar, te avisamos por WhatsApp y correo.</p>
+      <p>Cuando tu equipo termine de editar, te avisamos por Telegram, WhatsApp y correo.</p>
       <button class="cvr__btn" @click="irAlInicio">Ir a mi tablero</button>
     </div>
 
@@ -135,8 +151,8 @@ onMounted(cargar)
       <header class="cvr__header">
         <h1>Revisa tus videos</h1>
         <p>
-          Tienes <strong>{{ videos.length }} videos terminados</strong>. Mira cada uno y
-          dinos si te gusta o qué quieres cambiar.
+          Tienes <strong>{{ videos.length }} {{ videos.length === 1 ? 'video terminado' : 'videos terminados' }}</strong>.
+          Mira cada uno y apruébalo o dinos qué cambiar, con el segundo exacto. Tienes 2 rondas de cambios por video.
         </p>
       </header>
 
@@ -147,8 +163,9 @@ onMounted(cargar)
           :item="item"
           :verdict="verdicts[item._id]"
           :locked="enviando"
+          :error="errores[item.numero]"
           @set-estado="(e) => (verdicts[item._id].estado = e)"
-          @set-motivo="(m) => (verdicts[item._id].motivo = m)"
+          @set-cambios="(c) => (verdicts[item._id].cambios = c)"
         />
       </div>
 
@@ -179,7 +196,7 @@ onMounted(cargar)
         </button>
 
         <p v-if="faltaMotivo" class="cvr__hint">
-          A los videos con cambios les falta el motivo: es lo que el editor necesita.
+          A cada cambio le falta el segundo o qué cambiar: es lo que el editor necesita.
         </p>
       </footer>
     </template>

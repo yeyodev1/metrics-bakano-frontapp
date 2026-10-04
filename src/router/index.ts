@@ -397,6 +397,13 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Ads: Calendario del Editor', requiresAuth: true, requiresInternal: true },
       },
       {
+        // Subida masiva: todos los videos de una planificacion de golpe.
+        path: 'subir',
+        name: 'EditorSubirVideos',
+        component: () => import('../views/editor/EditorDashboard.vue'),
+        meta: { title: 'Bakano Ads: Subir videos', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'workspaces/:workspaceId/planning/:entryId/videos',
         name: 'EditorVideoPlanning',
         component: () => import('../views/editor/EditorVideoPlanningView.vue'),
