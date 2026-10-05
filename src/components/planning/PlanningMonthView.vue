@@ -232,7 +232,7 @@ watch(() => props.currentMonth, scrollToToday)
 
   &__header {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     background: rgba($primary-dark, 0.02);
     border-bottom: 1px solid rgba($primary-dark, 0.06);
 
@@ -253,7 +253,7 @@ watch(() => props.currentMonth, scrollToToday)
 
   &__grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
 
     @media (max-width: 768px) {
       grid-template-columns: 1fr;
@@ -268,6 +268,7 @@ watch(() => props.currentMonth, scrollToToday)
     }
 
     min-height: 140px;
+    min-width: 0;
     padding: 0.75rem;
     border-right: 1px solid rgba($primary-dark, 0.04);
     border-bottom: 1px solid rgba($primary-dark, 0.04);

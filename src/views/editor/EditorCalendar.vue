@@ -509,7 +509,7 @@ onMounted(() => { loadWorkspaces(); loadEntries() })
 
   &__cal-header {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     border-bottom: 1px solid #f1f5f9;
     background: #f8fafc;
     flex-shrink: 0;
@@ -528,7 +528,7 @@ onMounted(() => { loadWorkspaces(); loadEntries() })
   &__cal-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     grid-auto-rows: 1fr;
     border-left: 1px solid #f1f5f9;
     overflow-y: auto;
