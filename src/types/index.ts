@@ -485,6 +485,8 @@ export type NotificationType =
   | 'reunion_agendada'
   | 'cliente_en_riesgo'
   | 'video_corregido'
+  | 'video_por_revisar'
+  | 'video_devuelto'
 
 export interface AppNotification {
   _id: string
