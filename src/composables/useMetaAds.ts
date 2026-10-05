@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { metaService, type MetaPage } from '@/services/meta.service'
+import { metaService, type MetaAdAccount, type MetaPage } from '@/services/meta.service'
 
 /**
  * Composable to handle Meta Ads integration flow following Official SDK patterns
@@ -11,19 +11,24 @@ export function useMetaAds() {
   const error = ref<string | null>(null)
 
   // Flow steps for the UI
-  const authStep = ref<'idle' | 'pick_page' | 'done'>('idle')
+  const authStep = ref<'idle' | 'pick_page' | 'pick_ad_account' | 'done'>('idle')
   const availablePages = ref<MetaPage[]>([])
+  const availableAdAccounts = ref<MetaAdAccount[]>([])
+  const selectedPage = ref<MetaPage | null>(null)
   const longToken = ref<string | null>(null)
 
   const META_APP_ID = '1465122391696717'
 
   /**
-   * IMPORTANT: Reduced scopes to avoid "Invalid Scopes" if the app is not yet a verified Business App.
-   * Eliminamos 'ads_management' porque la aplicación solo requiere LECTURA de métricas ('ads_read').
-   * Añadimos 'instagram_basic' para habilitar la lectura de posts orgánicos en el Dashboard.
-   * Añadimos 'pages_manage_posts' + 'instagram_content_publish' para programar publicaciones.
+   * Solo los 4 permisos que se piden en la revisión de Meta (App Review):
+   * leer métricas de anuncios (ads_read), listar y leer las páginas del
+   * cliente (pages_show_list, pages_read_engagement) y ver las cuentas
+   * publicitarias de su Business Manager (business_management).
+   * Pedir permisos no aprobados (pages_manage_posts, instagram_*) hace que el
+   * diálogo falle para los clientes: programar en Facebook y lo orgánico de
+   * Instagram quedan pendientes de aprobación de Meta.
    */
-  const REQUIRED_SCOPES = 'pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,ads_read,business_management'
+  const REQUIRED_SCOPES = 'ads_read,pages_show_list,pages_read_engagement,business_management'
 
   /**
    * statusChangeCallback (As requested from documentation)
@@ -154,11 +159,12 @@ export function useMetaAds() {
   }
 
   /**
-   * Finalizes the integration by saving the selected page
+   * Guarda la página elegida y pasa a elegir la cuenta publicitaria
    */
   const selectPageAndSave = async (workspaceId: string, page: MetaPage) => {
     isLoggingIn.value = true
     try {
+      selectedPage.value = page
       await metaService.saveIntegration({
         workspaceId,
         pageId: page.id,
@@ -169,9 +175,38 @@ export function useMetaAds() {
         // Y guardamos explícitamente el token de la página para la lecturas de Orgánico
         pageAccessToken: page.access_token
       })
-      authStep.value = 'done'
+      // Con la página guardada, el backend ya puede listar sus cuentas publicitarias.
+      const { accounts } = await metaService.listAdAccounts(workspaceId)
+      availableAdAccounts.value = accounts ?? []
+      authStep.value = availableAdAccounts.value.length ? 'pick_ad_account' : 'done'
     } catch (err: any) {
       error.value = 'Error al guardar la página seleccionada.'
+      console.error(err)
+    } finally {
+      isLoggingIn.value = false
+    }
+  }
+
+  /**
+   * Guarda la cuenta publicitaria de la que se leen las métricas
+   */
+  const selectAdAccountAndSave = async (workspaceId: string, account: MetaAdAccount) => {
+    const page = selectedPage.value
+    if (!page) return
+    isLoggingIn.value = true
+    try {
+      await metaService.saveIntegration({
+        workspaceId,
+        pageId: page.id,
+        pageName: page.name,
+        accessToken: longToken.value || page.access_token,
+        pageAccessToken: page.access_token,
+        adAccountId: account.account_id,
+        adAccountName: account.name,
+      })
+      authStep.value = 'done'
+    } catch (err: any) {
+      error.value = 'Error al guardar la cuenta publicitaria.'
       console.error(err)
     } finally {
       isLoggingIn.value = false
@@ -185,10 +220,12 @@ export function useMetaAds() {
     error,
     authStep,
     availablePages,
+    availableAdAccounts,
     initSDK,
     loginWithMeta,
     checkLoginState,
     selectPageAndSave,
+    selectAdAccountAndSave,
     resetFlow: () => { authStep.value = 'idle'; error.value = null }
   }
 }

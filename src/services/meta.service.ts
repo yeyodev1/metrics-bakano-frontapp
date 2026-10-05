@@ -8,6 +8,14 @@ export interface MetaPage {
   picture?: { data: { url: string } };
 }
 
+export interface MetaAdAccount {
+  id: string;
+  account_id: string;
+  name: string;
+  account_status?: number;
+  currency?: string;
+}
+
 export interface MetaAuthResponse {
   message: string;
   longToken: string;
@@ -65,7 +73,7 @@ class MetaService extends APIBase {
    * Obtiene la lista de cuentas publicitarias vinculadas al usuario
    */
   async listAdAccounts(workspaceId: string) {
-    const response = await this.get<any>(`meta/${workspaceId}/adaccounts`)
+    const response = await this.get<{ accounts: MetaAdAccount[] }>(`meta/${workspaceId}/adaccounts`)
     return response.data
   }
 
