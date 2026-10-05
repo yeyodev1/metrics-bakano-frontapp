@@ -9,6 +9,7 @@ import { useToast } from '@/composables/useToast'
 import { useUserFormModal } from '@/composables/useUserFormModal'
 import type { Workspace, WorkspaceUser, ApiError } from '@/types'
 import SoundSettingsCard from '@/components/settings/SoundSettingsCard.vue'
+import MetaConnectCard from '@/components/settings/MetaConnectCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -263,21 +264,16 @@ onMounted(() => {
           <h2><i class="fa-solid fa-link" /> Integraciones de Datos</h2>
         </div>
         <div class="workspace-settings__panel-body">
-          <div class="workspace-settings__crm-notice" style="display: flex; gap: 1rem; align-items: flex-start; padding: 1.5rem; background: #fafafa; border: 1px solid rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="workspace-settings__crm-icon" style="width: 48px; height: 48px; border-radius: 12px; background: rgba(230, 40, 92, 0.1); color: #e6285c; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;">
-              <i class="fa-solid fa-database" />
-            </div>
-            <div class="workspace-settings__crm-info">
-              <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem; color: #1e293b;">Integraciones migradas al CRM</h3>
-              <p style="margin: 0; color: #64748b; font-size: 0.95rem; line-height: 1.5;">
-                La conexión de fuentes de tráfico como Meta Ads y Google Ads ahora se gestiona de forma centralizada en nuestro CRM. 
-                Puedes revisar y administrar tus integraciones directamente desde allí.
-              </p>
-              <a href="https://crm.bakano.ec" target="_blank" class="workspace-settings__btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem; text-decoration: none;">
-                Ir a crm.bakano.ec <i class="fa-solid fa-arrow-up-right-from-square" />
-              </a>
-            </div>
-          </div>
+          <MetaConnectCard
+            :workspace-id="workspaceId"
+            :puede-conectar="canManageTeam"
+            :meta-ads="workspace?.metaAds"
+            @conectado="fetchWorkspace"
+          />
+          <p class="workspace-settings__crm-hint">
+            <i class="fa-solid fa-database" /> Google Ads y las demás fuentes de tráfico se gestionan en
+            <a href="https://crm.bakano.ec" target="_blank" rel="noopener">crm.bakano.ec</a>.
+          </p>
         </div>
       </section>
 
@@ -412,6 +408,15 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .workspace-settings {
+  &__crm-hint {
+    margin: 1rem 0 0;
+    font-size: 0.85rem;
+    color: $text-secondary;
+
+    i { color: $primary; margin-right: 0.25rem; }
+    a { color: $primary; font-weight: 600; }
+  }
+
   padding: 2rem;
   width: 100%;
   display: flex;

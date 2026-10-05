@@ -162,7 +162,8 @@ When user selects a platform + saves in the modal, `publishToInstagram` / `publi
 - **Instagram (DISABLED):** Pending Meta App Review for `instagram_content_publish`. Code is commented in `videoPlanning.service.ts`. Frontend shows "Próximamente" badge.
 - Validation: min 10 min / max 75 days from now — enforced on both frontend and backend.
 - Result stored on item: `fbPostId` / `fbScheduleStatus` / `fbScheduleError` (and ig* equivalents for future use).
-- Meta OAuth scopes (in `src/composables/useMetaAds.ts`): `pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish, ads_read, business_management`.
+- Meta OAuth scopes (in `src/composables/useMetaAds.ts`): solo `ads_read, pages_show_list, pages_read_engagement, business_management` (los 4 de la revisión de Meta, 2026-10-05). `pages_manage_posts` e `instagram_*` están rechazados en la app 1465122391696717: programar en Facebook devuelve "pendiente de aprobación de Meta".
+- Conexión del cliente: `src/components/settings/MetaConnectCard.vue` en Configuración del entorno (`/app/workspaces/:id/settings`, panel Integraciones; solo admin del entorno o superadmin): Conectar con Facebook → página → cuenta publicitaria → métricas en `/app/workspaces/:id/visual`. Incluye la guía de acceso de socio (ID de negocio de Bakano 289122353312940).
 - To re-enable Instagram: uncomment block in `videoPlanning.service.ts` after Meta App Review approved.
 
 #### Brand Profile (locked-by-default UX)
