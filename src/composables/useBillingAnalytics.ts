@@ -15,6 +15,8 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
   
   const loading = ref(false)
   const errorMsg = ref('')
+  /** El cliente hizo privada su facturación y esta persona no está en la lista. */
+  const privada = ref(false)
   const monthData = ref<IMonthData | null>(null)
   const todayDaySummary = ref<IDaySummary | null>(null)
   const myEntryToday = ref<{ _id: string; amount: number } | null>(null)
@@ -188,7 +190,12 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
     errorMsg.value = ''
     try {
       monthData.value = await billingService.getMonthData(workspaceIdRef.value, currentYear.value, currentMonth.value)
+      privada.value = false
     } catch (e: any) {
+      if (e?.status === 403 && /privada/i.test(e?.message || '')) {
+        privada.value = true
+        return
+      }
       errorMsg.value = e?.message || 'Error al cargar los datos'
       setTimeout(() => (errorMsg.value = ''), 4000)
     } finally {
@@ -237,6 +244,7 @@ export function useBillingAnalytics(workspaceIdRef: { value: string }) {
     currentMonth,
     loading,
     errorMsg,
+    privada,
     monthData,
     todayDaySummary,
     myEntryToday,

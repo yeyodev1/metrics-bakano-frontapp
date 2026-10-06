@@ -719,13 +719,14 @@ watch(() => route.params.workspaceId, async (newId) => {
           </div>
 
           <!--
-            1. Facturación & ROAS — lo ve cualquiera con acceso al entorno.
+            1. Facturación & ROAS — lo ve cualquiera con acceso al entorno,
+            salvo que el cliente la haya hecho privada y no esté en su lista.
             El equipo interno entra en solo lectura: `canEnterBilling` sigue
             dejando el registro a superadmin y al cliente. Ver quién cargó cada
             día es lo que permite reclamar los días que faltan.
           -->
           <RouterLink
-            v-if="currentWorkspaceId"
+            v-if="currentWorkspaceId && activeWorkspace?.puedoVerFacturacion !== false"
             class="app-layout__nav-item"
             :to="{ name: 'BillingRoas', params: { workspaceId: currentWorkspaceId } }"
           >

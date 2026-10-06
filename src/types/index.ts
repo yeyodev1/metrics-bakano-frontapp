@@ -176,6 +176,8 @@ export interface Workspace {
     [key: string]: any
   }
   userRole?: 'admin' | 'colaborador'
+  /** false = el cliente hizo privada su facturación y esta persona no está en la lista. */
+  puedoVerFacturacion?: boolean
   createdAt: string
   updatedAt: string
 }
