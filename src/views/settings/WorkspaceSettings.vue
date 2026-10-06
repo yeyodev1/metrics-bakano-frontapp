@@ -10,6 +10,7 @@ import { useUserFormModal } from '@/composables/useUserFormModal'
 import type { Workspace, WorkspaceUser, ApiError } from '@/types'
 import SoundSettingsCard from '@/components/settings/SoundSettingsCard.vue'
 import MetaConnectCard from '@/components/settings/MetaConnectCard.vue'
+import FacturacionPrivadaCard from '@/components/settings/FacturacionPrivadaCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -274,6 +275,16 @@ onMounted(() => {
             <i class="fa-solid fa-database" /> Google Ads y las demás fuentes de tráfico se gestionan en
             <a href="https://crm.bakano.ec" target="_blank" rel="noopener">crm.bakano.ec</a>.
           </p>
+        </div>
+      </section>
+
+      <!-- Panel: privacidad de las ventas. La tarjeta se oculta sola si la persona no puede verla. -->
+      <section class="workspace-settings__panel">
+        <div class="workspace-settings__panel-header">
+          <h2><i class="fa-solid fa-user-lock" /> Privacidad de ventas</h2>
+        </div>
+        <div class="workspace-settings__panel-body">
+          <FacturacionPrivadaCard :workspace-id="workspaceId" />
         </div>
       </section>
 

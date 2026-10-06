@@ -21,6 +21,12 @@
       </div>
     </section>
 
+    <section v-if="analytics.privada.value" class="billing-private">
+      <i class="fa-solid fa-lock billing-private__icon" aria-hidden="true" />
+      <h2>Facturación privada</h2>
+      <p>El administrador de este negocio eligió quién ve las ventas y el ROAS. Si necesitas verlas, pídeselo a él.</p>
+    </section>
+
     <!-- Header -->
     <BillingHeader
       v-if="showStandardBilling"
@@ -160,7 +166,7 @@ const isFlorindaWorkspace = computed(() => workspaceId.value === '69d7c73318a77b
 
 // Abstracted Analytics Logic
 const analytics = useBillingAnalytics(workspaceId)
-const showStandardBilling = computed(() => !analytics.isBoloncity.value && !isFlorindaWorkspace.value)
+const showStandardBilling = computed(() => !analytics.isBoloncity.value && !isFlorindaWorkspace.value && !analytics.privada.value)
 
 // Modal State (kept local as it drives the modal UI specific to this view)
 const showModal = ref(false)
@@ -526,6 +532,20 @@ onMounted(async () => {
 }
 
 // Toasts
+.billing-private {
+  margin: 2rem auto;
+  max-width: 520px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  border-radius: 16px;
+  background: #fafafa;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+
+  &__icon { font-size: 2rem; color: #16a34a; margin-bottom: 0.75rem; }
+  h2 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+  p { margin: 0; color: #6b7280; }
+}
+
 .success-toast, .error-toast {
   position: fixed;
   top: 24px;

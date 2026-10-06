@@ -10,6 +10,14 @@ import type {
   UserListResponse,
 } from '@/types'
 
+export interface FacturacionPrivada {
+  activa: boolean
+  puedoVer: boolean
+  puedoEditar: boolean
+  visiblePara?: string[]
+  usuarios?: { id: string; nombre: string; email: string; rol: 'admin' | 'colaborador' }[]
+}
+
 class WorkspaceService extends APIBase {
   // ── Workspaces ──────────────────────────────────────────
 
@@ -46,6 +54,16 @@ class WorkspaceService extends APIBase {
   async updateWorkspace(workspaceId: string, name: string): Promise<WorkspaceResponse> {
     const res = await this.put<WorkspaceResponse>(`workspaces/${workspaceId}`, { name })
     return res.data
+  }
+
+  /** Quién ve las ventas del entorno (facturación privada). */
+  async getFacturacionPrivada(workspaceId: string): Promise<FacturacionPrivada> {
+    const res = await this.get<FacturacionPrivada>(`workspaces/${workspaceId}/facturacion-privada`)
+    return res.data
+  }
+
+  async putFacturacionPrivada(workspaceId: string, body: { activa: boolean; visiblePara: string[] }): Promise<void> {
+    await this.put(`workspaces/${workspaceId}/facturacion-privada`, body)
   }
 
   async deleteWorkspace(workspaceId: string): Promise<void> {
