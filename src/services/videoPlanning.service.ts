@@ -242,6 +242,15 @@ class VideoPlanningService extends APIBase {
     return res.data.resultado
   }
 
+  /** Pide al productor que revise los editados que aun no pasan la revision interna. */
+  async notificarProductor(planningId: string): Promise<{ videos: number; productores: number }> {
+    const res = await this.post<{ resultado: { videos: number; productores: number } }>(
+      `video-planning/${planningId}/notify-producer`,
+      {},
+    )
+    return res.data.resultado
+  }
+
   /** El cliente entrega su veredicto sobre los videos terminados. */
   async submitVideoReview(
     planningId: string,
@@ -310,6 +319,11 @@ export interface EditorQueueItem {
   estadoProduccion: string
   driveLink?: string
   driveMonthFolderLink?: string
+  /** Cambios del cliente de la ultima ronda, con su segundo. */
+  correcciones?: { segundo: string; texto: string }[]
+  ronda?: number
+  rondasRestantes?: number
+  versiones?: number
 }
 
 export interface EditorQueue {

@@ -71,6 +71,15 @@ onMounted(load)
         :workspace-id="workspaceId"
         :agencia-disponible="!!data.agenciaDisponible"
       />
+      <RouterLink
+        v-if="data.crm && data.crm.estado === 'conectado'"
+        class="integ__dashboard"
+        :to="{ name: 'WorkspaceCrmDashboard', params: { workspaceId } }"
+      >
+        <i class="fa-solid fa-chart-column" aria-hidden="true" />
+        <span>Ver el dashboard del CRM: conversaciones por día y cómo responde cada asesor</span>
+        <i class="fa-solid fa-arrow-right" aria-hidden="true" />
+      </RouterLink>
       <CrmRevisionSection
         v-if="esEquipo && data.crm && data.crm.estado === 'conectado'"
         v-model:crm="data.crm"
@@ -104,6 +113,14 @@ onMounted(load)
 }
 
 .integ__list { display: flex; flex-direction: column; gap: 1rem; }
+
+.integ__dashboard {
+  display: flex; align-items: center; gap: 0.6rem; padding: 0.85rem 1rem; border-radius: 14px;
+  background: rgba(#6366f1, 0.08); color: #4338ca; font-size: 0.86rem; font-weight: 700; text-decoration: none;
+  span { flex: 1; }
+  i:first-child { color: #6366f1; }
+  &:hover { background: rgba(#6366f1, 0.13); }
+}
 
 .integ__skeleton { display: flex; flex-direction: column; gap: 1rem; }
 

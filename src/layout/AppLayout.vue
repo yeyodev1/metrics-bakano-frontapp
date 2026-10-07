@@ -841,6 +841,16 @@ watch(() => route.params.workspaceId, async (newId) => {
             <span>Integraciones</span>
           </RouterLink>
 
+          <!-- CRM — conversaciones por día y cómo responde cada asesor. -->
+          <RouterLink
+            v-if="currentWorkspaceId"
+            class="app-layout__nav-item"
+            :to="{ name: 'WorkspaceCrmDashboard', params: { workspaceId: currentWorkspaceId } }"
+          >
+            <i class="fa-solid fa-chart-column" aria-hidden="true" />
+            <span>CRM</span>
+          </RouterLink>
+
           <!-- Expert agendas — clients only -->
           <RouterLink
             v-if="currentWorkspaceId && (!idVista.isInternal || idVista.role === 'superadmin')"

@@ -8,6 +8,7 @@ const PERMISOS = [
   'conversations/message.readonly',
   'opportunities.readonly',
   'contacts.readonly',
+  'users.readonly',
 ]
 </script>
 

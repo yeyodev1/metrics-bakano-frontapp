@@ -272,6 +272,13 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/integraciones/WorkspaceIntegracionesView.vue'),
         meta: { title: 'Bakano: Integraciones', requiresAuth: true },
       },
+      // Dashboard del CRM del cliente: conversaciones por día y respuesta por asesor.
+      {
+        path: 'workspaces/:workspaceId/crm',
+        name: 'WorkspaceCrmDashboard',
+        component: () => import('../views/integraciones/CrmDashboardView.vue'),
+        meta: { title: 'Bakano: CRM', requiresAuth: true },
+      },
       // ── Brand Resources ──────────────────────────────────
       {
         path: 'workspaces/:workspaceId/resources',
@@ -388,6 +395,13 @@ const routes: Array<RouteRecordRaw> = [
         name: 'EditorCalendario',
         component: () => import('../views/editor/EditorDashboard.vue'),
         meta: { title: 'Bakano Ads: Calendario del Editor', requiresAuth: true, requiresInternal: true },
+      },
+      {
+        // Subida masiva: todos los videos de una planificacion de golpe.
+        path: 'subir',
+        name: 'EditorSubirVideos',
+        component: () => import('../views/editor/EditorDashboard.vue'),
+        meta: { title: 'Bakano Ads: Subir videos', requiresAuth: true, requiresInternal: true },
       },
       {
         path: 'workspaces/:workspaceId/planning/:entryId/videos',

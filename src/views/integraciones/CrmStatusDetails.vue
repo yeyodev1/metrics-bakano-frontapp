@@ -11,6 +11,7 @@ const PERMISOS: Array<{ key: keyof CrmPermisos; label: string }> = [
   { key: 'mensajes', label: 'Mensajes' },
   { key: 'oportunidades', label: 'Oportunidades' },
   { key: 'contactos', label: 'Contactos' },
+  { key: 'usuarios', label: 'Usuarios (asesores)' },
 ]
 
 const conectadoPor = computed(() => {
@@ -80,6 +81,10 @@ const conectadoPor = computed(() => {
           <span class="sr-only">{{ crm.permisos[permiso.key] ? '(activo)' : '(falta)' }}</span>
         </li>
       </ul>
+      <p v-for="aviso in crm.advertencias || []" :key="aviso" class="details__wa details__wa--warn details__aviso">
+        <i class="fa-solid fa-user-tie" aria-hidden="true" />
+        <span>{{ aviso }}</span>
+      </p>
     </div>
   </div>
 </template>
@@ -115,6 +120,8 @@ const conectadoPor = computed(() => {
   &--ok { background: rgba(#10b981, 0.08); color: #065f46; i { color: #0d9668; } }
   &--warn { background: rgba(#d97706, 0.1); color: #92400e; i { color: #d97706; } }
 }
+
+.details__aviso { margin-top: 0.6rem; }
 
 .details__perms {
   h3 { font-size: 0.72rem; font-weight: 800; color: $text-secondary; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.45rem; }

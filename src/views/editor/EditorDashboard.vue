@@ -6,6 +6,7 @@ import { swr } from '@/composables/useSwrCache'
 import { videoPlanningService, type EditorQueue } from '@/services/videoPlanning.service'
 import EditorWorkQueue from './EditorWorkQueue.vue'
 import EditorCalendar from './EditorCalendar.vue'
+import EditorSubirVideos from './EditorSubirVideos.vue'
 
 /**
  * Panel del editor. Antes era SOLO el calendario de planificaciones: no
@@ -14,9 +15,12 @@ import EditorCalendar from './EditorCalendar.vue'
  */
 const userStore = useUserStore()
 
-// La pestana es la ruta: /editor = trabajo, /editor/calendario = calendario.
+// La pestana es la ruta: /editor = trabajo, /editor/calendario = calendario,
+// /editor/subir = subida masiva de videos.
 const route = useRoute()
-const tab = computed<'trabajo' | 'calendario'>(() => (route.name === 'EditorCalendario' ? 'calendario' : 'trabajo'))
+const tab = computed<'trabajo' | 'calendario' | 'subir'>(() =>
+  route.name === 'EditorCalendario' ? 'calendario' : route.name === 'EditorSubirVideos' ? 'subir' : 'trabajo',
+)
 const queue = ref<EditorQueue | null>(null)
 const loading = ref(true)
 
@@ -105,9 +109,17 @@ onMounted(cargar)
       >
         <i class="fa-regular fa-calendar" /> Calendario
       </RouterLink>
+      <RouterLink
+        :to="{ name: 'EditorSubirVideos' }"
+        class="edd__tab"
+        :class="{ 'is-active': tab === 'subir' }"
+      >
+        <i class="fa-solid fa-cloud-arrow-up" /> Subir videos
+      </RouterLink>
     </div>
 
     <EditorWorkQueue v-if="tab === 'trabajo'" :queue="queue" :loading="loading" />
+    <EditorSubirVideos v-else-if="tab === 'subir'" />
     <EditorCalendar v-else />
   </div>
 </template>

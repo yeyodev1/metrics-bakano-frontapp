@@ -59,6 +59,9 @@ const typeIcon: Record<NotificationType, string> = {
   solicitud_cliente: 'fa-brands fa-telegram',
   reunion_agendada: 'fa-solid fa-calendar-check',
   cliente_en_riesgo: 'fa-solid fa-triangle-exclamation',
+  video_corregido: 'fa-solid fa-pen-to-square',
+  video_por_revisar: 'fa-solid fa-film',
+  video_devuelto: 'fa-solid fa-rotate-left',
 }
 
 const typeColor: Record<NotificationType, string> = {
@@ -78,6 +81,9 @@ const typeColor: Record<NotificationType, string> = {
   solicitud_cliente: 'notif--primary',
   reunion_agendada: 'notif--success',
   cliente_en_riesgo: 'notif--danger',
+  video_corregido: 'notif--warning',
+  video_por_revisar: 'notif--primary',
+  video_devuelto: 'notif--warning',
 }
 
 const typeLabel: Record<NotificationType, string> = {
@@ -97,6 +103,9 @@ const typeLabel: Record<NotificationType, string> = {
   solicitud_cliente: 'Cliente por Telegram',
   reunion_agendada: 'Reunión agendada por Telegram',
   cliente_en_riesgo: 'Cliente en riesgo · Telegram',
+  video_corregido: 'Cambios del cliente en un video',
+  video_por_revisar: 'Video por revisar',
+  video_devuelto: 'Video devuelto por el productor',
 }
 
 // ── Redirect logic ────────────────────────────────────────────
@@ -112,6 +121,11 @@ function getRedirectRoute(n: AppNotification): { name: string; params: Record<st
     case 'produccion_reprogramada':
     case 'produccion_cancelada':
       return { name: 'AppPlanning', params: { workspaceId: n.workspaceId } }
+    case 'video_corregido':
+    case 'video_devuelto':
+      return { name: 'EditorDashboard', params: {} }
+    case 'video_por_revisar':
+      return { name: 'ReviewVideosFromPlanning', params: {} }
     case 'guion_rechazado':
       return n.referenceId
         ? { name: 'VideoPlanning', params: { workspaceId: n.workspaceId, entryId: n.referenceId } }
