@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { videoPlanningService } from '@/services/videoPlanning.service'
 import AvisoRevisionBanner from '@/components/videoPlanning/AvisoRevisionBanner.vue'
@@ -47,8 +47,22 @@ async function load() {
   }
 }
 
-function toggle(id: string) {
+/**
+ * Al abrir un guion de abajo se cortaba contra el borde: se lleva la tarjeta
+ * a la vista para leerlo completo.
+ */
+async function toggle(id: string) {
   expandedId.value = expandedId.value === id ? null : id
+  if (!expandedId.value) return
+  await nextTick()
+  // Espera a que termine la animacion de apertura (0.28s) para medir.
+  setTimeout(() => {
+    const card = document.querySelector<HTMLElement>(`[data-item-id="${id}"]`)
+    if (!card || expandedId.value !== id) return
+    if (card.getBoundingClientRect().bottom > window.innerHeight) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, 320)
 }
 
 async function advanceEdicion(item: VideoItem) {
@@ -92,6 +106,7 @@ const items = computed(() =>
 const grabadasCount = computed(() => items.value.filter(i => i.estadoProduccion === 'GRABADO').length)
 const editadosList = computed(() => items.value.filter(i => i.edicion === EstadoEdicion.EDITADO))
 const editadosSinEnlace = computed(() => editadosList.value.filter(i => !i.linkVideo && !i.driveLink).length)
+const porRevisarProductor = computed(() => editadosList.value.filter(i => i.edicionRevisada !== true).length)
 
 /** Editables ya: rechazados de edicion primero, luego grabados sin editar. */
 const paraEditar = computed(() => {
@@ -155,6 +170,7 @@ const deadlines = useDeadlines(paraEditar)
       :planning="planning"
       :editadas="editadosList.length"
       :sin-enlace="editadosSinEnlace"
+      :por-revisar-productor="porRevisarProductor"
       :total="items.length"
       @notified="load"
     />
@@ -184,6 +200,7 @@ const deadlines = useDeadlines(paraEditar)
           <EditorPlanningItemCard
             v-for="item in paraEditar"
             :key="item._id"
+            :data-item-id="item._id"
             :item="item"
             :expanded="expandedId === item._id"
             :updating="updatingId === item._id"
@@ -207,6 +224,7 @@ const deadlines = useDeadlines(paraEditar)
           <EditorPlanningItemCard
             v-for="item in sinGrabar"
             :key="item._id"
+            :data-item-id="item._id"
             :item="item"
             :expanded="expandedId === item._id"
             :updating="updatingId === item._id"
@@ -230,6 +248,7 @@ const deadlines = useDeadlines(paraEditar)
           <EditorPlanningItemCard
             v-for="item in editadosList"
             :key="item._id"
+            :data-item-id="item._id"
             :item="item"
             :expanded="expandedId === item._id"
             :updating="updatingId === item._id"
@@ -245,10 +264,13 @@ const deadlines = useDeadlines(paraEditar)
 </template>
 
 <style lang="scss" scoped>
+// El shell del editor corta el overflow en desktop: el scroll vive aqui.
 .evp {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   background: #f1f5f9;
 }
 

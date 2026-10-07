@@ -15,6 +15,8 @@ const props = defineProps<{
   total: number
   /** Editados sin enlace ni archivo: el cliente los veria vacios. */
   sinEnlace?: number
+  /** Editados que el productor todavia no revisa por dentro. */
+  porRevisarProductor?: number
 }>()
 
 const emit = defineEmits<{ (e: 'notified'): void }>()
@@ -28,6 +30,30 @@ const yaRevisado = computed(
 )
 const esperandoRevision = computed(() => Boolean(props.planning.revisionVideosAbierta))
 const todosEditados = computed(() => props.editadas === props.total && props.total > 0)
+
+const avisandoProductor = ref(false)
+const confirmandoProductor = ref(false)
+
+/** Correo, in-app y Telegram al productor: tambien pide un segundo click. */
+async function notificarProductor() {
+  if (!confirmandoProductor.value) {
+    confirmandoProductor.value = true
+    setTimeout(() => (confirmandoProductor.value = false), 6000)
+    return
+  }
+  confirmandoProductor.value = false
+  avisandoProductor.value = true
+  try {
+    const res = await videoPlanningService.notificarProductor(props.planning._id)
+    toast.success(
+      `Productor avisado: ${res.videos === 1 ? '1 video' : `${res.videos} videos`} por revisar.`,
+    )
+  } catch (err: any) {
+    toast.error(err?.data?.message || err?.response?.data?.message || err?.message || 'No se pudo avisar al productor.')
+  } finally {
+    avisandoProductor.value = false
+  }
+}
 
 async function notificar() {
   if (!confirmando.value) {
@@ -105,6 +131,21 @@ async function notificar() {
         {{ confirmando ? '¿Confirmar envío real?' : 'Notificar al cliente' }}
       </button>
     </template>
+
+    <!-- Revision interna: el productor ve los videos antes que el cliente -->
+    <div v-if="porRevisarProductor && !yaRevisado" class="arb__prod">
+      <i class="fa-solid fa-clapperboard arb__prod-icon" />
+      <span class="arb__prod-text">
+        {{ porRevisarProductor === 1 ? '1 video espera' : `${porRevisarProductor} videos esperan` }}
+        la revisión del productor.
+      </span>
+      <button class="arb__btn arb__btn--prod" :disabled="avisandoProductor" @click="notificarProductor">
+        <i v-if="avisandoProductor" class="fa-solid fa-spinner fa-spin" />
+        <i v-else-if="confirmandoProductor" class="fa-solid fa-triangle-exclamation" />
+        <i v-else class="fa-solid fa-bell" />
+        {{ confirmandoProductor ? '¿Confirmar aviso?' : 'Notificar al productor' }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -173,6 +214,32 @@ async function notificar() {
       color: #b45309;
       border: 1px solid rgba(#b45309, 0.35);
     }
+
+    &--prod {
+      background: #fff;
+      color: #4f46e5;
+      border: 1px solid rgba(#4f46e5, 0.35);
+    }
+  }
+
+  &__prod {
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-top: 0.7rem;
+    border-top: 1px dashed rgba($primary, 0.2);
+  }
+
+  &__prod-icon { color: #4f46e5; font-size: 0.95rem; }
+
+  &__prod-text {
+    flex: 1;
+    min-width: 180px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: $primary-dark;
   }
 }
 </style>

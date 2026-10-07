@@ -190,6 +190,7 @@ const EDICION_LABEL: Record<string, string> = {
 .epi-slide-leave-to { max-height: 0; opacity: 0; }
 
 .epi {
+  scroll-margin-top: 0.8rem;
   background: $white;
   border: 1px solid rgba($primary-dark, 0.08);
   border-radius: 13px;
