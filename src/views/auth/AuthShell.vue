@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import logoDark from '@/assets/logos/bakano-dark.png'
-import fotoEquipo from '@/assets/auth/equipo-trabajo.webp'
+import fotoEquipo from '@/assets/auth/equipo-reunion.webp'
 
 withDefaults(
   defineProps<{
