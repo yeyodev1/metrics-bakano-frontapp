@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { MAX_RONDAS_VIDEO, type CambioVideo, type VideoItem } from '@/types/videoPlanning'
+import VideoPlayer from '@/components/common/VideoPlayer.vue'
 
 /**
  * Un video terminado esperando el veredicto del cliente. La tarjeta no guarda
@@ -22,7 +23,7 @@ const emit = defineEmits<{
   (e: 'set-cambios', cambios: CambioVideo[]): void
 }>()
 
-/** El link que el cliente puede abrir: el video final primero, Drive de respaldo. */
+/** El video que el cliente ve aquí mismo: el final primero, Drive de respaldo. */
 const enlaceVideo = computed(() => props.item.linkVideo || props.item.driveLink || '')
 const version = computed(() => props.item.versiones?.length || 1)
 const rondasRestantes = computed(() => Math.max(0, MAX_RONDAS_VIDEO - (props.item.rondasUsadas ?? 0)))
@@ -68,17 +69,9 @@ function segundoInvalido(c: CambioVideo): boolean {
       <span v-if="version > 1" class="vrc__version">Versión {{ version }}</span>
     </header>
 
-    <a
-      v-if="enlaceVideo"
-      :href="enlaceVideo"
-      target="_blank"
-      rel="noopener"
-      class="vrc__video-link"
-    >
-      <i class="fa-solid fa-circle-play" />
-      Ver el video
-      <i class="fa-solid fa-arrow-up-right-from-square vrc__ext" />
-    </a>
+    <div v-if="enlaceVideo" class="vrc__player">
+      <VideoPlayer :links="[item.linkVideo, item.driveLink]" />
+    </div>
     <p v-else class="vrc__sin-link">
       <i class="fa-solid fa-circle-info" />
       El video se está subiendo; pregunta a tu equipo por el enlace.
@@ -200,25 +193,15 @@ function segundoInvalido(c: CambioVideo): boolean {
     line-height: 1.35;
   }
 
-  &__video-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    align-self: flex-start;
-    background: rgba($primary, 0.07);
-    color: $primary;
-    border: 1px solid rgba($primary, 0.2);
-    border-radius: 10px;
-    padding: 0.55rem 0.9rem;
-    font-size: 0.82rem;
-    font-weight: 700;
-    text-decoration: none;
-    transition: background 0.15s ease;
-
-    &:hover { background: rgba($primary, 0.12); }
+  &__player {
+    aspect-ratio: 9 / 16;
+    max-height: 70vh;
+    width: 100%;
+    max-width: 420px;
+    align-self: center;
+    border-radius: 12px;
+    overflow: hidden;
   }
-
-  &__ext { font-size: 0.65rem; opacity: 0.7; }
 
   &__sin-link {
     margin: 0;

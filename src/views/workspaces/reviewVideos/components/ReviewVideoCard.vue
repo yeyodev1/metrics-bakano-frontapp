@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import type { ReviewQueueItem } from '@/services/videoPlanning.service'
+import VideoPlayer from '@/components/common/VideoPlayer.vue'
 
 /**
  * Un video esperando visto bueno: preview reproducible, links al master y
@@ -12,12 +13,6 @@ defineEmits<{
   (e: 'aprobar'): void
   (e: 'rechazar'): void
 }>()
-
-const videoFallo = ref(false)
-
-const esVideoReproducible = computed(
-  () => !!props.item.linkVideo && !videoFallo.value,
-)
 
 const fechaLabel = computed(() => {
   if (!props.item.fechaPublicacion) return null
@@ -31,19 +26,7 @@ const fechaLabel = computed(() => {
 <template>
   <article class="rvc">
     <div class="rvc__media">
-      <video
-        v-if="esVideoReproducible"
-        :src="item.linkVideo"
-        controls
-        preload="metadata"
-        class="rvc__video"
-        @error="videoFallo = true"
-      />
-      <div v-else class="rvc__no-video">
-        <i class="fa-solid fa-film" />
-        <span>Sin preview reproducible</span>
-        <a v-if="item.driveLink" :href="item.driveLink" target="_blank" rel="noopener">Ver en Drive</a>
-      </div>
+      <VideoPlayer :links="[item.linkVideo, item.driveLink]" />
     </div>
 
     <div class="rvc__body">
@@ -96,23 +79,6 @@ const fechaLabel = computed(() => {
 .rvc__media {
   background: $primary-dark;
   aspect-ratio: 16 / 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rvc__video { width: 100%; height: 100%; object-fit: contain; }
-
-.rvc__no-video {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  color: rgba($white, 0.55);
-  font-size: 0.8rem;
-
-  i { font-size: 1.4rem; }
-  a { color: #6ee7b7; font-weight: 700; font-size: 0.78rem; }
 }
 
 .rvc__body {
