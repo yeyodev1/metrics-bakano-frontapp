@@ -87,7 +87,7 @@ onMounted(() => {
           <a href="https://crm.bakano.ec" target="_blank" rel="noopener noreferrer" class="crm-hero__btn crm-hero__btn--primary">
             Ir a crm.bakano.ec <i class="fa-solid fa-arrow-up-right-from-square" />
           </a>
-          <a href="https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm" target="_blank" rel="noopener noreferrer" class="crm-hero__btn crm-hero__btn--secondary">
+          <a href="https://api.leadconnectorhq.com/widget/booking/BzlKMqUQpPJI3rfVFyBD" target="_blank" rel="noopener noreferrer" class="crm-hero__btn crm-hero__btn--secondary">
             <i class="fa-solid fa-calendar-plus" /> Agendar Soporte Técnico
           </a>
         </div>

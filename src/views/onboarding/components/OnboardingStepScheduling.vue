@@ -67,7 +67,7 @@ function onConfirmar() {
 
     <div class="scheduling-container">
       <iframe
-        src="https://api.leadconnectorhq.com/widget/booking/GNizdekhY5SQaYTPdKPP"
+        src="https://api.leadconnectorhq.com/widget/booking/cshem7qqgmmWAX7DXE6l"
         allow="payment"
         style="width: 100%; height: 600px; border: none; overflow: hidden;"
         scrolling="no"
