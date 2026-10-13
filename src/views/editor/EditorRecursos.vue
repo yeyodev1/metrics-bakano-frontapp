@@ -78,6 +78,10 @@ onMounted(loadWorkspaces)
   display: flex;
   flex-direction: column;
   min-width: 0;
+  // El shell del editor corta el overflow en desktop: el scroll vive aqui.
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 
   &__header {
     display: flex;
