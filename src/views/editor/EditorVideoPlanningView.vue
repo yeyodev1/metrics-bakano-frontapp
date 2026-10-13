@@ -148,6 +148,13 @@ const deadlines = useDeadlines(paraEditar)
           <span class="evp__meta-item evp__meta-item--indigo">
             <i class="fa-solid fa-wand-magic-sparkles" /> {{ editadosList.length }} / {{ items.length }} editados
           </span>
+          <span class="evp__meta-sep">·</span>
+          <RouterLink
+            :to="{ name: 'EditorRecursos', params: { workspaceId } }"
+            class="evp__meta-item evp__drive-link"
+          >
+            <i class="fa-solid fa-folder-open" /> Recursos de la marca
+          </RouterLink>
           <template v-if="planning?.driveMonthFolderLink">
             <span class="evp__meta-sep">·</span>
             <a :href="planning.driveMonthFolderLink" target="_blank" rel="noopener" class="evp__meta-item evp__drive-link">

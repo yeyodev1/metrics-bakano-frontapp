@@ -404,6 +404,13 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Bakano Ads: Subir videos', requiresAuth: true, requiresInternal: true },
       },
       {
+        // Logo, línea gráfica y catálogo del cliente sin salir del panel.
+        path: 'recursos/:workspaceId?',
+        name: 'EditorRecursos',
+        component: () => import('../views/editor/EditorRecursos.vue'),
+        meta: { title: 'Bakano Ads: Recursos de marca', requiresAuth: true, requiresInternal: true },
+      },
+      {
         path: 'workspaces/:workspaceId/planning/:entryId/videos',
         name: 'EditorVideoPlanning',
         component: () => import('../views/editor/EditorVideoPlanningView.vue'),
@@ -499,7 +506,7 @@ router.beforeEach(async (to, _from, next) => {
     if (internalRole === 'editor') {
       // NotFound entra en la lista: un editor con una URL mala merece saber que
       // no existe, no aterrizar en su dashboard como si hubiera pedido eso.
-      const allowedForEditor = ['EditorDashboard', 'EditorCalendario', 'EditorVideoPlanning', 'AuthLogin', 'NotFound']
+      const allowedForEditor = ['EditorDashboard', 'EditorCalendario', 'EditorSubirVideos', 'EditorVideoPlanning', 'EditorRecursos', 'AuthLogin', 'NotFound']
       if (to.name && !allowedForEditor.includes(to.name as string)) {
         return next({ name: 'EditorDashboard', replace: true })
       }
