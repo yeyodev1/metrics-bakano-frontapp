@@ -15,7 +15,7 @@
         <a href="https://crm.bakano.ec" target="_blank" rel="noopener noreferrer" class="crm-announcement__btn-primary">
           Abrir CRM <i class="fa-solid fa-arrow-right" />
         </a>
-        <a href="https://api.leadconnectorhq.com/widget/bookings/soporte-tecnico-crm" target="_blank" rel="noopener noreferrer" class="crm-announcement__btn-secondary">
+        <a href="https://api.leadconnectorhq.com/widget/booking/BzlKMqUQpPJI3rfVFyBD" target="_blank" rel="noopener noreferrer" class="crm-announcement__btn-secondary">
           <i class="fa-solid fa-headset" /> Soporte
         </a>
       </div>
