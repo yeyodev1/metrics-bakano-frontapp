@@ -18,6 +18,7 @@ const NAV = [
   { name: 'EditorDashboard', icon: 'fa-solid fa-list-check', label: 'Mi cola', hint: 'Qué editar y para cuándo' },
   { name: 'EditorCalendario', icon: 'fa-regular fa-calendar', label: 'Calendario', hint: 'Producciones por mes' },
   { name: 'EditorSubirVideos', icon: 'fa-solid fa-cloud-arrow-up', label: 'Subir videos', hint: 'Todos los de una planificación' },
+  { name: 'EditorRecursos', icon: 'fa-solid fa-folder-open', label: 'Recursos', hint: 'Logo y línea gráfica del cliente' },
 ] as const
 
 function activo(name: string) {
