@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { metaService, type PendingMetaAccount } from '@/services/meta.service'
 import { workspaceService } from '@/services/workspace.service'
 import MetaWorkspaceModal from '@/components/meta/MetaWorkspaceModal.vue'
@@ -7,6 +8,8 @@ import { useToast } from '@/composables/useToast'
 import type { Workspace } from '@/types'
 
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 
 const activeTab = ref<'unlinked' | 'linked'>('unlinked')
 const searchQuery = ref('')
@@ -16,6 +19,8 @@ const allAdAccounts = ref<(PendingMetaAccount & { linkedWorkspace?: { id: string
 const allInstagramAccounts = ref<(PendingMetaAccount & { linkedWorkspace?: { id: string; name: string } | null })[]>([])
 
 const loading = ref(true)
+/** La lista de entornos no cargó: no se puede decir "todos vinculados". */
+const loadFailed = ref(false)
 const matching = ref(false)
 const connecting = ref(false)
 const connection = ref<{ connected: boolean; name?: string; expiresAt?: string; expired?: boolean }>({ connected: false })
@@ -71,22 +76,32 @@ const filteredLinkedWorkspaces = computed(() => {
   )
 })
 
+const facebookActivo = computed(() => connection.value.connected && !connection.value.expired)
+
+// Los entornos se cargan siempre: sin perfil de Facebook igual hay que ver
+// quién falta. Las cuentas de Meta solo se piden con el perfil activo, y si
+// fallan no se llevan la lista de entornos con ellas.
 async function loadData() {
   loading.value = true
+  loadFailed.value = false
   error.value = null
-  try {
-    const [workspaceData, allAccountsData] = await Promise.all([
-      workspaceService.listWorkspaces({ limit: 100 }),
-      metaService.getAllGlobalAccounts(),
-    ])
-    workspaces.value = workspaceData.workspaces || []
-    allAdAccounts.value = allAccountsData.adAccounts || []
-    allInstagramAccounts.value = allAccountsData.instagramAccounts || []
-  } catch (e: any) {
-    error.value = e.message || 'No se pudieron cargar los datos de la integración.'
-  } finally {
-    loading.value = false
+  const [workspaceRes, accountsRes] = await Promise.allSettled([
+    workspaceService.listWorkspaces({ limit: 200 }),
+    facebookActivo.value ? metaService.getAllGlobalAccounts() : Promise.resolve({ adAccounts: [], instagramAccounts: [] }),
+  ])
+  if (workspaceRes.status === 'fulfilled') {
+    workspaces.value = workspaceRes.value.workspaces || []
+  } else {
+    loadFailed.value = true
+    error.value = workspaceRes.reason?.message || 'No se pudieron cargar los entornos.'
   }
+  if (accountsRes.status === 'fulfilled') {
+    allAdAccounts.value = accountsRes.value.adAccounts || []
+    allInstagramAccounts.value = accountsRes.value.instagramAccounts || []
+  } else if (!error.value) {
+    error.value = accountsRes.reason?.message || 'No se pudieron cargar las cuentas de Meta.'
+  }
+  loading.value = false
 }
 
 async function runAutoMatch() {
@@ -174,14 +189,31 @@ async function handleConfirmLink(payload: { workspaceId: string; adAccountId?: s
 }
 
 onMounted(async () => {
+  // Vuelta del callback de Facebook: se dice qué pasó y se limpia la URL.
+  const resultado = route.query.meta
+  const motivo = typeof route.query.motivo === 'string' ? route.query.motivo : ''
+  if (resultado) router.replace({ query: {} })
+
+  let estadoError: string | null = null
   try {
-    const status = await metaService.getGlobalConnectionStatus()
-    connection.value = status
+    connection.value = await metaService.getGlobalConnectionStatus()
   } catch (e: any) {
-    error.value = e.message || 'No se pudo cargar el estado de la integración.'
+    estadoError = e.message || 'No se pudo cargar el estado de la integración.'
   }
-  if (connection.value.connected && !connection.value.expired) await loadData()
-  else loading.value = false
+  await loadData()
+  if (estadoError) error.value = estadoError
+
+  if (resultado === 'error') {
+    error.value = motivo || 'No fue posible conectar el perfil de Facebook.'
+    toast.error(error.value, 'Facebook no se conectó')
+  } else if (resultado === 'connected') {
+    if (facebookActivo.value) {
+      notice.value = `Perfil de Facebook conectado como ${connection.value.name}.`
+      toast.success(notice.value, 'Facebook conectado')
+    } else {
+      error.value = 'Facebook volvió sin error, pero la conexión sigue vencida. Intenta reconectar otra vez.'
+    }
+  }
 })
 </script>
 
@@ -304,6 +336,12 @@ onMounted(async () => {
         </article>
       </div>
 
+      <div v-else-if="loadFailed" class="meta-integrations__empty">
+        <i class="fa-solid fa-circle-exclamation" />
+        <strong>No se pudieron cargar los entornos</strong>
+        <span>Recarga la página. Si sigue igual, avísale al equipo de tecnología.</span>
+      </div>
+
       <div v-else class="meta-integrations__empty">
         <i class="fa-solid fa-circle-check" />
         <strong>{{ searchQuery ? 'Sin coincidencias' : '¡Todos los clientes vinculados!' }}</strong>
@@ -352,6 +390,12 @@ onMounted(async () => {
             <i class="fa-solid fa-pen-to-square" /> Editar Vinculación
           </button>
         </article>
+      </div>
+
+      <div v-else-if="loadFailed" class="meta-integrations__empty">
+        <i class="fa-solid fa-circle-exclamation" />
+        <strong>No se pudieron cargar los entornos</strong>
+        <span>Recarga la página. Si sigue igual, avísale al equipo de tecnología.</span>
       </div>
 
       <div v-else class="meta-integrations__empty">
